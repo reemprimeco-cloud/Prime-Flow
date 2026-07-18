@@ -18,6 +18,7 @@ import type { NotificationLogItem } from "@/lib/actions/notifications";
 import type { ArchivedOrderItem } from "@/lib/actions/archive";
 import type { EmployeeJobItem } from "@/lib/actions/employee-jobs";
 import type { TvBoardData, TvDaySummary, TvOrderCardData } from "@/lib/actions/tv";
+import type { CurrentMonthStats, MonthlyStatisticItem } from "@/lib/actions/reports";
 import { DELAYABLE_STATUSES, EMPLOYEE_ACTIVE_STATUSES, type TvColumnKey } from "@/types/domain";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/notifications/constants";
 import type { MaterialType, OrderStatus } from "@/types/database.types";
@@ -589,5 +590,73 @@ export function getDemoTvBoard(): TvBoardData {
     columns,
     week,
     generatedAt: now.toISOString(),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Demo reports
+// ---------------------------------------------------------------------------
+
+const REPORT_EMPLOYEE_NAMES = new Map(DEMO_EMPLOYEES.map((e) => [e.id, e.fullName]));
+
+/** Six months of believable, gently-trending history — most-recent first. */
+const MONTHLY_STATS_SEEDS = [
+  { monthsAgo: 1, totalOrders: 142, completedOrders: 128, delayedOrders: 11, avgCompletionMinutes: 385, mostUsedPaper: "300gsm Matte", mostRequestedMaterial: "paper" as MaterialType, perEmployee: { "demo-emp-1": 38, "demo-emp-2": 34, "demo-emp-3": 29, "demo-emp-4": 27 } },
+  { monthsAgo: 2, totalOrders: 131, completedOrders: 121, delayedOrders: 8, avgCompletionMinutes: 362, mostUsedPaper: "350gsm Matte", mostRequestedMaterial: "ink" as MaterialType, perEmployee: { "demo-emp-1": 33, "demo-emp-2": 35, "demo-emp-3": 28, "demo-emp-4": 25 } },
+  { monthsAgo: 3, totalOrders: 156, completedOrders: 139, delayedOrders: 17, avgCompletionMinutes: 410, mostUsedPaper: "300gsm Matte", mostRequestedMaterial: "paper" as MaterialType, perEmployee: { "demo-emp-1": 41, "demo-emp-2": 39, "demo-emp-3": 36, "demo-emp-4": 30 } },
+  { monthsAgo: 4, totalOrders: 119, completedOrders: 112, delayedOrders: 7, avgCompletionMinutes: 350, mostUsedPaper: "170gsm Gloss", mostRequestedMaterial: "vinyl" as MaterialType, perEmployee: { "demo-emp-1": 29, "demo-emp-2": 31, "demo-emp-3": 27, "demo-emp-4": 22 } },
+  { monthsAgo: 5, totalOrders: 125, completedOrders: 118, delayedOrders: 9, avgCompletionMinutes: 368, mostUsedPaper: "300gsm Matte", mostRequestedMaterial: "paper" as MaterialType, perEmployee: { "demo-emp-1": 32, "demo-emp-2": 30, "demo-emp-3": 30, "demo-emp-4": 24 } },
+  { monthsAgo: 6, totalOrders: 108, completedOrders: 99, delayedOrders: 12, avgCompletionMinutes: 395, mostUsedPaper: "350gsm Matte", mostRequestedMaterial: "ink" as MaterialType, perEmployee: { "demo-emp-1": 27, "demo-emp-2": 26, "demo-emp-3": 25, "demo-emp-4": 22 } },
+];
+
+function toEmployeeCounts(perEmployee: Record<string, number>) {
+  return Object.entries(perEmployee)
+    .map(([employeeId, count]) => ({ employeeId, employeeName: REPORT_EMPLOYEE_NAMES.get(employeeId) ?? "Unknown", count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+export function getDemoMonthlyStatistics(): MonthlyStatisticItem[] {
+  const now = new Date();
+  return MONTHLY_STATS_SEEDS.map((seed) => {
+    const monthStart = startOfMonth(subMonths(now, seed.monthsAgo));
+    return {
+      year: monthStart.getFullYear(),
+      month: monthStart.getMonth() + 1,
+      label: format(monthStart, "MMMM yyyy"),
+      totalOrders: seed.totalOrders,
+      completedOrders: seed.completedOrders,
+      delayedOrders: seed.delayedOrders,
+      ordersPerEmployee: toEmployeeCounts(seed.perEmployee),
+      avgCompletionMinutes: seed.avgCompletionMinutes,
+      mostUsedPaper: seed.mostUsedPaper,
+      mostRequestedMaterial: MATERIAL_TYPE_DEMO_LABELS[seed.mostRequestedMaterial],
+      generatedAt: addDays(startOfMonth(subMonths(now, seed.monthsAgo - 1)), 0).toISOString(),
+    };
+  });
+}
+
+const MATERIAL_TYPE_DEMO_LABELS: Record<MaterialType, string> = {
+  paper: "Paper",
+  ink: "Ink",
+  vinyl: "Vinyl",
+  packaging: "Packaging",
+  lamination: "Lamination",
+  other: "Other",
+};
+
+export function getDemoCurrentMonthStats(): CurrentMonthStats {
+  const now = new Date();
+  const orders = getAllDemoOrders(now).filter((o) => new Date(o.deliveryDate) >= startOfMonth(now));
+  const completed = orders.filter((o) => o.status === "completed" || o.status === "delivered" || o.status === "collected");
+
+  return {
+    label: format(now, "MMMM yyyy"),
+    totalOrders: orders.length,
+    completedOrders: completed.length,
+    delayedOrders: orders.filter((o) => DELAYABLE_STATUSES.includes(o.status) && new Date(`${o.deliveryDate}T${o.deliveryTime}`) < now).length,
+    ordersPerEmployee: toEmployeeCounts({ "demo-emp-1": 5, "demo-emp-2": 4, "demo-emp-3": 3, "demo-emp-4": 2 }),
+    avgCompletionMinutes: 340,
+    mostUsedPaper: "300gsm Matte",
+    mostRequestedMaterial: "Paper",
   };
 }

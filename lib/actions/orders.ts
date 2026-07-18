@@ -280,7 +280,9 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
   const employeeIds = new Set<string>();
   (assignmentRows ?? []).forEach((r) => employeeIds.add(r.employee_id));
   (noteRows ?? []).forEach((r) => employeeIds.add(r.employee_id));
-  (historyRows ?? []).forEach((r) => employeeIds.add(r.changed_by));
+  (historyRows ?? []).forEach((r) => {
+    if (r.changed_by) employeeIds.add(r.changed_by);
+  });
   (materialRows ?? []).forEach((r) => employeeIds.add(r.employee_id));
   const employeesById = await fetchEmployeeNames(supabase, [...employeeIds]);
 
@@ -337,7 +339,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
       id: r.id,
       fromStatus: r.from_status,
       toStatus: r.to_status,
-      employeeName: employeesById.get(r.changed_by) ?? "Unknown",
+      employeeName: r.changed_by ? employeesById.get(r.changed_by) ?? "Unknown" : "System",
       changedAt: r.changed_at,
     })),
     materialRequests: (materialRows ?? []).map((r) => ({

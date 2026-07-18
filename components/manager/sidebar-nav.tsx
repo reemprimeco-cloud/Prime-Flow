@@ -11,7 +11,7 @@ const NAV_ITEMS = [
   { href: "/employees", label: "Employees", icon: Users },
   { href: "/material-requests", label: "Material Requests", icon: PackageSearch },
   { href: "/notifications", label: "Notification Center", icon: Bell },
-  { href: "/reports", label: "Reports", icon: BarChart3, comingSoon: true },
+  { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/archive", label: "Archive", icon: Archive },
 ] as const;
 

@@ -397,7 +397,7 @@ export type Database = {
       order_status_history: {
         Row: {
           changed_at: string
-          changed_by: string
+          changed_by: string | null
           from_status: Database["public"]["Enums"]["order_status"] | null
           id: string
           order_id: string
@@ -405,7 +405,7 @@ export type Database = {
         }
         Insert: {
           changed_at?: string
-          changed_by: string
+          changed_by?: string | null
           from_status?: Database["public"]["Enums"]["order_status"] | null
           id?: string
           order_id: string
@@ -413,7 +413,7 @@ export type Database = {
         }
         Update: {
           changed_at?: string
-          changed_by?: string
+          changed_by?: string | null
           from_status?: Database["public"]["Enums"]["order_status"] | null
           id?: string
           order_id?: string
