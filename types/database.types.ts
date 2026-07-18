@@ -1,284 +1,666 @@
-// Hand-written to match supabase/migrations/0001_init.sql. Regenerate with
-// `generate_typescript_types` once the live project is provisioned — this
-// file's shape mirrors what the Supabase CLI would output.
+// Generated via `generate_typescript_types` against the live Prime-flow
+// Supabase project (hodqbuewaivgkgrcjrzi). Regenerate after schema changes
+// rather than hand-editing. Convenience aliases used across the app are
+// appended at the bottom.
 
-export type EmployeeRole = "admin" | "employee" | "supervisor" | "store" | "delivery";
-export type OrderLanguage = "ar" | "en";
-export type OrderPriority = "normal" | "urgent";
-export type OrderStatus =
-  | "new"
-  | "in_progress"
-  | "waiting_materials"
-  | "ready_pickup"
-  | "ready_delivery"
-  | "collected"
-  | "delivered"
-  | "completed";
-export type OrderFileType = "product_image" | "design_file";
-export type MaterialType = "paper" | "ink" | "vinyl" | "packaging" | "lamination" | "other";
-export type MaterialPriority = "low" | "normal" | "urgent";
-export type MaterialRequestStatus = "pending" | "approved" | "rejected" | "fulfilled";
-export type NotificationReceiver = "customer" | "employee";
-export type NotificationStatus = "pending" | "sent" | "failed" | "skipped" | "delivered";
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
-export interface Database {
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
       employees: {
         Row: {
-          id: string;
-          username: string;
-          password_hash: string;
-          full_name: string;
-          role: EmployeeRole;
-          phone: string | null;
-          active: boolean;
-          created_at: string;
-        };
+          active: boolean
+          created_at: string
+          full_name: string
+          id: string
+          password_hash: string
+          phone: string | null
+          role: Database["public"]["Enums"]["employee_role"]
+          username: string
+        }
         Insert: {
-          id?: string;
-          username: string;
-          password_hash: string;
-          full_name: string;
-          role?: EmployeeRole;
-          phone?: string | null;
-          active?: boolean;
-          created_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["employees"]["Insert"]>;
-        Relationships: [];
-      };
-      orders: {
-        Row: {
-          id: string;
-          order_number: string;
-          customer_name: string;
-          customer_mobile: string;
-          preferred_language: OrderLanguage;
-          whatsapp_enabled: boolean;
-          product: string;
-          paper: string | null;
-          paper_size: string | null;
-          quantity: number;
-          finishing: string | null;
-          priority: OrderPriority;
-          delivery_date: string;
-          delivery_time: string;
-          notes: string | null;
-          status: OrderStatus;
-          archived: boolean;
-          created_by: string;
-          completed_at: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          order_number?: string;
-          customer_name: string;
-          customer_mobile: string;
-          preferred_language?: OrderLanguage;
-          whatsapp_enabled?: boolean;
-          product: string;
-          paper?: string | null;
-          paper_size?: string | null;
-          quantity: number;
-          finishing?: string | null;
-          priority?: OrderPriority;
-          delivery_date: string;
-          delivery_time: string;
-          notes?: string | null;
-          status?: OrderStatus;
-          archived?: boolean;
-          created_by: string;
-          completed_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["orders"]["Insert"]>;
-        Relationships: [];
-      };
-      order_assignments: {
-        Row: {
-          id: string;
-          order_id: string;
-          employee_id: string;
-          assigned_at: string;
-        };
-        Insert: {
-          id?: string;
-          order_id: string;
-          employee_id: string;
-          assigned_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["order_assignments"]["Insert"]>;
-        Relationships: [];
-      };
-      order_files: {
-        Row: {
-          id: string;
-          order_id: string;
-          file_type: OrderFileType;
-          storage_path: string;
-          file_name: string;
-          uploaded_by: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          order_id: string;
-          file_type: OrderFileType;
-          storage_path: string;
-          file_name: string;
-          uploaded_by: string;
-          created_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["order_files"]["Insert"]>;
-        Relationships: [];
-      };
-      order_notes: {
-        Row: {
-          id: string;
-          order_id: string;
-          employee_id: string;
-          note: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          order_id: string;
-          employee_id: string;
-          note: string;
-          created_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["order_notes"]["Insert"]>;
-        Relationships: [];
-      };
-      order_status_history: {
-        Row: {
-          id: string;
-          order_id: string;
-          from_status: OrderStatus | null;
-          to_status: OrderStatus;
-          changed_by: string;
-          changed_at: string;
-        };
-        Insert: {
-          id?: string;
-          order_id: string;
-          from_status?: OrderStatus | null;
-          to_status: OrderStatus;
-          changed_by: string;
-          changed_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["order_status_history"]["Insert"]>;
-        Relationships: [];
-      };
+          active?: boolean
+          created_at?: string
+          full_name: string
+          id?: string
+          password_hash: string
+          phone?: string | null
+          role?: Database["public"]["Enums"]["employee_role"]
+          username: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          full_name?: string
+          id?: string
+          password_hash?: string
+          phone?: string | null
+          role?: Database["public"]["Enums"]["employee_role"]
+          username?: string
+        }
+        Relationships: []
+      }
       material_requests: {
         Row: {
-          id: string;
-          order_id: string | null;
-          employee_id: string;
-          material_type: MaterialType;
-          description: string;
-          quantity: string;
-          priority: MaterialPriority;
-          status: MaterialRequestStatus;
-          created_at: string;
-          resolved_at: string | null;
-          resolved_by: string | null;
-        };
+          created_at: string
+          description: string
+          employee_id: string
+          id: string
+          material_type: Database["public"]["Enums"]["material_type"]
+          order_id: string | null
+          priority: Database["public"]["Enums"]["material_priority"]
+          quantity: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: Database["public"]["Enums"]["material_request_status"]
+        }
         Insert: {
-          id?: string;
-          order_id?: string | null;
-          employee_id: string;
-          material_type: MaterialType;
-          description: string;
-          quantity: string;
-          priority?: MaterialPriority;
-          status?: MaterialRequestStatus;
-          created_at?: string;
-          resolved_at?: string | null;
-          resolved_by?: string | null;
-        };
-        Update: Partial<Database["public"]["Tables"]["material_requests"]["Insert"]>;
-        Relationships: [];
-      };
-      notification_logs: {
-        Row: {
-          id: string;
-          order_id: string | null;
-          phone: string;
-          receiver_type: NotificationReceiver;
-          template_name: string;
-          language: OrderLanguage;
-          status: NotificationStatus;
-          sent_at: string | null;
-          retry_count: number;
-          error: string | null;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          order_id?: string | null;
-          phone: string;
-          receiver_type: NotificationReceiver;
-          template_name: string;
-          language: OrderLanguage;
-          status?: NotificationStatus;
-          sent_at?: string | null;
-          retry_count?: number;
-          error?: string | null;
-          created_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["notification_logs"]["Insert"]>;
-        Relationships: [];
-      };
+          created_at?: string
+          description: string
+          employee_id: string
+          id?: string
+          material_type: Database["public"]["Enums"]["material_type"]
+          order_id?: string | null
+          priority?: Database["public"]["Enums"]["material_priority"]
+          quantity: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["material_request_status"]
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          employee_id?: string
+          id?: string
+          material_type?: Database["public"]["Enums"]["material_type"]
+          order_id?: string | null
+          priority?: Database["public"]["Enums"]["material_priority"]
+          quantity?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["material_request_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_requests_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       monthly_statistics: {
         Row: {
-          id: string;
-          year: number;
-          month: number;
-          total_orders: number;
-          completed_orders: number;
-          delayed_orders: number;
-          orders_per_employee: Record<string, number>;
-          avg_completion_minutes: number | null;
-          most_used_paper: string | null;
-          most_requested_material: string | null;
-          generated_at: string;
-        };
+          avg_completion_minutes: number | null
+          completed_orders: number
+          delayed_orders: number
+          generated_at: string
+          id: string
+          month: number
+          most_requested_material: string | null
+          most_used_paper: string | null
+          orders_per_employee: Json
+          total_orders: number
+          year: number
+        }
         Insert: {
-          id?: string;
-          year: number;
-          month: number;
-          total_orders?: number;
-          completed_orders?: number;
-          delayed_orders?: number;
-          orders_per_employee?: Record<string, number>;
-          avg_completion_minutes?: number | null;
-          most_used_paper?: string | null;
-          most_requested_material?: string | null;
-          generated_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["monthly_statistics"]["Insert"]>;
-        Relationships: [];
-      };
-    };
-    Views: Record<string, never>;
-    Functions: Record<string, never>;
+          avg_completion_minutes?: number | null
+          completed_orders?: number
+          delayed_orders?: number
+          generated_at?: string
+          id?: string
+          month: number
+          most_requested_material?: string | null
+          most_used_paper?: string | null
+          orders_per_employee?: Json
+          total_orders?: number
+          year: number
+        }
+        Update: {
+          avg_completion_minutes?: number | null
+          completed_orders?: number
+          delayed_orders?: number
+          generated_at?: string
+          id?: string
+          month?: number
+          most_requested_material?: string | null
+          most_used_paper?: string | null
+          orders_per_employee?: Json
+          total_orders?: number
+          year?: number
+        }
+        Relationships: []
+      }
+      notification_logs: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          language: Database["public"]["Enums"]["order_language"]
+          order_id: string | null
+          phone: string
+          receiver_type: Database["public"]["Enums"]["notification_receiver"]
+          retry_count: number
+          sent_at: string | null
+          status: Database["public"]["Enums"]["notification_status"]
+          template_name: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          language: Database["public"]["Enums"]["order_language"]
+          order_id?: string | null
+          phone: string
+          receiver_type: Database["public"]["Enums"]["notification_receiver"]
+          retry_count?: number
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["notification_status"]
+          template_name: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          language?: Database["public"]["Enums"]["order_language"]
+          order_id?: string | null
+          phone?: string
+          receiver_type?: Database["public"]["Enums"]["notification_receiver"]
+          retry_count?: number
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["notification_status"]
+          template_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_logs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_assignments: {
+        Row: {
+          assigned_at: string
+          employee_id: string
+          id: string
+          order_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          employee_id: string
+          id?: string
+          order_id: string
+        }
+        Update: {
+          assigned_at?: string
+          employee_id?: string
+          id?: string
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_assignments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_type: Database["public"]["Enums"]["order_file_type"]
+          id: string
+          order_id: string
+          storage_path: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_type: Database["public"]["Enums"]["order_file_type"]
+          id?: string
+          order_id: string
+          storage_path: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_type?: Database["public"]["Enums"]["order_file_type"]
+          id?: string
+          order_id?: string
+          storage_path?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_files_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_files_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_notes: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          note: string
+          order_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          note: string
+          order_id: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          note?: string
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_notes_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_notes_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_status_history: {
+        Row: {
+          changed_at: string
+          changed_by: string
+          from_status: Database["public"]["Enums"]["order_status"] | null
+          id: string
+          order_id: string
+          to_status: Database["public"]["Enums"]["order_status"]
+        }
+        Insert: {
+          changed_at?: string
+          changed_by: string
+          from_status?: Database["public"]["Enums"]["order_status"] | null
+          id?: string
+          order_id: string
+          to_status: Database["public"]["Enums"]["order_status"]
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string
+          from_status?: Database["public"]["Enums"]["order_status"] | null
+          id?: string
+          order_id?: string
+          to_status?: Database["public"]["Enums"]["order_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_status_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_status_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          archived: boolean
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          customer_mobile: string
+          customer_name: string
+          delivery_date: string
+          delivery_time: string
+          finishing: string | null
+          id: string
+          notes: string | null
+          order_number: string
+          paper: string | null
+          paper_size: string | null
+          preferred_language: Database["public"]["Enums"]["order_language"]
+          priority: Database["public"]["Enums"]["order_priority"]
+          product: string
+          quantity: number
+          status: Database["public"]["Enums"]["order_status"]
+          updated_at: string
+          whatsapp_enabled: boolean
+        }
+        Insert: {
+          archived?: boolean
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          customer_mobile: string
+          customer_name: string
+          delivery_date: string
+          delivery_time: string
+          finishing?: string | null
+          id?: string
+          notes?: string | null
+          order_number?: string
+          paper?: string | null
+          paper_size?: string | null
+          preferred_language?: Database["public"]["Enums"]["order_language"]
+          priority?: Database["public"]["Enums"]["order_priority"]
+          product: string
+          quantity: number
+          status?: Database["public"]["Enums"]["order_status"]
+          updated_at?: string
+          whatsapp_enabled?: boolean
+        }
+        Update: {
+          archived?: boolean
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          customer_mobile?: string
+          customer_name?: string
+          delivery_date?: string
+          delivery_time?: string
+          finishing?: string | null
+          id?: string
+          notes?: string | null
+          order_number?: string
+          paper?: string | null
+          paper_size?: string | null
+          preferred_language?: Database["public"]["Enums"]["order_language"]
+          priority?: Database["public"]["Enums"]["order_priority"]
+          product?: string
+          quantity?: number
+          status?: Database["public"]["Enums"]["order_status"]
+          updated_at?: string
+          whatsapp_enabled?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
     Enums: {
-      employee_role: EmployeeRole;
-      order_language: OrderLanguage;
-      order_priority: OrderPriority;
-      order_status: OrderStatus;
-      order_file_type: OrderFileType;
-      material_type: MaterialType;
-      material_priority: MaterialPriority;
-      material_request_status: MaterialRequestStatus;
-      notification_receiver: NotificationReceiver;
-      notification_status: NotificationStatus;
-    };
-    CompositeTypes: Record<string, never>;
-  };
+      employee_role: "admin" | "employee" | "supervisor" | "store" | "delivery"
+      material_priority: "low" | "normal" | "urgent"
+      material_request_status: "pending" | "approved" | "rejected" | "fulfilled"
+      material_type:
+        | "paper"
+        | "ink"
+        | "vinyl"
+        | "packaging"
+        | "lamination"
+        | "other"
+      notification_receiver: "customer" | "employee"
+      notification_status:
+        | "pending"
+        | "sent"
+        | "failed"
+        | "skipped"
+        | "delivered"
+      order_file_type: "product_image" | "design_file"
+      order_language: "ar" | "en"
+      order_priority: "normal" | "urgent"
+      order_status:
+        | "new"
+        | "in_progress"
+        | "waiting_materials"
+        | "ready_pickup"
+        | "ready_delivery"
+        | "collected"
+        | "delivered"
+        | "completed"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
 }
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      employee_role: ["admin", "employee", "supervisor", "store", "delivery"],
+      material_priority: ["low", "normal", "urgent"],
+      material_request_status: ["pending", "approved", "rejected", "fulfilled"],
+      material_type: [
+        "paper",
+        "ink",
+        "vinyl",
+        "packaging",
+        "lamination",
+        "other",
+      ],
+      notification_receiver: ["customer", "employee"],
+      notification_status: [
+        "pending",
+        "sent",
+        "failed",
+        "skipped",
+        "delivered",
+      ],
+      order_file_type: ["product_image", "design_file"],
+      order_language: ["ar", "en"],
+      order_priority: ["normal", "urgent"],
+      order_status: [
+        "new",
+        "in_progress",
+        "waiting_materials",
+        "ready_pickup",
+        "ready_delivery",
+        "collected",
+        "delivered",
+        "completed",
+      ],
+    },
+  },
+} as const
+
+// ---------------------------------------------------------------------------
+// Convenience aliases used throughout the app
+// ---------------------------------------------------------------------------
+
+export type EmployeeRole = Database["public"]["Enums"]["employee_role"]
+export type OrderLanguage = Database["public"]["Enums"]["order_language"]
+export type OrderPriority = Database["public"]["Enums"]["order_priority"]
+export type OrderStatus = Database["public"]["Enums"]["order_status"]
+export type OrderFileType = Database["public"]["Enums"]["order_file_type"]
+export type MaterialType = Database["public"]["Enums"]["material_type"]
+export type MaterialPriority = Database["public"]["Enums"]["material_priority"]
+export type MaterialRequestStatus = Database["public"]["Enums"]["material_request_status"]
+export type NotificationReceiver = Database["public"]["Enums"]["notification_receiver"]
+export type NotificationStatus = Database["public"]["Enums"]["notification_status"]
