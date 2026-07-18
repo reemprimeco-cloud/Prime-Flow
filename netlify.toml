@@ -1,0 +1,10 @@
+[build]
+  command = "pnpm run build"
+
+# Deliberately no `publish` directory here. The Next.js Runtime
+# (@netlify/plugin-nextjs, auto-detected for this app) manages its own
+# output internally — explicitly setting `publish` to the repo base
+# directory is what caused the first production deploy to fail with
+# "Your publish directory cannot be the same as the base directory of
+# your site." Leave this alone unless Netlify's own docs say otherwise
+# for a future framework change.
