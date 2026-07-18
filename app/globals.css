@@ -1,20 +1,18 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:is(.dark *));
-
 :root {
   --radius: 1rem;
 
-  /* Prime Printing Co. brand palette — dark mode only */
-  --background: #0b1220;
-  --foreground: #ffffff;
+  /* Prime Printing Co. brand palette — light mode, white background */
+  --background: #ffffff;
+  --foreground: #0f172a;
 
-  --card: #111827;
-  --card-foreground: #ffffff;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
 
-  --popover: #111827;
-  --popover-foreground: #ffffff;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
 
   --primary: #0a1f44;
   --primary-foreground: #ffffff;
@@ -22,8 +20,8 @@
   --secondary: #1e40af;
   --secondary-foreground: #ffffff;
 
-  --muted: #1f2937;
-  --muted-foreground: #94a3b8;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
 
   --accent: #1e40af;
   --accent-foreground: #ffffff;
@@ -32,13 +30,13 @@
   --destructive-foreground: #ffffff;
 
   --success: #22c55e;
-  --success-foreground: #061a0f;
+  --success-foreground: #052e16;
 
   --warning: #f59e0b;
   --warning-foreground: #1a1204;
 
-  --border: #1f2937;
-  --input: #1f2937;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
   --ring: #1e40af;
 }
 
@@ -87,7 +85,7 @@
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {

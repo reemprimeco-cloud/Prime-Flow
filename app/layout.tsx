@@ -25,13 +25,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
         <Providers>
           {children}
-          <Toaster theme="dark" position="top-right" richColors />
+          <Toaster theme="light" position="top-right" richColors />
         </Providers>
       </body>
     </html>
