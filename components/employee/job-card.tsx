@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { FileText, ImageIcon, NotebookPen, PackagePlus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
@@ -35,10 +36,9 @@ export function JobCard({ job, pending, onStatusChange, onAddNote, onRequestMate
   return (
     <Card className={cn("flex flex-col gap-5 border-l-[6px] p-5 md:p-6", ACCENT_BORDER[countdownColor])}>
       <div className="flex flex-col gap-5 md:flex-row">
-        <div className="h-56 w-full shrink-0 overflow-hidden rounded-2xl border border-border bg-muted/40 md:h-auto md:w-56">
+        <div className="relative h-56 w-full shrink-0 overflow-hidden rounded-2xl border border-border bg-muted/40 md:h-auto md:w-56">
           {heroImage?.url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={heroImage.url} alt={job.product} className="size-full object-cover" />
+            <Image src={heroImage.url} alt={job.product} fill sizes="(min-width: 768px) 224px, 100vw" className="object-cover" />
           ) : (
             <div className="flex size-full items-center justify-center text-muted-foreground">
               <ImageIcon className="size-10" />

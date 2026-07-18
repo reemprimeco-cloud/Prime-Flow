@@ -18,16 +18,3 @@ export const orderFormSchema = z.object({
 });
 
 export type OrderFormInput = z.infer<typeof orderFormSchema>;
-
-export const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
-export const ALLOWED_DESIGN_TYPES = [
-  "application/pdf",
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "application/postscript", // .ai / .eps
-  "image/vnd.adobe.photoshop", // .psd
-  "image/svg+xml",
-  "application/octet-stream", // fallback for exotic design-app extensions
-];
-export const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25MB

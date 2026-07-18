@@ -1,0 +1,45 @@
+# Status engine
+
+`lib/status/engine.ts` is the single source of truth for which `orders.status` transitions are legal. Nothing else in the app should re-derive or duplicate this graph.
+
+## The graph
+
+```ts
+export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  new: ["in_progress"],
+  in_progress: ["waiting_materials", "ready_pickup", "ready_delivery"],
+  waiting_materials: ["in_progress"],
+  ready_pickup: ["collected"],
+  ready_delivery: ["delivered"],
+  collected: ["completed"],
+  delivered: ["completed"],
+  completed: [],
+};
+```
+
+```
+new ─▶ in_progress ─┬─▶ waiting_materials ─▶ in_progress (loop)
+                     ├─▶ ready_pickup ─▶ collected ─▶ completed
+                     └─▶ ready_delivery ─▶ delivered ─▶ completed
+```
+
+`collected`/`delivered` → `completed` is modeled even though nothing triggers it yet. That transition belongs to the month-end Archive job (deferred — see `ARCHITECTURE.md`), not to a Manager/Employee button. Keeping it in the graph now means the Archive phase adds a caller, not a new edge.
+
+## API
+
+- `canTransition(from, to)` — boolean check.
+- `getNextStatuses(from)` — for building UI (e.g. which buttons to show).
+- `assertValidTransition(from, to)` — throws `InvalidStatusTransitionError` with a human-readable message (`Can't move an order from "In Progress" to "Delivered".`) if the transition isn't in the graph.
+
+## Where it's enforced
+
+`updateEmployeeJobStatus` (`lib/actions/employee-jobs.ts`) is currently the only place `orders.status` changes. It applies two independent checks, in this order:
+
+1. **Role allowlist** — `EMPLOYEE_ALLOWED_TARGET_STATUSES` (`types/domain.ts`): which statuses an employee is permitted to set at all (never `new` or `completed`).
+2. **Workflow validity** — `assertValidTransition(current.status, status)`: whether that specific jump is legal from the order's *current* status.
+
+Before this existed, only the role allowlist was checked — an employee could jump an order from `new` straight to `delivered` in one call, since target-status membership was the only check. The engine closes that gap without changing the set of statuses employees are allowed to set.
+
+## UI labels
+
+`EMPLOYEE_NEXT_ACTIONS` (`types/domain.ts`) maps a job's current status to the button(s) shown on its card (`{ status, label }[]`). It's a presentation-layer concern (button copy, which statuses get *offered* as one-click actions) and intentionally stays a subset of what the engine allows — e.g. `waiting_materials → in_progress` is offered as "Resume Production" but `completed` is never offered anywhere since no dashboard sets it yet.

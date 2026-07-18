@@ -20,4 +20,8 @@ Required env vars (see `.env.local.example`):
 
 ## Structure
 
-See `supabase/migrations/` for the schema and `lib/` for auth, validation, and Server Actions. Route groups: `(auth)` for login, `(manager)` for the admin dashboard, `employee` for the floor dashboard.
+See `supabase/migrations/` for the schema and `lib/` for auth, validation, and Server Actions. Route groups: `(auth)` for login, `(manager)` for the admin dashboard, `employee` for the floor dashboard, `(tv)` for the unattended kiosk board.
+
+## Documentation
+
+See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full system design, and [`docs/REALTIME.md`](./docs/REALTIME.md), [`docs/STATUS_ENGINE.md`](./docs/STATUS_ENGINE.md), [`docs/NOTIFICATIONS.md`](./docs/NOTIFICATIONS.md), and [`docs/AUDIT_LOG.md`](./docs/AUDIT_LOG.md) for the infrastructure layer added in the Production Core phase.

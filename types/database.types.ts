@@ -19,6 +19,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: Database["public"]["Enums"]["audit_action"]
+          actor_id: string | null
+          actor_name: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          new_value: Json | null
+          old_value: Json | null
+          order_id: string | null
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["audit_action"]
+          actor_id?: string | null
+          actor_name: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          order_id?: string | null
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["audit_action"]
+          actor_id?: string | null
+          actor_name?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          new_value?: Json | null
+          old_value?: Json | null
+          order_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_logs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           active: boolean
@@ -458,6 +512,17 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      audit_action:
+        | "order_created"
+        | "order_updated"
+        | "order_deleted"
+        | "employee_assigned"
+        | "employee_unassigned"
+        | "status_changed"
+        | "material_requested"
+        | "material_approved"
+        | "material_rejected"
+        | "notification_sent"
       employee_role: "admin" | "employee" | "supervisor" | "store" | "delivery"
       material_priority: "low" | "normal" | "urgent"
       material_request_status: "pending" | "approved" | "rejected" | "fulfilled"
@@ -614,6 +679,18 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      audit_action: [
+        "order_created",
+        "order_updated",
+        "order_deleted",
+        "employee_assigned",
+        "employee_unassigned",
+        "status_changed",
+        "material_requested",
+        "material_approved",
+        "material_rejected",
+        "notification_sent",
+      ],
       employee_role: ["admin", "employee", "supervisor", "store", "delivery"],
       material_priority: ["low", "normal", "urgent"],
       material_request_status: ["pending", "approved", "rejected", "fulfilled"],
@@ -664,3 +741,4 @@ export type MaterialPriority = Database["public"]["Enums"]["material_priority"]
 export type MaterialRequestStatus = Database["public"]["Enums"]["material_request_status"]
 export type NotificationReceiver = Database["public"]["Enums"]["notification_receiver"]
 export type NotificationStatus = Database["public"]["Enums"]["notification_status"]
+export type AuditAction = Database["public"]["Enums"]["audit_action"]

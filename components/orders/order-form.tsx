@@ -27,6 +27,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileUpload } from "@/components/shared/file-upload";
+import { DESIGN_FILE_ACCEPT, PRODUCT_IMAGE_ACCEPT } from "@/lib/files/constants";
 import { ORDER_PRIORITY_LABELS } from "@/types/domain";
 
 interface OrderFormProps {
@@ -287,8 +288,7 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
               <h3 className="text-sm font-bold text-muted-foreground">Files</h3>
               <FileUpload
                 label="Product Images"
-                variant="image"
-                accept="image/*"
+                accept={PRODUCT_IMAGE_ACCEPT}
                 files={productImages}
                 onChange={setProductImages}
                 existingFiles={existingImages}
@@ -296,8 +296,8 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                 removingId={removingId}
               />
               <FileUpload
-                label="Design Files"
-                variant="file"
+                label="Design Files (PDF, AI, PSD, CDR, ZIP, images)"
+                accept={DESIGN_FILE_ACCEPT}
                 files={designFiles}
                 onChange={setDesignFiles}
                 existingFiles={existingDesigns}

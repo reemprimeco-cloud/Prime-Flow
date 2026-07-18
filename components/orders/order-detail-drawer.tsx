@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import Image from "next/image";
 import { format, parseISO } from "date-fns";
 import { FileText, ImageIcon, Loader2, MessageSquareText, Pencil } from "lucide-react";
 
@@ -117,11 +118,10 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                         href={file.url ?? undefined}
                         target="_blank"
                         rel="noreferrer"
-                        className="aspect-square overflow-hidden rounded-lg border border-border bg-muted/40"
+                        className="relative aspect-square overflow-hidden rounded-lg border border-border bg-muted/40"
                       >
                         {file.url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={file.url} alt={file.fileName} className="size-full object-cover" />
+                          <Image src={file.url} alt={file.fileName} fill sizes="120px" className="object-cover" />
                         ) : (
                           <div className="flex size-full items-center justify-center text-muted-foreground">
                             <ImageIcon className="size-5" />

@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef } from "react";
-import { FileText, ImageIcon, Loader2, Upload, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Archive, FileText, ImageIcon, Loader2, PenTool, Upload, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getFileKind, type FileKind } from "@/lib/files/constants";
 
 interface ExistingFile {
   id: string;
@@ -16,7 +17,6 @@ interface FileUploadProps {
   label: string;
   accept?: string;
   multiple?: boolean;
-  variant?: "image" | "file";
   files: File[];
   onChange: (files: File[]) => void;
   existingFiles?: ExistingFile[];
@@ -28,7 +28,6 @@ export function FileUpload({
   label,
   accept,
   multiple = true,
-  variant = "file",
   files,
   onChange,
   existingFiles = [],
@@ -78,7 +77,7 @@ export function FileUpload({
               key={file.id}
               className="flex items-center gap-3 rounded-lg border border-border bg-muted/20 px-3 py-2"
             >
-              <FilePreview variant={variant} url={file.url} />
+              <FilePreview kind={getFileKind(file.fileName)} url={file.url} />
               <a
                 href={file.url ?? undefined}
                 target="_blank"
@@ -108,7 +107,7 @@ export function FileUpload({
               key={`${file.name}-${index}`}
               className="flex items-center gap-3 rounded-lg border border-border bg-muted/20 px-3 py-2"
             >
-              <FilePreview variant={variant} file={file} />
+              <FilePreview kind={getFileKind(file.name)} file={file} />
               <span className="min-w-0 flex-1 truncate text-sm text-foreground">{file.name}</span>
               <Button
                 type="button"
@@ -127,31 +126,37 @@ export function FileUpload({
   );
 }
 
-function FilePreview({
-  variant,
-  file,
-  url,
-}: {
-  variant: "image" | "file";
-  file?: File;
-  url?: string | null;
-}) {
-  const src = file ? URL.createObjectURL(file) : url;
+const KIND_ICONS: Record<Exclude<FileKind, "image">, typeof FileText> = {
+  pdf: FileText,
+  archive: Archive,
+  design: PenTool,
+  other: FileText,
+};
 
-  if (variant === "image" && src) {
+function FilePreview({ kind, file, url }: { kind: FileKind; file?: File; url?: string | null }) {
+  // Blob URLs must be revoked on unmount/change or every re-render leaks
+  // browser memory — createObjectURL never frees itself automatically.
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!file) return;
+    const objectUrl = URL.createObjectURL(file);
+    setBlobUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
+
+  const src = file ? blobUrl : url;
+
+  if (kind === "image" && src) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img src={src} alt="" className="size-9 shrink-0 rounded-md object-cover" />
     );
   }
 
+  const Icon = kind === "image" ? ImageIcon : KIND_ICONS[kind];
   return (
-    <div
-      className={cn(
-        "flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground"
-      )}
-    >
-      {variant === "image" ? <ImageIcon className="size-4" /> : <FileText className="size-4" />}
+    <div className={cn("flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground")}>
+      <Icon className="size-4" />
     </div>
   );
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { memo } from "react";
+import Image from "next/image";
 import { ImageIcon, MoreVertical, Copy, Pencil, Trash2, Eye } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
@@ -27,7 +29,13 @@ interface OrderListViewProps {
   onDelete: (order: OrderListItem) => void;
 }
 
-export function OrderListView({ orders, onOpen, onEdit, onDuplicate, onDelete }: OrderListViewProps) {
+export const OrderListView = memo(function OrderListView({
+  orders,
+  onOpen,
+  onEdit,
+  onDuplicate,
+  onDelete,
+}: OrderListViewProps) {
   return (
     <Table>
       <TableHeader>
@@ -49,10 +57,9 @@ export function OrderListView({ orders, onOpen, onEdit, onDuplicate, onDelete }:
             <TableRow key={order.id} className="cursor-pointer" onClick={() => onOpen(order)}>
               <TableCell>
                 <div className="flex items-center gap-2.5">
-                  <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted/40">
+                  <div className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted/40">
                     {order.thumbnailUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={order.thumbnailUrl} alt="" className="size-full object-cover" />
+                      <Image src={order.thumbnailUrl} alt="" fill sizes="36px" className="object-cover" />
                     ) : (
                       <ImageIcon className="size-4 text-muted-foreground" />
                     )}
@@ -121,4 +128,4 @@ export function OrderListView({ orders, onOpen, onEdit, onDuplicate, onDelete }:
       </TableBody>
     </Table>
   );
-}
+});

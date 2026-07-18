@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
+import dynamic from "next/dynamic";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useQueryState } from "nuqs";
 import { toast } from "sonner";
@@ -26,10 +27,16 @@ import { OrderFilters as OrderFiltersBar } from "@/components/manager/order-filt
 import { ViewToggle, type OrderView } from "@/components/manager/view-toggle";
 import { OrderCard } from "@/components/orders/order-card";
 import { OrderListView } from "@/components/orders/order-list-view";
-import { OrderForm } from "@/components/orders/order-form";
-import { OrderDetailDrawer } from "@/components/orders/order-detail-drawer";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Card } from "@/components/ui/card";
+
+// Both dialogs carry real weight (RHF + Zod + file upload UI) and stay
+// hidden until the user opens them — no reason to ship that JS on first paint.
+const OrderForm = dynamic(() => import("@/components/orders/order-form").then((m) => m.OrderForm), { ssr: false });
+const OrderDetailDrawer = dynamic(
+  () => import("@/components/orders/order-detail-drawer").then((m) => m.OrderDetailDrawer),
+  { ssr: false }
+);
 
 interface DashboardClientProps {
   initialStats: DashboardStats;
@@ -94,17 +101,17 @@ export function DashboardClient({ initialStats, initialOrders, employees }: Dash
     queryClient.invalidateQueries({ queryKey: ["stats"] });
   };
 
-  const handleOpen = (order: OrderListItem) => {
+  const handleOpen = useCallback((order: OrderListItem) => {
     setDetailOrderId(order.id);
     setDetailOpen(true);
-  };
+  }, []);
 
   const handleNewOrder = () => {
     setEditingOrder(null);
     setFormOpen(true);
   };
 
-  const handleEditFromCard = async (order: OrderListItem) => {
+  const handleEditFromCard = useCallback(async (order: OrderListItem) => {
     try {
       const detail = await getOrderDetail(order.id);
       setEditingOrder(detail);
@@ -112,7 +119,7 @@ export function DashboardClient({ initialStats, initialOrders, employees }: Dash
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load order");
     }
-  };
+  }, []);
 
   const handleEditFromDrawer = async () => {
     if (!detailOrderId) return;
@@ -126,16 +133,17 @@ export function DashboardClient({ initialStats, initialOrders, employees }: Dash
     }
   };
 
-  const handleDuplicate = (order: OrderListItem) => {
+  const handleDuplicate = useCallback((order: OrderListItem) => {
     setDuplicatingId(order.id);
     duplicateOrder(order.id)
       .then(() => {
         toast.success(`${order.orderNumber} duplicated — check the delivery date & time`);
-        refreshLists();
+        queryClient.invalidateQueries({ queryKey: ["orders"] });
+        queryClient.invalidateQueries({ queryKey: ["stats"] });
       })
       .catch((error) => toast.error(error instanceof Error ? error.message : "Failed to duplicate order"))
       .finally(() => setDuplicatingId(null));
-  };
+  }, [queryClient]);
 
   const confirmDelete = () => {
     if (!deleteTarget) return;

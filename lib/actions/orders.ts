@@ -6,11 +6,14 @@ import { isSameMonth } from "date-fns";
 import { requireAdmin } from "@/lib/auth/guards";
 import { createServiceClient } from "@/lib/supabase/server";
 import { broadcast, CHANNELS } from "@/lib/realtime/channels";
-import { orderFormSchema, MAX_FILE_SIZE_BYTES } from "@/lib/validation/order";
+import { orderFormSchema } from "@/lib/validation/order";
+import { isAllowedUpload, MAX_FILE_SIZE_BYTES } from "@/lib/files/constants";
 import { toDeliveryDate } from "@/lib/utils/countdown";
 import { DELAYABLE_STATUSES } from "@/types/domain";
 import { isDemoMode } from "@/lib/demo/mode";
 import { getDemoDashboardStats, getDemoOrderDetail, getDemoOrders } from "@/lib/demo/data";
+import { recordAuditLog } from "@/lib/audit/log";
+import { notifyOrderCreated } from "@/lib/notifications/service";
 import type {
   MaterialPriority,
   MaterialRequestStatus,
@@ -424,7 +427,7 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
       notes: input.notes || null,
       created_by: session.employeeId,
     })
-    .select("id")
+    .select("id, order_number")
     .single();
 
   if (error || !order) throw new Error(error?.message ?? "Failed to create order");
@@ -444,6 +447,41 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
   });
 
   await uploadOrderFiles(supabase, order.id, session.employeeId, formData);
+
+  await recordAuditLog({
+    actorId: session.employeeId,
+    actorName: session.fullName,
+    action: "order_created",
+    entityType: "order",
+    entityId: order.id,
+    orderId: order.id,
+    newValue: { orderNumber: order.order_number, product: input.product, deliveryDate: input.deliveryDate },
+  });
+  for (const employeeId of input.employeeIds) {
+    await recordAuditLog({
+      actorId: session.employeeId,
+      actorName: session.fullName,
+      action: "employee_assigned",
+      entityType: "order_assignment",
+      entityId: employeeId,
+      orderId: order.id,
+      newValue: { employeeId },
+    });
+  }
+
+  await notifyOrderCreated(
+    {
+      orderId: order.id,
+      orderNumber: order.order_number,
+      customerName: input.customerName,
+      customerMobile: input.customerMobile,
+      whatsappEnabled: input.whatsappEnabled,
+      language: input.preferredLanguage,
+    },
+    session.employeeId,
+    session.fullName
+  );
+
   await broadcast(CHANNELS.production, "order.created", { orderId: order.id });
   revalidatePath("/dashboard");
 
@@ -488,14 +526,47 @@ export async function updateOrder(orderId: string, formData: FormData): Promise<
 
   if (toRemove.length > 0) {
     await supabase.from("order_assignments").delete().eq("order_id", orderId).in("employee_id", toRemove);
+    for (const employeeId of toRemove) {
+      await recordAuditLog({
+        actorId: session.employeeId,
+        actorName: session.fullName,
+        action: "employee_unassigned",
+        entityType: "order_assignment",
+        entityId: employeeId,
+        orderId,
+        oldValue: { employeeId },
+      });
+    }
   }
   if (toAdd.length > 0) {
     await supabase
       .from("order_assignments")
       .insert(toAdd.map((employeeId) => ({ order_id: orderId, employee_id: employeeId })));
+    for (const employeeId of toAdd) {
+      await recordAuditLog({
+        actorId: session.employeeId,
+        actorName: session.fullName,
+        action: "employee_assigned",
+        entityType: "order_assignment",
+        entityId: employeeId,
+        orderId,
+        newValue: { employeeId },
+      });
+    }
   }
 
   await uploadOrderFiles(supabase, orderId, session.employeeId, formData);
+
+  await recordAuditLog({
+    actorId: session.employeeId,
+    actorName: session.fullName,
+    action: "order_updated",
+    entityType: "order",
+    entityId: orderId,
+    orderId,
+    newValue: { product: input.product, deliveryDate: input.deliveryDate, deliveryTime: input.deliveryTime },
+  });
+
   await broadcast(CHANNELS.production, "order.updated", { orderId });
   revalidatePath("/dashboard");
 
@@ -567,6 +638,16 @@ export async function duplicateOrder(orderId: string): Promise<{ id: string }> {
     changed_by: session.employeeId,
   });
 
+  await recordAuditLog({
+    actorId: session.employeeId,
+    actorName: session.fullName,
+    action: "order_created",
+    entityType: "order",
+    entityId: newOrder.id,
+    orderId: newOrder.id,
+    newValue: { duplicatedFrom: orderId, product: original.product },
+  });
+
   await broadcast(CHANNELS.production, "order.created", { orderId: newOrder.id });
   revalidatePath("/dashboard");
 
@@ -574,9 +655,11 @@ export async function duplicateOrder(orderId: string): Promise<{ id: string }> {
 }
 
 export async function deleteOrder(orderId: string): Promise<void> {
-  await requireAdmin();
+  const session = await requireAdmin();
   if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
   const supabase = createServiceClient();
+
+  const { data: order } = await supabase.from("orders").select("order_number, product").eq("id", orderId).single();
 
   const { data: files } = await supabase
     .from("order_files")
@@ -590,6 +673,17 @@ export async function deleteOrder(orderId: string): Promise<void> {
 
   const { error } = await supabase.from("orders").delete().eq("id", orderId);
   if (error) throw new Error(error.message);
+
+  // orderId is set null (not the FK'd order_id column) since the order no longer exists — see audit_logs schema.
+  await recordAuditLog({
+    actorId: session.employeeId,
+    actorName: session.fullName,
+    action: "order_deleted",
+    entityType: "order",
+    entityId: orderId,
+    orderId: null,
+    oldValue: { orderNumber: order?.order_number, product: order?.product },
+  });
 
   await broadcast(CHANNELS.production, "order.deleted", { orderId });
   revalidatePath("/dashboard");
@@ -675,10 +769,10 @@ async function uploadOrderFiles(
 
   await Promise.all([
     ...productImages.map((file) =>
-      uploadSingleFile(supabase, "product-images", "product_image", orderId, uploadedBy, file)
+      uploadSingleFile(supabase, "product-images", "product_image", "image", orderId, uploadedBy, file)
     ),
     ...designFiles.map((file) =>
-      uploadSingleFile(supabase, "design-files", "design_file", orderId, uploadedBy, file)
+      uploadSingleFile(supabase, "design-files", "design_file", "design", orderId, uploadedBy, file)
     ),
   ]);
 }
@@ -687,12 +781,16 @@ async function uploadSingleFile(
   supabase: ServiceClient,
   bucket: "product-images" | "design-files",
   fileType: OrderFileType,
+  uploadKind: "image" | "design",
   orderId: string,
   uploadedBy: string,
   file: File
 ): Promise<void> {
   if (file.size > MAX_FILE_SIZE_BYTES) {
     throw new Error(`${file.name} is larger than 25MB`);
+  }
+  if (!isAllowedUpload(file, uploadKind)) {
+    throw new Error(`${file.name} isn't a supported file type.`);
   }
   const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
   const path = `${orderId}/${Date.now()}-${safeName}`;

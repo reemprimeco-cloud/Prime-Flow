@@ -9,6 +9,9 @@ import { broadcast, CHANNELS } from "@/lib/realtime/channels";
 import { isDemoMode } from "@/lib/demo/mode";
 import { getDemoMyJobs } from "@/lib/demo/data";
 import { materialRequestSchema, orderNoteSchema } from "@/lib/validation/material-request";
+import { assertValidTransition } from "@/lib/status/engine";
+import { recordAuditLog } from "@/lib/audit/log";
+import { notifyOrderStatusChanged } from "@/lib/notifications/service";
 import { EMPLOYEE_ACTIVE_STATUSES, EMPLOYEE_ALLOWED_TARGET_STATUSES, PRIORITY_SORT_WEIGHT } from "@/types/domain";
 import type { MaterialType, OrderPriority, OrderStatus } from "@/types/database.types";
 
@@ -203,10 +206,12 @@ export async function updateEmployeeJobStatus(orderId: string, status: OrderStat
 
   const { data: current, error: fetchError } = await supabase
     .from("orders")
-    .select("status")
+    .select("status, order_number, customer_name, customer_mobile, whatsapp_enabled, preferred_language")
     .eq("id", orderId)
     .single();
   if (fetchError || !current) throw new Error(fetchError?.message ?? "Order not found");
+
+  assertValidTransition(current.status, status);
 
   const { error } = await supabase.from("orders").update({ status }).eq("id", orderId);
   if (error) throw new Error(error.message);
@@ -216,6 +221,30 @@ export async function updateEmployeeJobStatus(orderId: string, status: OrderStat
     from_status: current.status,
     to_status: status,
     changed_by: session.employeeId,
+  });
+
+  await recordAuditLog({
+    actorId: session.employeeId,
+    actorName: session.fullName,
+    action: "status_changed",
+    entityType: "order",
+    entityId: orderId,
+    orderId,
+    oldValue: { status: current.status },
+    newValue: { status },
+  });
+
+  await notifyOrderStatusChanged({
+    orderId,
+    orderNumber: current.order_number,
+    customerName: current.customer_name,
+    customerMobile: current.customer_mobile,
+    whatsappEnabled: current.whatsapp_enabled,
+    language: current.preferred_language,
+    fromStatus: current.status,
+    toStatus: status,
+    actorId: session.employeeId,
+    actorName: session.fullName,
   });
 
   await broadcast(CHANNELS.production, "order.updated", { orderId });

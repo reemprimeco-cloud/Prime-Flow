@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ClipboardList, ListChecks } from "lucide-react";
@@ -11,9 +12,15 @@ import { CHANNELS } from "@/lib/realtime/constants";
 import { EmployeeTopBar } from "@/components/employee/employee-top-bar";
 import { JobCard } from "@/components/employee/job-card";
 import { QueueCard } from "@/components/employee/queue-card";
-import { AddNoteDialog } from "@/components/employee/add-note-dialog";
-import { RequestMaterialDialog } from "@/components/employee/request-material-dialog";
 import { Card } from "@/components/ui/card";
+
+const AddNoteDialog = dynamic(() => import("@/components/employee/add-note-dialog").then((m) => m.AddNoteDialog), {
+  ssr: false,
+});
+const RequestMaterialDialog = dynamic(
+  () => import("@/components/employee/request-material-dialog").then((m) => m.RequestMaterialDialog),
+  { ssr: false }
+);
 import { ORDER_STATUS_LABELS } from "@/types/domain";
 import type { OrderStatus } from "@/types/database.types";
 

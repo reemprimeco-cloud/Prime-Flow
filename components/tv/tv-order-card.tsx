@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
+import Image from "next/image";
 import { ImageIcon, Users } from "lucide-react";
 
 import { formatCountdown, getCountdownColor, getMinutesRemaining, toDeliveryDate } from "@/lib/utils/countdown";
@@ -21,7 +22,7 @@ const CHIP_STYLES = {
   red: "bg-destructive text-white",
 } as const;
 
-export function TvOrderCard({ order }: { order: TvOrderCardData }) {
+export const TvOrderCard = memo(function TvOrderCard({ order }: { order: TvOrderCardData }) {
   const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -36,10 +37,9 @@ export function TvOrderCard({ order }: { order: TvOrderCardData }) {
 
   return (
     <div className={cn("flex gap-3 rounded-2xl border-2 p-3", COLOR_STYLES[color])}>
-      <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/60">
+      <div className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/60">
         {order.thumbnailUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={order.thumbnailUrl} alt="" className="size-full object-cover" />
+          <Image src={order.thumbnailUrl} alt="" fill sizes="80px" className="object-cover" />
         ) : (
           <ImageIcon className="size-8 text-muted-foreground" />
         )}
@@ -68,4 +68,4 @@ export function TvOrderCard({ order }: { order: TvOrderCardData }) {
       </div>
     </div>
   );
-}
+});

@@ -1,5 +1,7 @@
 "use client";
 
+import { memo } from "react";
+import Image from "next/image";
 import { ImageIcon, MoreVertical, Copy, Pencil, Trash2, Eye, CalendarClock } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
@@ -35,7 +37,7 @@ interface OrderCardProps {
   onDelete: (order: OrderListItem) => void;
 }
 
-export function OrderCard({ order, onOpen, onEdit, onDuplicate, onDelete }: OrderCardProps) {
+export const OrderCard = memo(function OrderCard({ order, onOpen, onEdit, onDuplicate, onDelete }: OrderCardProps) {
   const isInFlight = DELAYABLE_STATUSES.includes(order.status);
   const countdownColor = useCountdownColor(order.deliveryDate, order.deliveryTime);
 
@@ -54,8 +56,7 @@ export function OrderCard({ order, onOpen, onEdit, onDuplicate, onDelete }: Orde
           className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-border bg-muted/40"
         >
           {order.thumbnailUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={order.thumbnailUrl} alt={order.product} className="size-full object-cover" />
+            <Image src={order.thumbnailUrl} alt={order.product} fill sizes="64px" className="object-cover" />
           ) : (
             <div className="flex size-full items-center justify-center text-muted-foreground">
               <ImageIcon className="size-6" />
@@ -119,7 +120,7 @@ export function OrderCard({ order, onOpen, onEdit, onDuplicate, onDelete }: Orde
       </div>
     </Card>
   );
-}
+});
 
 function OrderActionsMenu({
   order,

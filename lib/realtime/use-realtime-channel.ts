@@ -2,12 +2,15 @@
 
 import { useEffect, useRef } from "react";
 
-import { getBrowserClient } from "@/lib/supabase/client";
+import { subscribeToChannel } from "@/lib/realtime/manager";
 
 /**
  * Subscribes to a Supabase Realtime Broadcast channel for the lifetime of
  * the component. `onMessage` doesn't need to be memoized — the latest
- * reference is always used without re-subscribing.
+ * reference is always used without re-subscribing. Physical channel
+ * subscriptions are shared/ref-counted across all callers by the manager,
+ * so mounting this hook for the same channel name in multiple components
+ * never opens duplicate websocket subscriptions.
  */
 export function useRealtimeChannel(
   channelName: string,
@@ -17,17 +20,6 @@ export function useRealtimeChannel(
   handlerRef.current = onMessage;
 
   useEffect(() => {
-    const supabase = getBrowserClient();
-    const channel = supabase.channel(channelName);
-
-    channel
-      .on("broadcast", { event: "*" }, ({ event, payload }) => {
-        handlerRef.current(event, payload);
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return subscribeToChannel(channelName, (event, payload) => handlerRef.current(event, payload));
   }, [channelName]);
 }
