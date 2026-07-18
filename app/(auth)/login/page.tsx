@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 
 import { LoginForm } from "@/components/auth/login-form";
 
@@ -11,8 +12,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <div className="mb-10 flex flex-col items-center gap-4 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-primary font-mono text-lg font-bold text-primary-foreground shadow-[0_8px_24px_-8px_rgba(30,64,175,0.6)]">
-            PP
+          <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-border shadow-[0_8px_24px_-8px_rgba(30,64,175,0.3)]">
+            <Image src="/logo.jpg" alt="Prime Printing Co." width={56} height={56} className="size-full object-cover" priority />
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight">Prime Printing Co.</h1>

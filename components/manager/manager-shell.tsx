@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Menu } from "lucide-react";
 
 import { SidebarNav } from "@/components/manager/sidebar-nav";
@@ -33,8 +34,8 @@ export function ManagerShell({ fullName, role, showDemoBanner, children }: Manag
   const sidebarContent = (
     <>
       <Link href="/dashboard" className="flex items-center gap-3 px-1" onClick={() => setMobileNavOpen(false)}>
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-primary font-mono text-xs font-bold text-primary-foreground">
-          PP
+        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-border">
+          <Image src="/logo.jpg" alt="Prime Printing Co." width={40} height={40} className="size-full object-cover" priority />
         </div>
         <div>
           <div className="text-sm font-bold leading-tight">Prime Printing</div>
@@ -75,8 +76,8 @@ export function ManagerShell({ fullName, role, showDemoBanner, children }: Manag
           <Menu className="size-5" />
         </button>
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-primary font-mono text-[10px] font-bold text-primary-foreground">
-            PP
+          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border border-border">
+            <Image src="/logo.jpg" alt="Prime Printing Co." width={32} height={32} className="size-full object-cover" priority />
           </div>
           <span className="text-sm font-bold">Prime Printing</span>
         </div>

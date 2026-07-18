@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 import { requireEmployee } from "@/lib/auth/guards";
 import { isDemoMode } from "@/lib/demo/mode";
 import { LogoutButton } from "@/components/shared/logout-button";
@@ -11,8 +13,8 @@ export default async function EmployeeLayout({ children }: { children: React.Rea
       {isDemoMode() && <DemoModeBanner />}
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card/80 px-6 py-4 backdrop-blur">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-primary font-mono text-xs font-bold text-primary-foreground">
-            PP
+          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg border border-border">
+            <Image src="/logo.jpg" alt="Prime Printing Co." width={36} height={36} className="size-full object-cover" priority />
           </div>
           <div>
             <div className="text-sm font-bold leading-tight">My Jobs</div>
