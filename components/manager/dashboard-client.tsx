@@ -23,7 +23,9 @@ import { CHANNELS } from "@/lib/realtime/constants";
 import { StatsGrid } from "@/components/manager/stats-grid";
 import { QuickActions } from "@/components/manager/quick-actions";
 import { OrderFilters as OrderFiltersBar } from "@/components/manager/order-filters";
+import { ViewToggle, type OrderView } from "@/components/manager/view-toggle";
 import { OrderCard } from "@/components/orders/order-card";
+import { OrderListView } from "@/components/orders/order-list-view";
 import { OrderForm } from "@/components/orders/order-form";
 import { OrderDetailDrawer } from "@/components/orders/order-detail-drawer";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -43,6 +45,9 @@ export function DashboardClient({ initialStats, initialOrders, employees }: Dash
   const [employeeId] = useQueryState("employee", { defaultValue: "all" });
   const [priority] = useQueryState("priority", { defaultValue: "all" });
   const [deliveryDate] = useQueryState("date", { defaultValue: "" });
+  const [viewParam, setViewParam] = useQueryState("view", { defaultValue: "card" });
+  const view: OrderView = viewParam === "list" ? "list" : "card";
+  const setView = (next: OrderView) => setViewParam(next === "card" ? null : next);
 
   const filters: OrderFilters = {
     search,
@@ -153,12 +158,26 @@ export function DashboardClient({ initialStats, initialOrders, employees }: Dash
     <div className="flex flex-col gap-6">
       <StatsGrid stats={statsQuery.data} isLoading={statsQuery.isFetching && !statsQuery.data} />
       <QuickActions onNewOrder={handleNewOrder} />
-      <OrderFiltersBar employees={employees} />
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex-1">
+          <OrderFiltersBar employees={employees} />
+        </div>
+        <ViewToggle view={view} onChange={setView} />
+      </div>
 
       {ordersQuery.isLoading ? (
         <SkeletonGrid />
       ) : orders.length === 0 ? (
         <EmptyState hasFilters={!isDefaultFilters} onNewOrder={handleNewOrder} />
+      ) : view === "list" ? (
+        <OrderListView
+          orders={orders}
+          onOpen={handleOpen}
+          onEdit={handleEditFromCard}
+          onDuplicate={handleDuplicate}
+          onDelete={setDeleteTarget}
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {orders.map((order) => (

@@ -13,13 +13,19 @@ const COLOR_CLASSES = {
   red: "bg-destructive/15 text-destructive border-destructive/30",
 } as const;
 
+const SIZE_CLASSES = {
+  sm: "gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold [&_svg]:size-3.5",
+  lg: "gap-2 rounded-xl border-2 px-4 py-2 text-lg font-extrabold [&_svg]:size-5",
+} as const;
+
 interface CountdownTimerProps {
   deliveryDate: string;
   deliveryTime: string;
   className?: string;
+  size?: "sm" | "lg";
 }
 
-export function CountdownTimer({ deliveryDate, deliveryTime, className }: CountdownTimerProps) {
+export function CountdownTimer({ deliveryDate, deliveryTime, className, size = "sm" }: CountdownTimerProps) {
   const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -30,9 +36,14 @@ export function CountdownTimer({ deliveryDate, deliveryTime, className }: Countd
 
   if (!now) {
     return (
-      <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold border-border text-muted-foreground", className)}>
-        <Clock className="size-3.5" />
-        —
+      <span
+        className={cn(
+          "inline-flex items-center whitespace-nowrap border-border text-muted-foreground",
+          SIZE_CLASSES[size],
+          className
+        )}
+      >
+        <Clock />—
       </span>
     );
   }
@@ -44,12 +55,13 @@ export function CountdownTimer({ deliveryDate, deliveryTime, className }: Countd
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap",
+        "inline-flex items-center whitespace-nowrap",
+        SIZE_CLASSES[size],
         COLOR_CLASSES[color],
         className
       )}
     >
-      <Clock className="size-3.5" />
+      <Clock />
       {formatCountdown(minutesRemaining)}
     </span>
   );

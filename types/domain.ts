@@ -87,12 +87,41 @@ export const COUNTDOWN_THRESHOLDS = {
 
 export type CountdownColor = "green" | "yellow" | "orange" | "red";
 
-/** Statuses an employee can advance an order through from the job card. */
-export const EMPLOYEE_STATUS_ACTIONS: { status: OrderStatus; label: string }[] = [
-  { status: "in_progress", label: "Start Production" },
-  { status: "waiting_materials", label: "Waiting For Materials" },
-  { status: "ready_pickup", label: "Ready for Pickup" },
-  { status: "ready_delivery", label: "Ready for Delivery" },
-  { status: "collected", label: "Collected" },
-  { status: "delivered", label: "Delivered" },
+/**
+ * Status action buttons shown on an employee's job card, keyed by the
+ * order's *current* status — only the statuses that make sense from there.
+ */
+export const EMPLOYEE_NEXT_ACTIONS: Partial<Record<OrderStatus, { status: OrderStatus; label: string }[]>> = {
+  new: [{ status: "in_progress", label: "Start Production" }],
+  in_progress: [
+    { status: "waiting_materials", label: "Waiting for Materials" },
+    { status: "ready_pickup", label: "Ready for Pickup" },
+    { status: "ready_delivery", label: "Ready for Delivery" },
+  ],
+  waiting_materials: [{ status: "in_progress", label: "Resume Production" }],
+  ready_pickup: [{ status: "collected", label: "Collected" }],
+  ready_delivery: [{ status: "delivered", label: "Delivered" }],
+};
+
+/** Every status an employee is allowed to set via updateEmployeeJobStatus. */
+export const EMPLOYEE_ALLOWED_TARGET_STATUSES: OrderStatus[] = [
+  "in_progress",
+  "waiting_materials",
+  "ready_pickup",
+  "ready_delivery",
+  "collected",
+  "delivered",
 ];
+
+/** Statuses that keep a job in "My Active Jobs" on the employee dashboard. */
+export const EMPLOYEE_ACTIVE_STATUSES: OrderStatus[] = [
+  "in_progress",
+  "waiting_materials",
+  "ready_pickup",
+  "ready_delivery",
+];
+
+export const PRIORITY_SORT_WEIGHT: Record<OrderPriority, number> = {
+  urgent: 0,
+  normal: 1,
+};

@@ -54,7 +54,7 @@ export interface OrderListItem {
   preferredLanguage: OrderLanguage;
   assignedEmployees: { id: string; fullName: string }[];
   thumbnailUrl: string | null;
-  pendingMaterialRequests: number;
+  pendingMaterialTypes: MaterialType[];
 }
 
 export interface OrderDetail {
@@ -156,7 +156,7 @@ export async function getOrders(filters: OrderFilters = {}): Promise<OrderListIt
       .select("order_id, storage_path")
       .in("order_id", orderIds)
       .eq("file_type", "product_image"),
-    supabase.from("material_requests").select("order_id, status").in("order_id", orderIds),
+    supabase.from("material_requests").select("order_id, status, material_type").in("order_id", orderIds),
   ]);
 
   const employeeIds = [...new Set((assignmentRows ?? []).map((r) => r.employee_id))];
@@ -178,10 +178,12 @@ export async function getOrders(filters: OrderFilters = {}): Promise<OrderListIt
     }
   }
 
-  const pendingByOrder = new Map<string, number>();
+  const pendingTypesByOrder = new Map<string, MaterialType[]>();
   for (const row of materialRows ?? []) {
     if (row.status === "pending" && row.order_id) {
-      pendingByOrder.set(row.order_id, (pendingByOrder.get(row.order_id) ?? 0) + 1);
+      const list = pendingTypesByOrder.get(row.order_id) ?? [];
+      if (!list.includes(row.material_type)) list.push(row.material_type);
+      pendingTypesByOrder.set(row.order_id, list);
     }
   }
 
@@ -217,7 +219,7 @@ export async function getOrders(filters: OrderFilters = {}): Promise<OrderListIt
       preferredLanguage: o.preferred_language,
       assignedEmployees: assignmentsByOrder.get(o.id) ?? [],
       thumbnailUrl: thumbnailPath ? signedUrlByPath.get(thumbnailPath) ?? null : null,
-      pendingMaterialRequests: pendingByOrder.get(o.id) ?? 0,
+      pendingMaterialTypes: pendingTypesByOrder.get(o.id) ?? [],
     };
   });
 

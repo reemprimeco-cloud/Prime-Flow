@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
 import { requireEmployee } from "@/lib/auth/guards";
+import { getMyJobs } from "@/lib/actions/employee-jobs";
+import { EmployeeDashboardClient } from "@/components/employee/employee-dashboard-client";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "My Jobs — Prime Production Board",
@@ -8,11 +12,7 @@ export const metadata: Metadata = {
 
 export default async function EmployeeDashboardPage() {
   const session = await requireEmployee();
+  const jobs = await getMyJobs();
 
-  return (
-    <div className="flex flex-col gap-1">
-      <h1 className="text-2xl font-bold tracking-tight">Welcome, {session.fullName.split(" ")[0]}</h1>
-      <p className="text-sm text-muted-foreground">Your assigned jobs will appear here.</p>
-    </div>
-  );
+  return <EmployeeDashboardClient initialJobs={jobs} fullName={session.fullName} />;
 }

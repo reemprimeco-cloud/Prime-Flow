@@ -15,8 +15,9 @@ import type { EmployeeListItem } from "@/lib/actions/employees";
 import type { MaterialRequestListItem } from "@/lib/actions/material-requests";
 import type { NotificationLogItem } from "@/lib/actions/notifications";
 import type { ArchivedOrderItem } from "@/lib/actions/archive";
-import { DELAYABLE_STATUSES } from "@/types/domain";
-import type { OrderStatus } from "@/types/database.types";
+import type { EmployeeJobItem } from "@/lib/actions/employee-jobs";
+import { DELAYABLE_STATUSES, EMPLOYEE_ACTIVE_STATUSES } from "@/types/domain";
+import type { MaterialType, OrderStatus } from "@/types/database.types";
 
 // ---------------------------------------------------------------------------
 // Demo employees
@@ -64,7 +65,8 @@ interface DemoOrderSeed {
   status: OrderStatus;
   offsetMinutes: number; // relative to now — negative = overdue
   assignedTo: string[];
-  pendingMaterialRequests: number;
+  assignedHoursAgo: number;
+  pendingMaterials: MaterialType[];
   whatsappEnabled: boolean;
   preferredLanguage: "ar" | "en";
   notes: string;
@@ -72,21 +74,23 @@ interface DemoOrderSeed {
 }
 
 const ORDER_SEEDS: DemoOrderSeed[] = [
-  { id: "demo-order-1", orderNumber: "#1042", customerName: "Ahmed Al-Sayed", customerMobile: "+96555011111", product: "Business Cards", paper: "350gsm Matte", paperSize: "9x5cm", quantity: 500, finishing: "Lamination, rounded corners", priority: "normal", status: "new", offsetMinutes: 6 * 60, assignedTo: [], pendingMaterialRequests: 0, whatsappEnabled: true, preferredLanguage: "ar", notes: "" },
-  { id: "demo-order-2", orderNumber: "#1043", customerName: "Fatima Noor", customerMobile: "+96555022222", product: "Wedding Invitations", paper: "250gsm Pearl", paperSize: "A5", quantity: 200, finishing: "Gold foil edges", priority: "urgent", status: "new", offsetMinutes: 90, assignedTo: ["demo-emp-2"], pendingMaterialRequests: 0, whatsappEnabled: true, preferredLanguage: "ar", notes: "Customer wants a proof approved before final run." },
-  { id: "demo-order-3", orderNumber: "#1044", customerName: "TechHub Kuwait", customerMobile: "+96555033333", product: "Trade Show Banners", paper: "Vinyl 13oz", paperSize: "200x90cm", quantity: 4, finishing: "Grommets", priority: "normal", status: "in_progress", offsetMinutes: 45, assignedTo: ["demo-emp-1"], pendingMaterialRequests: 0, whatsappEnabled: true, preferredLanguage: "en", notes: "" },
-  { id: "demo-order-4", orderNumber: "#1045", customerName: "Layla Hassan", customerMobile: "+96555044444", product: "Product Packaging Boxes", paper: "400gsm Card", paperSize: "15x15x8cm", quantity: 1000, finishing: "Matte lamination, die-cut", priority: "urgent", status: "in_progress", offsetMinutes: -20, assignedTo: ["demo-emp-1", "demo-emp-3"], pendingMaterialRequests: 0, whatsappEnabled: true, preferredLanguage: "en", notes: "Rush order — client picking up in person." },
-  { id: "demo-order-5", orderNumber: "#1046", customerName: "Al-Salam Bakery", customerMobile: "+96555055555", product: "Menu Cards", paper: "300gsm Silk", paperSize: "A4", quantity: 150, finishing: "Lamination", priority: "normal", status: "waiting_materials", offsetMinutes: 3 * 60, assignedTo: ["demo-emp-2"], pendingMaterialRequests: 1, whatsappEnabled: true, preferredLanguage: "ar", notes: "" },
-  { id: "demo-order-6", orderNumber: "#1047", customerName: "Noura Al-Ajmi", customerMobile: "+96555066666", product: "Birthday Party Flyers", paper: "170gsm Gloss", paperSize: "A6", quantity: 300, finishing: "", priority: "normal", status: "ready_pickup", offsetMinutes: 110, assignedTo: ["demo-emp-4"], pendingMaterialRequests: 0, whatsappEnabled: false, preferredLanguage: "ar", notes: "" },
-  { id: "demo-order-7", orderNumber: "#1048", customerName: "Gulf Marketing Co.", customerMobile: "+96555077777", product: "A-Frame Signs", paper: "5mm Foamboard", paperSize: "60x90cm", quantity: 6, finishing: "UV print", priority: "urgent", status: "ready_delivery", offsetMinutes: 30, assignedTo: ["demo-emp-3"], pendingMaterialRequests: 1, whatsappEnabled: true, preferredLanguage: "en", notes: "" },
-  { id: "demo-order-8", orderNumber: "#1049", customerName: "Yousef Al-Kandari", customerMobile: "+96555088888", product: "Business Cards", paper: "350gsm Matte", paperSize: "9x5cm", quantity: 250, finishing: "Spot UV", priority: "normal", status: "collected", offsetMinutes: -180, assignedTo: ["demo-emp-2"], pendingMaterialRequests: 0, whatsappEnabled: true, preferredLanguage: "ar", notes: "" },
-  { id: "demo-order-9", orderNumber: "#1050", customerName: "Deema Fashion", customerMobile: "+96555099999", product: "Clothing Tags", paper: "250gsm Card", paperSize: "5x8cm", quantity: 2000, finishing: "Hole punch, string", priority: "normal", status: "delivered", offsetMinutes: -600, assignedTo: ["demo-emp-1"], pendingMaterialRequests: 0, whatsappEnabled: true, preferredLanguage: "en", notes: "" },
-  { id: "demo-order-10", orderNumber: "#1035", customerName: "Al-Rashid Clinic", customerMobile: "+96555010101", product: "Appointment Cards", paper: "300gsm Matte", paperSize: "9x5cm", quantity: 400, finishing: "", priority: "normal", status: "completed", offsetMinutes: -4000, assignedTo: ["demo-emp-4"], pendingMaterialRequests: 0, whatsappEnabled: true, preferredLanguage: "ar", notes: "", completedDaysAgo: 3 },
-  { id: "demo-order-11", orderNumber: "#1031", customerName: "Bayt Al-Ward Flowers", customerMobile: "+96555020202", product: "Gift Tags", paper: "270gsm Pearl", paperSize: "6x9cm", quantity: 600, finishing: "Ribbon hole", priority: "normal", status: "completed", offsetMinutes: -6000, assignedTo: ["demo-emp-2", "demo-emp-4"], pendingMaterialRequests: 0, whatsappEnabled: true, preferredLanguage: "ar", notes: "", completedDaysAgo: 7 },
-  { id: "demo-order-12", orderNumber: "#0998", customerName: "Kuwait Sports Club", customerMobile: "+96555030303", product: "Event Banners", paper: "Vinyl 13oz", paperSize: "300x100cm", quantity: 3, finishing: "Grommets", priority: "urgent", status: "completed", offsetMinutes: -9000, assignedTo: ["demo-emp-1"], pendingMaterialRequests: 0, whatsappEnabled: false, preferredLanguage: "en", notes: "", completedDaysAgo: 35 },
+  { id: "demo-order-1", orderNumber: "#1042", customerName: "Ahmed Al-Sayed", customerMobile: "+96555011111", product: "Business Cards", paper: "350gsm Matte", paperSize: "9x5cm", quantity: 500, finishing: "Lamination, rounded corners", priority: "normal", status: "new", offsetMinutes: 6 * 60, assignedTo: [], assignedHoursAgo: 1, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "ar", notes: "" },
+  { id: "demo-order-2", orderNumber: "#1043", customerName: "Fatima Noor", customerMobile: "+96555022222", product: "Wedding Invitations", paper: "250gsm Pearl", paperSize: "A5", quantity: 200, finishing: "Gold foil edges", priority: "urgent", status: "new", offsetMinutes: 90, assignedTo: ["demo-emp-2"], assignedHoursAgo: 3, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "ar", notes: "Customer wants a proof approved before final run." },
+  { id: "demo-order-3", orderNumber: "#1044", customerName: "TechHub Kuwait", customerMobile: "+96555033333", product: "Trade Show Banners", paper: "Vinyl 13oz", paperSize: "200x90cm", quantity: 4, finishing: "Grommets", priority: "normal", status: "in_progress", offsetMinutes: 45, assignedTo: ["demo-emp-1"], assignedHoursAgo: 5, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "en", notes: "" },
+  { id: "demo-order-4", orderNumber: "#1045", customerName: "Layla Hassan", customerMobile: "+96555044444", product: "Product Packaging Boxes", paper: "400gsm Card", paperSize: "15x15x8cm", quantity: 1000, finishing: "Matte lamination, die-cut", priority: "urgent", status: "in_progress", offsetMinutes: -20, assignedTo: ["demo-emp-1", "demo-emp-3"], assignedHoursAgo: 4, pendingMaterials: ["paper"], whatsappEnabled: true, preferredLanguage: "en", notes: "Rush order — client picking up in person." },
+  { id: "demo-order-5", orderNumber: "#1046", customerName: "Al-Salam Bakery", customerMobile: "+96555055555", product: "Menu Cards", paper: "300gsm Silk", paperSize: "A4", quantity: 150, finishing: "Lamination", priority: "normal", status: "waiting_materials", offsetMinutes: 3 * 60, assignedTo: ["demo-emp-2"], assignedHoursAgo: 6, pendingMaterials: ["paper", "ink"], whatsappEnabled: true, preferredLanguage: "ar", notes: "" },
+  { id: "demo-order-6", orderNumber: "#1047", customerName: "Noura Al-Ajmi", customerMobile: "+96555066666", product: "Birthday Party Flyers", paper: "170gsm Gloss", paperSize: "A6", quantity: 300, finishing: "", priority: "normal", status: "ready_pickup", offsetMinutes: 110, assignedTo: ["demo-emp-4"], assignedHoursAgo: 8, pendingMaterials: [], whatsappEnabled: false, preferredLanguage: "ar", notes: "" },
+  { id: "demo-order-7", orderNumber: "#1048", customerName: "Gulf Marketing Co.", customerMobile: "+96555077777", product: "A-Frame Signs", paper: "5mm Foamboard", paperSize: "60x90cm", quantity: 6, finishing: "UV print", priority: "urgent", status: "ready_delivery", offsetMinutes: 30, assignedTo: ["demo-emp-3"], assignedHoursAgo: 7, pendingMaterials: ["ink"], whatsappEnabled: true, preferredLanguage: "en", notes: "" },
+  { id: "demo-order-8", orderNumber: "#1049", customerName: "Yousef Al-Kandari", customerMobile: "+96555088888", product: "Business Cards", paper: "350gsm Matte", paperSize: "9x5cm", quantity: 250, finishing: "Spot UV", priority: "normal", status: "collected", offsetMinutes: -180, assignedTo: ["demo-emp-2"], assignedHoursAgo: 20, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "ar", notes: "" },
+  { id: "demo-order-9", orderNumber: "#1050", customerName: "Deema Fashion", customerMobile: "+96555099999", product: "Clothing Tags", paper: "250gsm Card", paperSize: "5x8cm", quantity: 2000, finishing: "Hole punch, string", priority: "normal", status: "delivered", offsetMinutes: -600, assignedTo: ["demo-emp-1"], assignedHoursAgo: 30, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "en", notes: "" },
+  { id: "demo-order-10", orderNumber: "#1035", customerName: "Al-Rashid Clinic", customerMobile: "+96555010101", product: "Appointment Cards", paper: "300gsm Matte", paperSize: "9x5cm", quantity: 400, finishing: "", priority: "normal", status: "completed", offsetMinutes: -4000, assignedTo: ["demo-emp-4"], assignedHoursAgo: 90, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "ar", notes: "", completedDaysAgo: 3 },
+  { id: "demo-order-11", orderNumber: "#1031", customerName: "Bayt Al-Ward Flowers", customerMobile: "+96555020202", product: "Gift Tags", paper: "270gsm Pearl", paperSize: "6x9cm", quantity: 600, finishing: "Ribbon hole", priority: "normal", status: "completed", offsetMinutes: -6000, assignedTo: ["demo-emp-2", "demo-emp-4"], assignedHoursAgo: 170, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "ar", notes: "", completedDaysAgo: 7 },
+  { id: "demo-order-12", orderNumber: "#0998", customerName: "Kuwait Sports Club", customerMobile: "+96555030303", product: "Event Banners", paper: "Vinyl 13oz", paperSize: "300x100cm", quantity: 3, finishing: "Grommets", priority: "urgent", status: "completed", offsetMinutes: -9000, assignedTo: ["demo-emp-1"], assignedHoursAgo: 840, pendingMaterials: [], whatsappEnabled: false, preferredLanguage: "en", notes: "", completedDaysAgo: 35 },
+  { id: "demo-order-13", orderNumber: "#1051", customerName: "Al-Noor School", customerMobile: "+96555040404", product: "Certificates", paper: "300gsm Card", paperSize: "A4", quantity: 100, finishing: "Gold foil", priority: "urgent", status: "new", offsetMinutes: 5 * 60, assignedTo: ["demo-emp-1"], assignedHoursAgo: 2, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "ar", notes: "Please double check the spelling list before printing." },
+  { id: "demo-order-14", orderNumber: "#1052", customerName: "Fitness First Gym", customerMobile: "+96555050505", product: "Membership Cards", paper: "300gsm PVC-look Card", paperSize: "8.5x5.5cm", quantity: 500, finishing: "Lamination", priority: "normal", status: "new", offsetMinutes: 2 * 60, assignedTo: ["demo-emp-1"], assignedHoursAgo: 5, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "en", notes: "" },
 ];
 
-function buildOrder(seed: DemoOrderSeed, now: Date): OrderListItem & { completedAt: Date | null } {
+function buildOrder(seed: DemoOrderSeed, now: Date): OrderListItem & { completedAt: Date | null; assignedAt: Date } {
   const deliveryAt = addMinutes(now, seed.offsetMinutes);
   const completedAt = seed.completedDaysAgo != null ? subDays(now, seed.completedDaysAgo) : null;
 
@@ -109,8 +113,9 @@ function buildOrder(seed: DemoOrderSeed, now: Date): OrderListItem & { completed
     preferredLanguage: seed.preferredLanguage,
     assignedEmployees: emp(...seed.assignedTo),
     thumbnailUrl: null,
-    pendingMaterialRequests: seed.pendingMaterialRequests,
+    pendingMaterialTypes: seed.pendingMaterials,
     completedAt,
+    assignedAt: subHours(now, seed.assignedHoursAgo),
   };
 }
 
@@ -148,8 +153,9 @@ export function getDemoOrders(filters: OrderFilters = {}): OrderListItem[] {
   return orders
     .sort((a, b) => `${a.deliveryDate}${a.deliveryTime}`.localeCompare(`${b.deliveryDate}${b.deliveryTime}`))
     .map((order) => {
-      const { completedAt, ...listItem } = order;
+      const { completedAt, assignedAt, ...listItem } = order;
       void completedAt;
+      void assignedAt;
       return listItem;
     });
 }
@@ -221,20 +227,19 @@ export function getDemoOrderDetail(orderId: string): OrderDetail {
     changedAt: addHours(subDays(deliveryAt, 3), index * 5).toISOString(),
   }));
 
-  const materialRequests = seed.pendingMaterialRequests > 0
-    ? [
-        {
-          id: `${orderId}-mr-1`,
-          materialType: "paper" as const,
-          description: `Extra ${seed.paper} needed to finish the run`,
-          quantity: "1 ream",
-          priority: seed.priority === "urgent" ? ("urgent" as const) : ("normal" as const),
-          status: "pending" as const,
-          employeeName: order.assignedEmployees[0]?.fullName ?? "Hassan Youssef",
-          createdAt: subHours(now, 2).toISOString(),
-        },
-      ]
-    : [];
+  const materialRequests = seed.pendingMaterials.map((materialType, index) => ({
+    id: `${orderId}-mr-${index + 1}`,
+    materialType,
+    description:
+      materialType === "paper"
+        ? `Extra ${seed.paper} needed to finish the run`
+        : `Running low on ${materialType} for this job`,
+    quantity: materialType === "paper" ? "1 ream" : "2 units",
+    priority: seed.priority === "urgent" ? ("urgent" as const) : ("normal" as const),
+    status: "pending" as const,
+    employeeName: order.assignedEmployees[0]?.fullName ?? "Hassan Youssef",
+    createdAt: subHours(now, 2 + index).toISOString(),
+  }));
 
   return {
     id: order.id,
@@ -272,6 +277,62 @@ export function getDemoOrderDetail(orderId: string): OrderDetail {
     statusHistory,
     materialRequests,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Demo employee jobs
+// ---------------------------------------------------------------------------
+
+export function getDemoMyJobs(employeeId: string): {
+  active: EmployeeJobItem[];
+  queue: EmployeeJobItem[];
+  completedToday: number;
+} {
+  const now = new Date();
+  const mySeeds = ORDER_SEEDS.filter((s) => s.assignedTo.includes(employeeId));
+
+  const jobs: EmployeeJobItem[] = mySeeds
+    .filter((s) => !["collected", "delivered", "completed"].includes(s.status))
+    .map((seed) => {
+      const order = buildOrder(seed, now);
+      return {
+        id: order.id,
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        product: order.product,
+        paper: order.paper,
+        paperSize: order.paperSize,
+        quantity: order.quantity,
+        finishing: order.finishing,
+        priority: order.priority,
+        deliveryDate: order.deliveryDate,
+        deliveryTime: order.deliveryTime,
+        status: order.status,
+        managerNotes: order.notes,
+        productImages: [],
+        designFiles: [],
+        pendingMaterialTypes: order.pendingMaterialTypes,
+        assignedAt: order.assignedAt.toISOString(),
+      };
+    });
+
+  const active = jobs
+    .filter((j) => EMPLOYEE_ACTIVE_STATUSES.includes(j.status))
+    .sort(byPriorityThenDelivery);
+  const queue = jobs
+    .filter((j) => j.status === "new")
+    .sort((a, b) => byPriorityThenDelivery(a, b) || a.assignedAt.localeCompare(b.assignedAt));
+
+  const completedToday = mySeeds.filter((s) => s.status === "collected" || s.status === "delivered").length;
+
+  return { active, queue, completedToday };
+}
+
+function byPriorityThenDelivery(a: EmployeeJobItem, b: EmployeeJobItem): number {
+  const priorityWeight = { urgent: 0, normal: 1 } as const;
+  const diff = priorityWeight[a.priority] - priorityWeight[b.priority];
+  if (diff !== 0) return diff;
+  return `${a.deliveryDate}${a.deliveryTime}`.localeCompare(`${b.deliveryDate}${b.deliveryTime}`);
 }
 
 // ---------------------------------------------------------------------------

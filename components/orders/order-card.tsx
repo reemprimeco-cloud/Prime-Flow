@@ -1,6 +1,6 @@
 "use client";
 
-import { ImageIcon, MoreVertical, Copy, Pencil, Trash2, PackageSearch, Eye } from "lucide-react";
+import { ImageIcon, MoreVertical, Copy, Pencil, Trash2, Eye, CalendarClock } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 import { Card } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import {
 import { CountdownTimer, useCountdownColor } from "@/components/orders/countdown-timer";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { EmployeeChips } from "@/components/orders/employee-chips";
+import { MaterialRequestBadge } from "@/components/orders/material-request-badge";
 import { cn } from "@/lib/utils";
 import { DELAYABLE_STATUSES } from "@/types/domain";
 import type { OrderListItem } from "@/lib/actions/orders";
@@ -42,7 +43,7 @@ export function OrderCard({ order, onOpen, onEdit, onDuplicate, onDelete }: Orde
     <Card
       className={cn(
         "group relative flex flex-col gap-3 overflow-hidden p-4 pl-5 before:absolute before:inset-y-0 before:left-0 before:w-1",
-        "transition-shadow hover:shadow-lg hover:shadow-black/20",
+        "transition-shadow hover:shadow-lg hover:shadow-black/10",
         isInFlight ? ACCENT_BORDER[countdownColor] : "before:bg-border"
       )}
     >
@@ -81,33 +82,40 @@ export function OrderCard({ order, onOpen, onEdit, onDuplicate, onDelete }: Orde
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-muted-foreground">
+      {/* Delivery date/time + countdown — the most operationally important
+          fact on the card, so it gets top billing over spec details. */}
+      <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3.5 py-2.5">
+        <div className="flex items-center gap-2 text-foreground">
+          <CalendarClock className="size-4 shrink-0 text-muted-foreground" />
+          <span className="text-sm font-bold">
+            {format(parseISO(order.deliveryDate), "EEE, MMM d")} · {order.deliveryTime.slice(0, 5)}
+          </span>
+        </div>
+        {isInFlight && (
+          <CountdownTimer deliveryDate={order.deliveryDate} deliveryTime={order.deliveryTime} size="lg" />
+        )}
+      </div>
+
+      <div className="flex flex-col gap-1 text-xs text-muted-foreground">
         <div className="truncate">
           <span className="text-muted-foreground/70">Paper:</span> {order.paper || "—"}
         </div>
-        <div className="truncate">
-          <span className="text-muted-foreground/70">Size:</span> {order.paperSize || "—"}
-        </div>
-        <div className="truncate">
-          <span className="text-muted-foreground/70">Qty:</span> {order.quantity}
-        </div>
-        <div className="truncate">
-          <span className="text-muted-foreground/70">Due:</span>{" "}
-          {format(parseISO(order.deliveryDate), "MMM d")} · {order.deliveryTime.slice(0, 5)}
+        <div className="flex gap-4">
+          <span className="truncate">
+            <span className="text-muted-foreground/70">Size:</span> {order.paperSize || "—"}
+          </span>
+          <span className="truncate">
+            <span className="text-muted-foreground/70">Qty:</span> {order.quantity}
+          </span>
         </div>
       </div>
 
       <EmployeeChips employees={order.assignedEmployees} />
 
-      <div className="flex flex-wrap items-center gap-2 pt-1">
+      <MaterialRequestBadge types={order.pendingMaterialTypes} />
+
+      <div className="flex flex-wrap items-center gap-2">
         <OrderStatusBadge status={order.status} />
-        {isInFlight && <CountdownTimer deliveryDate={order.deliveryDate} deliveryTime={order.deliveryTime} />}
-        {order.pendingMaterialRequests > 0 && (
-          <Badge variant="warning" className="gap-1">
-            <PackageSearch className="size-3" />
-            {order.pendingMaterialRequests} material request{order.pendingMaterialRequests > 1 ? "s" : ""}
-          </Badge>
-        )}
       </div>
     </Card>
   );
