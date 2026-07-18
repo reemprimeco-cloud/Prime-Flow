@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Gauge } from "lucide-react";
 
 import { listEmployeeWorkload, type EmployeeWorkload } from "@/lib/actions/workload";
+import { useRealtimeChannel } from "@/lib/realtime/use-realtime-channel";
+import { CHANNELS } from "@/lib/realtime/constants";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -28,6 +30,7 @@ function formatMinutes(minutes: number | null): string {
 }
 
 export function WorkloadClient({ initialWorkload }: { initialWorkload: EmployeeWorkload[] }) {
+  const queryClient = useQueryClient();
   const [sortKey, setSortKey] = useState<SortKey>("activeJobs");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -37,6 +40,11 @@ export function WorkloadClient({ initialWorkload }: { initialWorkload: EmployeeW
     initialData: initialWorkload,
     refetchInterval: 30_000,
   });
+
+  useRealtimeChannel(CHANNELS.production, () => queryClient.invalidateQueries({ queryKey: ["employee-workload"] }));
+  useRealtimeChannel(CHANNELS.materialRequests, () =>
+    queryClient.invalidateQueries({ queryKey: ["employee-workload"] })
+  );
 
   const workload = query.data ?? initialWorkload;
 

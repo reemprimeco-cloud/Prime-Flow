@@ -45,8 +45,12 @@ const TERMINAL_STATUSES: OrderStatus[] = ["completed", "delivered", "collected"]
 
 /**
  * No auth guard on purpose — this is the unattended kiosk board (spec:
- * "No login. Fullscreen."). Never returns customer phone numbers or any
- * other PII beyond a first name — see TvOrderCardData.
+ * "No login. Fullscreen."), meant to be read by customers waiting in the
+ * shop as well as staff, so customer/employee full names and order details
+ * are shown by design (a customer needs to recognize their own order on the
+ * board). What it never returns: phone numbers, order notes, or anything
+ * else from `orders`/`employees` beyond what TvOrderCardData/TvDaySummary
+ * declare — see the select() calls below.
  */
 export async function getTvBoard(): Promise<TvBoardData> {
   if (isDemoMode()) return getDemoTvBoard();

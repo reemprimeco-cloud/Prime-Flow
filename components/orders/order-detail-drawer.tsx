@@ -7,6 +7,8 @@ import { format, parseISO } from "date-fns";
 import { FileText, ImageIcon, Loader2, MessageSquareText, Pencil, ShieldAlert } from "lucide-react";
 
 import { getOrderDetail } from "@/lib/actions/orders";
+import { useRealtimeChannel } from "@/lib/realtime/use-realtime-channel";
+import { CHANNELS } from "@/lib/realtime/constants";
 import {
   Sheet,
   SheetContent,
@@ -43,6 +45,19 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
     queryKey: ["order", orderId],
     queryFn: () => getOrderDetail(orderId as string),
     enabled: open && !!orderId,
+  });
+
+  // Keeps an already-open drawer live if another user (or dashboard) changes
+  // this order elsewhere — otherwise it'd show stale status/material data
+  // until closed and reopened.
+  useRealtimeChannel(CHANNELS.production, () => {
+    if (orderId) {
+      queryClient.invalidateQueries({ queryKey: ["order", orderId] });
+      queryClient.invalidateQueries({ queryKey: ["order-timeline", orderId] });
+    }
+  });
+  useRealtimeChannel(CHANNELS.materialRequests, () => {
+    if (orderId) queryClient.invalidateQueries({ queryKey: ["order", orderId] });
   });
 
   return (

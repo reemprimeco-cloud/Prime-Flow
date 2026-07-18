@@ -22,7 +22,7 @@ A single `employees` table serves every role (`admin`, `employee`, `supervisor`,
 
 Because there's no Supabase Auth, there's no `auth.uid()` for RLS to key off of. Every table has RLS **enabled with zero policies** — all reads/writes go through the service-role client (`lib/supabase/server.ts`) inside Server Components/Actions. The browser never talks to Postgres directly; the anon-key browser client (`lib/supabase/client.ts`) is used exclusively to open Realtime Broadcast channels, which don't require table grants.
 
-`/tv` has no auth guard by design (spec: unattended fullscreen kiosk display) and never returns PII beyond first names.
+`/tv` has no auth guard by design (spec: unattended fullscreen kiosk display) — customers waiting in the shop are expected to read it, so customer/employee names and order details are shown intentionally. It never returns phone numbers, order notes, or any other field beyond what `TvOrderCardData`/`TvDaySummary` declare (`lib/actions/tv.ts`).
 
 ## Route groups
 

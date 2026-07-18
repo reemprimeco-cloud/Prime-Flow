@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addDays,
   addMonths,
@@ -21,6 +21,8 @@ import {
 import { AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { listCalendarOrders, type CalendarOrder } from "@/lib/actions/calendar";
+import { useRealtimeChannel } from "@/lib/realtime/use-realtime-channel";
+import { CHANNELS } from "@/lib/realtime/constants";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +38,7 @@ function rangeFor(view: ViewMode, anchor: Date): { start: Date; end: Date } {
 }
 
 export function CalendarClient({ initialOrders }: { initialOrders: CalendarOrder[] }) {
+  const queryClient = useQueryClient();
   const [view, setView] = useState<ViewMode>("month");
   const [anchor, setAnchor] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState(() => new Date());
@@ -43,12 +46,16 @@ export function CalendarClient({ initialOrders }: { initialOrders: CalendarOrder
   const { start, end } = rangeFor(view, anchor);
   const startIso = format(start, "yyyy-MM-dd");
   const endIso = format(end, "yyyy-MM-dd");
+  const queryKey = ["calendar-orders", startIso, endIso];
 
   const query = useQuery({
-    queryKey: ["calendar-orders", startIso, endIso],
+    queryKey,
     queryFn: () => listCalendarOrders(startIso, endIso),
     initialData: isSameDay(start, rangeFor("month", new Date()).start) ? initialOrders : undefined,
+    refetchInterval: 30_000,
   });
+
+  useRealtimeChannel(CHANNELS.production, () => queryClient.invalidateQueries({ queryKey }));
 
   const ordersByDay = useMemo(() => {
     const map = new Map<string, CalendarOrder[]>();

@@ -93,7 +93,7 @@ export function BulkActionsBar({ selectedIds, employees, onClear, onDone }: Bulk
           <Button type="button" variant="outline" size="sm" onClick={handleNotify} disabled={isPending}>
             <Bell className="size-3.5" /> Notify
           </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={onClear}>
+          <Button type="button" variant="ghost" size="sm" onClick={onClear} aria-label="Clear selection">
             <X className="size-3.5" />
           </Button>
         </div>

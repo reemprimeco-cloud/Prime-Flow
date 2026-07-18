@@ -153,6 +153,7 @@ function OrderActionsMenu({
           variant="ghost"
           size="icon"
           className="size-7 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+          aria-label={`Actions for order ${order.orderNumber}`}
         >
           <MoreVertical className="size-4" />
         </Button>
