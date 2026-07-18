@@ -111,7 +111,12 @@ export function JobCard({ job, pending, onStatusChange, onAddNote, onRequestMate
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5 border-t border-border pt-4">
-        <StatusActions status={job.status} pending={pending} onChange={onStatusChange} />
+        <StatusActions
+          status={job.status}
+          fulfillmentType={job.fulfillmentType}
+          pending={pending}
+          onChange={onStatusChange}
+        />
         <div className="ml-auto flex gap-2.5">
           <Button type="button" variant="outline" size="lg" onClick={onAddNote} className="gap-2">
             <NotebookPen className="size-4" />

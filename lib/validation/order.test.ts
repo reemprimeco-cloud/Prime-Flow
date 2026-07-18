@@ -16,6 +16,7 @@ function validOrder(overrides: Partial<Record<string, unknown>> = {}) {
     paperSize: "9x5cm",
     quantity: 500,
     finishing: "Matte lamination",
+    fulfillmentType: "pickup",
     priority: "normal",
     deliveryDate: "2026-07-20",
     deliveryTime: "14:00",

@@ -77,6 +77,7 @@ function minimalOrderFormData(): FormData {
   fd.set("notificationPreferences", JSON.stringify(DEFAULT_NOTIFICATION_PREFERENCES));
   fd.set("product", "Business Cards");
   fd.set("quantity", "500");
+  fd.set("fulfillmentType", "pickup");
   fd.set("priority", "normal");
   fd.set("deliveryDate", "2026-07-20");
   fd.set("deliveryTime", "14:00");

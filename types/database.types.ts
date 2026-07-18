@@ -447,6 +447,7 @@ export type Database = {
           delivery_date: string
           delivery_time: string
           finishing: string | null
+          fulfillment_type: Database["public"]["Enums"]["order_fulfillment_type"]
           id: string
           notes: string | null
           notification_preferences: Json
@@ -472,6 +473,7 @@ export type Database = {
           delivery_date: string
           delivery_time: string
           finishing?: string | null
+          fulfillment_type?: Database["public"]["Enums"]["order_fulfillment_type"]
           id?: string
           notes?: string | null
           notification_preferences?: Json
@@ -497,6 +499,7 @@ export type Database = {
           delivery_date?: string
           delivery_time?: string
           finishing?: string | null
+          fulfillment_type?: Database["public"]["Enums"]["order_fulfillment_type"]
           id?: string
           notes?: string | null
           notification_preferences?: Json
@@ -563,6 +566,7 @@ export type Database = {
         | "skipped"
         | "delivered"
       order_file_type: "product_image" | "design_file"
+      order_fulfillment_type: "pickup" | "delivery"
       order_language: "ar" | "en"
       order_priority: "normal" | "urgent"
       order_status:
@@ -737,6 +741,7 @@ export const Constants = {
         "delivered",
       ],
       order_file_type: ["product_image", "design_file"],
+      order_fulfillment_type: ["pickup", "delivery"],
       order_language: ["ar", "en"],
       order_priority: ["normal", "urgent"],
       order_status: [
@@ -762,6 +767,7 @@ export type OrderLanguage = Database["public"]["Enums"]["order_language"]
 export type OrderPriority = Database["public"]["Enums"]["order_priority"]
 export type OrderStatus = Database["public"]["Enums"]["order_status"]
 export type OrderFileType = Database["public"]["Enums"]["order_file_type"]
+export type OrderFulfillmentType = Database["public"]["Enums"]["order_fulfillment_type"]
 export type MaterialType = Database["public"]["Enums"]["material_type"]
 export type MaterialPriority = Database["public"]["Enums"]["material_priority"]
 export type MaterialRequestStatus = Database["public"]["Enums"]["material_request_status"]

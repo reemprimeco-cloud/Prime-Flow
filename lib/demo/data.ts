@@ -30,7 +30,7 @@ import type { DiagnosticsSnapshot } from "@/lib/actions/diagnostics";
 import { describeAuditEntry } from "@/lib/timeline/describe";
 import { DELAYABLE_STATUSES, EMPLOYEE_ACTIVE_STATUSES, type TvColumnKey } from "@/types/domain";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/notifications/constants";
-import type { MaterialType, OrderStatus } from "@/types/database.types";
+import type { MaterialType, OrderFulfillmentType, OrderStatus } from "@/types/database.types";
 
 // ---------------------------------------------------------------------------
 // Demo employees
@@ -86,6 +86,13 @@ interface DemoOrderSeed {
   completedDaysAgo?: number;
 }
 
+/** Demo seeds don't carry an explicit fulfillment type — infer a plausible
+ * one from status so ready_delivery/delivered rows read as delivery orders
+ * and everything else defaults to pickup. */
+function deriveFulfillmentType(status: OrderStatus): OrderFulfillmentType {
+  return status === "ready_delivery" || status === "delivered" ? "delivery" : "pickup";
+}
+
 const ORDER_SEEDS: DemoOrderSeed[] = [
   { id: "demo-order-1", orderNumber: "#1042", customerName: "Ahmed Al-Sayed", customerMobile: "+96555011111", product: "Business Cards", paper: "350gsm Matte", paperSize: "9x5cm", quantity: 500, finishing: "Lamination, rounded corners", priority: "normal", status: "new", offsetMinutes: 6 * 60, assignedTo: [], assignedHoursAgo: 1, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "ar", notes: "" },
   { id: "demo-order-2", orderNumber: "#1043", customerName: "Fatima Noor", customerMobile: "+96555022222", product: "Wedding Invitations", paper: "250gsm Pearl", paperSize: "A5", quantity: 200, finishing: "Gold foil edges", priority: "urgent", status: "new", offsetMinutes: 90, assignedTo: ["demo-emp-2"], assignedHoursAgo: 3, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "ar", notes: "Customer wants a proof approved before final run." },
@@ -121,6 +128,7 @@ function buildOrder(seed: DemoOrderSeed, now: Date): OrderListItem & { completed
     deliveryDate: format(deliveryAt, "yyyy-MM-dd"),
     deliveryTime: format(deliveryAt, "HH:mm:ss"),
     status: seed.status,
+    fulfillmentType: deriveFulfillmentType(seed.status),
     notes: seed.notes || null,
     whatsappEnabled: seed.whatsappEnabled,
     preferredLanguage: seed.preferredLanguage,
@@ -279,6 +287,7 @@ export function getDemoOrderDetail(orderId: string): OrderDetail {
     deliveryTime: order.deliveryTime,
     notes: order.notes,
     status: order.status,
+    fulfillmentType: order.fulfillmentType,
     createdAt,
     updatedAt: new Date().toISOString(),
     assignedEmployees: order.assignedEmployees,
@@ -536,6 +545,7 @@ export function getDemoMyJobs(employeeId: string): {
         deliveryDate: order.deliveryDate,
         deliveryTime: order.deliveryTime,
         status: order.status,
+        fulfillmentType: order.fulfillmentType,
         managerNotes: order.notes,
         productImages: [],
         designFiles: [],

@@ -85,6 +85,7 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                   <CountdownTimer deliveryDate={order.deliveryDate} deliveryTime={order.deliveryTime} />
                 )}
                 {order.priority === "urgent" && <Badge variant="destructive">Urgent</Badge>}
+                <Badge variant="outline">{order.fulfillmentType === "delivery" ? "Delivery" : "Pickup"}</Badge>
                 <Badge variant="muted">{order.preferredLanguage === "ar" ? "Arabic" : "English"}</Badge>
                 <Badge variant="muted">WhatsApp {order.whatsappEnabled ? "on" : "off"}</Badge>
               </section>

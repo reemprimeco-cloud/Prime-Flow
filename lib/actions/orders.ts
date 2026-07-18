@@ -29,6 +29,7 @@ import type {
   MaterialType,
   NotificationChannel,
   OrderFileType,
+  OrderFulfillmentType,
   OrderLanguage,
   OrderPriority,
   OrderStatus,
@@ -71,6 +72,7 @@ export interface OrderListItem {
   deliveryDate: string;
   deliveryTime: string;
   status: OrderStatus;
+  fulfillmentType: OrderFulfillmentType;
   notes: string | null;
   whatsappEnabled: boolean;
   preferredLanguage: OrderLanguage;
@@ -98,6 +100,7 @@ export interface OrderDetail {
   deliveryTime: string;
   notes: string | null;
   status: OrderStatus;
+  fulfillmentType: OrderFulfillmentType;
   createdAt: string;
   updatedAt: string;
   assignedEmployees: { id: string; fullName: string }[];
@@ -172,7 +175,7 @@ export async function getOrders(filters: OrderFilters = {}): Promise<OrderListRe
   let query = supabase
     .from("orders")
     .select(
-      "id, order_number, customer_name, customer_mobile, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, status, notes, whatsapp_enabled, preferred_language",
+      "id, order_number, customer_name, customer_mobile, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, status, fulfillment_type, notes, whatsapp_enabled, preferred_language",
       { count: "exact" }
     )
     .eq("archived", false)
@@ -271,6 +274,7 @@ export async function getOrders(filters: OrderFilters = {}): Promise<OrderListRe
       deliveryDate: o.delivery_date,
       deliveryTime: o.delivery_time,
       status: o.status,
+      fulfillmentType: o.fulfillment_type,
       notes: o.notes,
       whatsappEnabled: o.whatsapp_enabled,
       preferredLanguage: o.preferred_language,
@@ -352,6 +356,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
     deliveryTime: order.delivery_time,
     notes: order.notes,
     status: order.status,
+    fulfillmentType: order.fulfillment_type,
     createdAt: order.created_at,
     updatedAt: order.updated_at,
     assignedEmployees: (assignmentRows ?? []).map((r) => ({
@@ -477,6 +482,7 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
       paper_size: input.paperSize || null,
       quantity: input.quantity,
       finishing: input.finishing || null,
+      fulfillment_type: input.fulfillmentType,
       priority: input.priority,
       delivery_date: input.deliveryDate,
       delivery_time: input.deliveryTime,
@@ -591,6 +597,7 @@ export async function updateOrder(orderId: string, formData: FormData): Promise<
       paper_size: input.paperSize || null,
       quantity: input.quantity,
       finishing: input.finishing || null,
+      fulfillment_type: input.fulfillmentType,
       priority: input.priority,
       delivery_date: input.deliveryDate,
       delivery_time: input.deliveryTime,
@@ -716,6 +723,7 @@ export async function duplicateOrder(orderId: string): Promise<{ id: string }> {
       paper_size: original.paper_size,
       quantity: original.quantity,
       finishing: original.finishing,
+      fulfillment_type: original.fulfillment_type,
       priority: original.priority,
       delivery_date: original.delivery_date,
       delivery_time: original.delivery_time,
@@ -931,6 +939,7 @@ function parseOrderForm(formData: FormData) {
     paperSize: formData.get("paperSize") || undefined,
     quantity: formData.get("quantity"),
     finishing: formData.get("finishing") || undefined,
+    fulfillmentType: formData.get("fulfillmentType"),
     priority: formData.get("priority"),
     deliveryDate: formData.get("deliveryDate"),
     deliveryTime: formData.get("deliveryTime"),

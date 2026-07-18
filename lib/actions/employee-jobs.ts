@@ -13,7 +13,7 @@ import { assertValidTransition } from "@/lib/status/engine";
 import { recordAuditLog } from "@/lib/audit/log";
 import { notifyOrderStatusChanged } from "@/lib/notifications/service";
 import { EMPLOYEE_ACTIVE_STATUSES, EMPLOYEE_ALLOWED_TARGET_STATUSES, PRIORITY_SORT_WEIGHT } from "@/types/domain";
-import type { MaterialType, OrderPriority, OrderStatus } from "@/types/database.types";
+import type { MaterialType, OrderFulfillmentType, OrderPriority, OrderStatus } from "@/types/database.types";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
 
@@ -34,6 +34,7 @@ export interface EmployeeJobItem {
   deliveryDate: string;
   deliveryTime: string;
   status: OrderStatus;
+  fulfillmentType: OrderFulfillmentType;
   managerNotes: string | null;
   productImages: { id: string; fileName: string; url: string | null }[];
   designFiles: { id: string; fileName: string; url: string | null }[];
@@ -72,7 +73,7 @@ export async function getMyJobs(): Promise<MyJobsResult> {
   const { data: orders, error } = await supabase
     .from("orders")
     .select(
-      "id, order_number, customer_name, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, status, notes"
+      "id, order_number, customer_name, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, status, fulfillment_type, notes"
     )
     .in("id", orderIds)
     .eq("archived", false)
@@ -127,6 +128,7 @@ export async function getMyJobs(): Promise<MyJobsResult> {
     deliveryDate: o.delivery_date,
     deliveryTime: o.delivery_time,
     status: o.status,
+    fulfillmentType: o.fulfillment_type,
     managerNotes: o.notes,
     productImages: (productImagesByOrder.get(o.id) ?? []).map((f) => ({
       id: f.id,

@@ -3,6 +3,7 @@ import type {
   MaterialPriority,
   MaterialRequestStatus,
   MaterialType,
+  OrderFulfillmentType,
   OrderPriority,
   OrderStatus,
 } from "@/types/database.types";
@@ -77,6 +78,11 @@ export const ORDER_PRIORITY_LABELS: Record<OrderPriority, string> = {
   urgent: "Urgent",
 };
 
+export const ORDER_FULFILLMENT_TYPE_LABELS: Record<OrderFulfillmentType, string> = {
+  pickup: "Pickup",
+  delivery: "Delivery",
+};
+
 /** Countdown badge thresholds, in minutes remaining until delivery. */
 export const COUNTDOWN_THRESHOLDS = {
   green: 240, // more than 4 hours remaining
@@ -90,18 +96,39 @@ export type CountdownColor = "green" | "yellow" | "orange" | "red";
 /**
  * Status action buttons shown on an employee's job card, keyed by the
  * order's *current* status — only the statuses that make sense from there.
+ * `in_progress` is handled separately by `getEmployeeNextActions` below,
+ * since its "done" action depends on the order's fulfillment type rather
+ * than being a fixed target status.
  */
 export const EMPLOYEE_NEXT_ACTIONS: Partial<Record<OrderStatus, { status: OrderStatus; label: string }[]>> = {
   new: [{ status: "in_progress", label: "Start Production" }],
-  in_progress: [
-    { status: "waiting_materials", label: "Waiting for Materials" },
-    { status: "ready_pickup", label: "Ready for Pickup" },
-    { status: "ready_delivery", label: "Ready for Delivery" },
-  ],
+  in_progress: [{ status: "waiting_materials", label: "Waiting for Materials" }],
   waiting_materials: [{ status: "in_progress", label: "Resume Production" }],
   ready_pickup: [{ status: "collected", label: "Collected" }],
   ready_delivery: [{ status: "delivered", label: "Delivered" }],
 };
+
+/**
+ * Resolves the actual action list for a job card, including the
+ * fulfillment-aware "done" action on `in_progress`: the employee picked
+ * pickup vs. delivery at order-creation time, so marking a job done
+ * routes automatically to the right status instead of the employee
+ * choosing between "Ready for Pickup" and "Ready for Delivery" themselves.
+ */
+export function getEmployeeNextActions(
+  status: OrderStatus,
+  fulfillmentType: OrderFulfillmentType
+): { status: OrderStatus; label: string }[] {
+  const actions = EMPLOYEE_NEXT_ACTIONS[status] ?? [];
+  if (status !== "in_progress") return actions;
+
+  const doneAction =
+    fulfillmentType === "pickup"
+      ? { status: "ready_pickup" as const, label: "Ready for Pickup" }
+      : { status: "ready_delivery" as const, label: "Ready for Delivery" };
+
+  return [...actions, doneAction];
+}
 
 /** Every status an employee is allowed to set via updateEmployeeJobStatus. */
 export const EMPLOYEE_ALLOWED_TARGET_STATUSES: OrderStatus[] = [

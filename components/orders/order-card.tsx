@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import Image from "next/image";
-import { ImageIcon, MoreVertical, Copy, Pencil, Trash2, Eye, CalendarClock } from "lucide-react";
+import { ImageIcon, MoreVertical, Copy, Pencil, Trash2, Eye, CalendarClock, Store, Truck } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 import { Card } from "@/components/ui/card";
@@ -134,6 +134,14 @@ export const OrderCard = memo(function OrderCard({
 
       <div className="flex flex-wrap items-center gap-2">
         <OrderStatusBadge status={order.status} />
+        <Badge variant="outline" className="gap-1">
+          {order.fulfillmentType === "delivery" ? (
+            <Truck className="size-3" />
+          ) : (
+            <Store className="size-3" />
+          )}
+          {order.fulfillmentType === "delivery" ? "Delivery" : "Pickup"}
+        </Badge>
       </div>
     </Card>
   );

@@ -20,6 +20,7 @@ export const orderFormSchema = z.object({
   paperSize: z.string().trim().max(100).optional().or(z.literal("")),
   quantity: z.coerce.number().int("Whole numbers only").positive("Must be greater than 0"),
   finishing: z.string().trim().max(300).optional().or(z.literal("")),
+  fulfillmentType: z.enum(["pickup", "delivery"]),
   priority: z.enum(["normal", "urgent"]),
   deliveryDate: z.string().min(1, "Delivery date is required"),
   deliveryTime: z.string().min(1, "Delivery time is required"),

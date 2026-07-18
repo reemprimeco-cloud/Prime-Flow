@@ -33,7 +33,7 @@ import {
   NOTIFICATION_PREFERENCE_LABELS,
   type NotificationPreferences,
 } from "@/lib/notifications/constants";
-import { ORDER_PRIORITY_LABELS } from "@/types/domain";
+import { ORDER_FULFILLMENT_TYPE_LABELS, ORDER_PRIORITY_LABELS } from "@/types/domain";
 
 interface OrderFormProps {
   open: boolean;
@@ -63,6 +63,7 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
       paperSize: "",
       quantity: 1,
       finishing: "",
+      fulfillmentType: "pickup",
       priority: "normal",
       deliveryDate: "",
       deliveryTime: "",
@@ -82,6 +83,7 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
     paperSize: order.paperSize ?? "",
     quantity: order.quantity,
     finishing: order.finishing ?? "",
+    fulfillmentType: order.fulfillmentType,
     priority: order.priority,
     deliveryDate: order.deliveryDate,
     deliveryTime: order.deliveryTime.slice(0, 5),
@@ -162,6 +164,7 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
         formData.set("paperSize", values.paperSize ?? "");
         formData.set("quantity", String(values.quantity));
         formData.set("finishing", values.finishing ?? "");
+        formData.set("fulfillmentType", values.fulfillmentType);
         formData.set("priority", values.priority);
         formData.set("deliveryDate", values.deliveryDate);
         formData.set("deliveryTime", values.deliveryTime);
@@ -318,7 +321,27 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                 <Field label="Delivery Time" error={errors.deliveryTime?.message}>
                   <Input type="time" {...register("deliveryTime")} aria-invalid={!!errors.deliveryTime} />
                 </Field>
-                <Field label="Priority" className="col-span-2">
+                <Field label="Fulfillment">
+                  <Controller
+                    control={control}
+                    name="fulfillmentType"
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(ORDER_FULFILLMENT_TYPE_LABELS).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </Field>
+                <Field label="Priority">
                   <Controller
                     control={control}
                     name="priority"

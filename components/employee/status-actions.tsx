@@ -3,19 +3,20 @@
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { EMPLOYEE_NEXT_ACTIONS } from "@/types/domain";
-import type { OrderStatus } from "@/types/database.types";
+import { getEmployeeNextActions } from "@/types/domain";
+import type { OrderFulfillmentType, OrderStatus } from "@/types/database.types";
 
 const SUCCESS_TARGETS: OrderStatus[] = ["ready_pickup", "ready_delivery", "collected", "delivered"];
 
 interface StatusActionsProps {
   status: OrderStatus;
+  fulfillmentType: OrderFulfillmentType;
   pending: boolean;
   onChange: (status: OrderStatus) => void;
 }
 
-export function StatusActions({ status, pending, onChange }: StatusActionsProps) {
-  const actions = EMPLOYEE_NEXT_ACTIONS[status] ?? [];
+export function StatusActions({ status, fulfillmentType, pending, onChange }: StatusActionsProps) {
+  const actions = getEmployeeNextActions(status, fulfillmentType);
   if (actions.length === 0) return null;
 
   return (
