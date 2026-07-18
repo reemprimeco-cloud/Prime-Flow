@@ -8,12 +8,17 @@
   # out explicitly rather than left to Netlify's own command-guessing.
   command = "pnpm run build"
 
-  # Deliberately no `publish` directory. The Next.js Runtime plugin
-  # (declared below) manages its own build output and needs to own this
-  # setting itself. Explicitly pointing `publish` at the repo's base
-  # directory is exactly what broke the first production deploy attempt:
-  # "Your publish directory cannot be the same as the base directory of
-  # your site." Do not set one without reading that error again first.
+  # `.next` is Next.js's actual build output directory (confirmed by every
+  # local `pnpm build` run in this repo). This has to be set explicitly:
+  # two real production builds on this site failed with "Your publish
+  # directory cannot be the same as the base directory of your site"
+  # (resolved config showed `publish: /opt/build/repo`, `publishOrigin:
+  # default`) even with no `publish` key here at all and the Next.js
+  # Runtime plugin correctly loaded from this file — Netlify's own
+  # base-directory fallback was winning before the plugin claimed the
+  # output path. Pointing `publish` at the real output directory removes
+  # the ambiguity outright rather than depending on that fallback behaving.
+  publish = ".next"
 
 [build.environment]
   # Pins the Node version Netlify's build image uses, independent of
@@ -25,7 +30,9 @@
   # The Next.js Runtime. Declared explicitly here rather than relying on
   # Netlify auto-installing it after detecting Next.js in package.json —
   # this repo should work the same way regardless of dashboard state.
-  # This is what actually makes the app run correctly on Netlify:
+  # This is what actually makes the app run correctly on Netlify: it reads
+  # the `.next` build output declared above and turns it into what the
+  # framework needs at runtime —
   #   - Server Actions and Route Handlers  -> Netlify Functions
   #   - Middleware                          -> a Netlify Edge Function
   #   - next/image                          -> served through Netlify's Image CDN
