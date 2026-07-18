@@ -9,6 +9,7 @@ This document describes the system **as built**. For focused deep-dives, see:
 - [`NOTIFICATIONS.md`](./NOTIFICATIONS.md) — notification service
 - [`AUDIT_LOG.md`](./AUDIT_LOG.md) — audit trail
 - [`OPERATIONS.md`](./OPERATIONS.md) — Operations Control Center (timeline, workload, calendar, KPIs, search, bulk actions, manager override, activity feed, diagnostics)
+- [`TESTING.md`](./TESTING.md) — automated test suite (Status Engine, Permissions, Notifications, Order Creation, Material Requests)
 
 ## Tech stack
 
@@ -54,6 +55,14 @@ Filters on the Manager order board are URL-synced via `nuqs` — shareable and b
 
 Built on top of the Production Core infrastructure (Realtime, Audit Log, Status Engine) without new tracking tables — the Live Production Timeline and Activity Feed are both just filtered/formatted reads of `audit_logs`, and Manager Override is the sole deliberate exception that bypasses the Status Engine (with a required reason and an audit trail flagging it as such). Full module-by-module detail — Employee Workload, Production Calendar, the Operations Dashboard KPIs, Global Search, Bulk Actions, and the Diagnostics health check — is in `OPERATIONS.md`.
 
+## Employee Management
+
+`/employees` (`lib/actions/employees.ts`, `components/manager/employees-client.tsx`) is a full admin CRUD module, not just a roster view: create, edit (name/phone/role), reset password, and activate/deactivate, each Zod-validated (`lib/validation/employee.ts`) and audit-logged (`employee_created`/`employee_updated`/`employee_password_reset` — the password-reset action deliberately never carries password/hash material in its audit payload). `assertKeepsAnActiveAdmin` blocks any role change or deactivation that would leave zero active administrators, since nothing else in the app can recover from that state. Deactivating an employee blocks login immediately (`login()` has always gated on `employees.active`); it does **not** revoke an already-issued session cookie, which stays valid until its ~12h natural expiry — see the Known Gaps note below.
+
+## Large Dataset Support
+
+`getOrders()` (`lib/actions/orders.ts`) is page-based paginated — `.range()` + `{ count: "exact" }` in one round trip — rather than fetching every non-archived order unconditionally, which was the top scaling risk identified for shops running 1000+ active orders. `employeeId` filtering resolves the employee's assigned order IDs first and folds them into the same paginated query, so pagination math stays correct under every filter combination rather than post-filtering a page down to fewer rows than requested. `page` is `nuqs`-synced and resets to 1 on any other filter change. `getDashboardStats()` still runs one unbounded (but narrow, 4-column) query to compute the stat-card counts — a smaller instance of the same risk shape, deliberately left out of this pass; see `QA_REPORT_RC2.md`.
+
 ## What's deferred
 
 Email and SMS notification providers — only WhatsApp (via Twilio) is implemented, behind the same provider abstraction the other two will use (see `NOTIFICATIONS.md`). The **Notification Service**, **Audit Log**, and **Status Engine** built in the infrastructure phase are designed so both land as pure additions — no dashboard code changes required.
@@ -65,3 +74,6 @@ Email and SMS notification providers — only WhatsApp (via Twilio) is implement
 - The month-end cron has no scheduler wired up yet (e.g. Vercel Cron config) — the endpoint exists and works, but nothing calls it automatically until that's configured on deployment.
 - No persisted "pickup vs. delivery" field on an order — Operations KPIs and the Calendar infer it from current status. See `OPERATIONS.md`.
 - "Active Users" on the Diagnostics page is an approximation (distinct recent audit-log actors), not a real session count — there's no session-tracking table since auth is stateless JWT cookies. See `OPERATIONS.md`.
+- No session revocation — deactivating an employee, resetting their password, or changing their role doesn't invalidate a JWT cookie they already hold; it stays valid until its ~12h natural expiry. Fixing this properly means either shortening session lifetime or adding server-side session tracking, a real architectural change rather than a quick patch. See `QA_REPORT_RC2.md`.
+- No automated tests yet for Employee Management — the mocked-Supabase pattern used for Order Creation/Material Requests (see `TESTING.md`) extends cleanly to it, just not built this pass.
+- Live deployment has never been verified — the app has run in Demo Mode and against the real Supabase project only via MCP tools (SQL-level checks, never a live browser over real HTTPS) throughout every phase. As of RC2, a Netlify site and all production environment variables are provisioned and ready; the code deploy itself is what's outstanding. See `QA_REPORT_RC2.md` §2 for exactly what's left.
