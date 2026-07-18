@@ -104,8 +104,14 @@ export const EMPLOYEE_NEXT_ACTIONS: Partial<Record<OrderStatus, { status: OrderS
   new: [{ status: "in_progress", label: "Start Production" }],
   in_progress: [{ status: "waiting_materials", label: "Waiting for Materials" }],
   waiting_materials: [{ status: "in_progress", label: "Resume Production" }],
-  ready_pickup: [{ status: "collected", label: "Collected" }],
-  ready_delivery: [{ status: "delivered", label: "Delivered" }],
+  ready_pickup: [
+    { status: "collected", label: "Collected" },
+    { status: "in_progress", label: "Back to Production" },
+  ],
+  ready_delivery: [
+    { status: "delivered", label: "Delivered" },
+    { status: "in_progress", label: "Back to Production" },
+  ],
 };
 
 /**

@@ -37,6 +37,7 @@ Customer-facing, gated by `whatsappEnabled` **and** the order's `notification_pr
 
 - **`notifyOrderCreated`** — `createOrder`. Template `order_received`.
 - **`notifyOrderStatusChanged`** — `updateEmployeeJobStatus`, after the status engine validates the transition. Maps `toStatus` to a template: `in_progress → order_in_production` (off by default — see Notification Preferences), `ready_pickup → order_ready_for_pickup`, `ready_delivery → order_out_for_delivery`, `collected → order_collected_confirmation` (gated by the same preference as pickup), `delivered → order_delivered_confirmation`. Other statuses (`waiting_materials`) stay silent.
+- **`notifyOrderMovedBackToProduction`** — `updateEmployeeJobStatus`, specifically when a job is reverted from `ready_pickup`/`ready_delivery` back to `in_progress` (an employee correcting a job marked ready by mistake — see `STATUS_ENGINE.md`). Template `order_returned_to_production`. Deliberately **not** gated by `notification_preferences` like every other status message above: those toggles opt a customer into routine updates, but this corrects a "ready" message that already went out, so it's sent regardless of whether the customer opted into `order_in_production` updates. Still respects `whatsappEnabled`.
 
 Employee-facing, always WhatsApp, no preference gating (staff, not customers), always English (employees have no stored language preference in this schema):
 

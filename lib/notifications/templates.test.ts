@@ -7,6 +7,7 @@ const CUSTOMER_TEMPLATES: TemplateName[] = [
   "order_in_production",
   "order_ready_for_pickup",
   "order_out_for_delivery",
+  "order_returned_to_production",
   "order_collected_confirmation",
   "order_delivered_confirmation",
 ];

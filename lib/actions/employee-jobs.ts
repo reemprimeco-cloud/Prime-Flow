@@ -11,7 +11,7 @@ import { getDemoMyJobs } from "@/lib/demo/data";
 import { materialRequestSchema, orderNoteSchema } from "@/lib/validation/material-request";
 import { assertValidTransition } from "@/lib/status/engine";
 import { recordAuditLog } from "@/lib/audit/log";
-import { notifyOrderStatusChanged } from "@/lib/notifications/service";
+import { notifyOrderMovedBackToProduction, notifyOrderStatusChanged } from "@/lib/notifications/service";
 import { EMPLOYEE_ACTIVE_STATUSES, EMPLOYEE_ALLOWED_TARGET_STATUSES, PRIORITY_SORT_WEIGHT } from "@/types/domain";
 import type { MaterialType, OrderFulfillmentType, OrderPriority, OrderStatus } from "@/types/database.types";
 
@@ -238,24 +238,32 @@ export async function updateEmployeeJobStatus(orderId: string, status: OrderStat
     newValue: { status },
   });
 
-  await notifyOrderStatusChanged(
-    {
-      orderId,
-      orderNumber: current.order_number,
-      customerName: current.customer_name,
-      customerMobile: current.customer_mobile,
-      product: current.product,
-      deliveryDate: current.delivery_date,
-      deliveryTime: current.delivery_time,
-      whatsappEnabled: current.whatsapp_enabled,
-      preferredChannel: current.preferred_channel,
-      language: current.preferred_language,
-      notificationPreferences: current.notification_preferences,
-      toStatus: status,
-    },
-    session.employeeId,
-    session.fullName
-  );
+  const notificationContext = {
+    orderId,
+    orderNumber: current.order_number,
+    customerName: current.customer_name,
+    customerMobile: current.customer_mobile,
+    product: current.product,
+    deliveryDate: current.delivery_date,
+    deliveryTime: current.delivery_time,
+    whatsappEnabled: current.whatsapp_enabled,
+    preferredChannel: current.preferred_channel,
+    language: current.preferred_language,
+    notificationPreferences: current.notification_preferences,
+  };
+
+  const isRevertToProduction =
+    (current.status === "ready_pickup" || current.status === "ready_delivery") && status === "in_progress";
+
+  if (isRevertToProduction) {
+    await notifyOrderMovedBackToProduction(notificationContext, session.employeeId, session.fullName);
+  } else {
+    await notifyOrderStatusChanged(
+      { ...notificationContext, toStatus: status },
+      session.employeeId,
+      session.fullName
+    );
+  }
 
   await broadcast(CHANNELS.production, "order.updated", { orderId });
   revalidatePath("/employee");

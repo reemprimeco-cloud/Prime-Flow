@@ -148,6 +148,44 @@ export async function notifyOrderCreated(
   await sendCustomerNotification(order, "order_received", "order_received", actorId, actorName);
 }
 
+/**
+ * Fires when a job is moved back to in_progress after already being marked
+ * ready_pickup/ready_delivery by mistake. Deliberately bypasses the
+ * per-order notification preference toggles that gate every other status
+ * message: those toggles opt into routine updates, but this is a correction
+ * to a "ready" message that already went out, so it goes out regardless of
+ * whether the customer opted into "order in production" updates.
+ */
+export async function notifyOrderMovedBackToProduction(
+  order: OrderNotificationContext,
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  if (!order.whatsappEnabled || !order.customerMobile) return;
+
+  const vars: TemplateVariables = {
+    customerName: order.customerName,
+    orderNumber: order.orderNumber,
+    productName: order.product,
+    deliveryDate: order.deliveryDate,
+    deliveryTime: order.deliveryTime,
+  };
+
+  await dispatch(
+    {
+      orderId: order.orderId,
+      phone: order.customerMobile,
+      receiverType: "customer",
+      templateName: "order_returned_to_production",
+      language: order.language,
+      channel: order.preferredChannel,
+      body: renderTemplate("order_returned_to_production", order.language, vars),
+    },
+    actorId,
+    actorName
+  );
+}
+
 const STATUS_TEMPLATE: Partial<
   Record<OrderStatus, { template: CustomerStatusTemplate; preference: keyof NotificationPreferences }>
 > = {

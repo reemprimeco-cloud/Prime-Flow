@@ -15,8 +15,10 @@ export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   new: ["in_progress"],
   in_progress: ["waiting_materials", "ready_pickup", "ready_delivery"],
   waiting_materials: ["in_progress"],
-  ready_pickup: ["collected"],
-  ready_delivery: ["delivered"],
+  // Both allow a way back to in_progress -- correcting a job marked ready by
+  // mistake, before it's actually been collected/delivered.
+  ready_pickup: ["collected", "in_progress"],
+  ready_delivery: ["delivered", "in_progress"],
   collected: ["completed"],
   delivered: ["completed"],
   completed: [],

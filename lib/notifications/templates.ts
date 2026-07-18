@@ -17,6 +17,7 @@ export type CustomerTemplateName =
   | "order_in_production"
   | "order_ready_for_pickup"
   | "order_out_for_delivery"
+  | "order_returned_to_production"
   | "order_collected_confirmation"
   | "order_delivered_confirmation";
 
@@ -62,6 +63,12 @@ const TEMPLATES: Record<TemplateName, Record<OrderLanguage, TemplateFn>> = {
   order_out_for_delivery: {
     en: (v) => `Order ${v.orderNumber} (${v.productName}) is out for delivery, expected ${v.deliveryDate} ${v.deliveryTime}.`,
     ar: (v) => `طلبكم ${v.orderNumber} (${v.productName}) في الطريق إليكم، الوصول المتوقع ${v.deliveryDate} ${v.deliveryTime}.`,
+  },
+  order_returned_to_production: {
+    en: (v) =>
+      `A quick update on order ${v.orderNumber} (${v.productName}): it needs a little more work before it's ready, so it's back in production. We'll message you again as soon as it's actually ready.`,
+    ar: (v) =>
+      `تحديث بخصوص طلبكم ${v.orderNumber} (${v.productName}): يحتاج القليل من العمل الإضافي، لذا أعدناه إلى التنفيذ. سنُرسل لكم رسالة أخرى بمجرد أن يصبح جاهزاً فعلياً.`,
   },
   order_collected_confirmation: {
     en: (v) => `Thanks for picking up order ${v.orderNumber} (${v.productName}) — enjoy! From all of us at ${v.companyName}.`,
