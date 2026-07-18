@@ -36,12 +36,18 @@ export async function login(input: { username: string; password: string }): Prom
     return { error: GENERIC_LOGIN_ERROR };
   }
 
-  const token = await signSession({
-    employeeId: employee.id,
-    username: employee.username,
-    fullName: employee.full_name,
-    role: employee.role,
-  });
+  let token: string;
+  try {
+    token = await signSession({
+      employeeId: employee.id,
+      username: employee.username,
+      fullName: employee.full_name,
+      role: employee.role,
+    });
+  } catch (error) {
+    console.error("[login] Failed to sign session:", error);
+    return { error: "Server configuration error. Please contact your administrator." };
+  }
 
   const store = await cookies();
   store.set(SESSION_COOKIE, token, {
