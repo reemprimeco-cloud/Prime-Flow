@@ -206,7 +206,9 @@ export async function updateEmployeeJobStatus(orderId: string, status: OrderStat
 
   const { data: current, error: fetchError } = await supabase
     .from("orders")
-    .select("status, order_number, customer_name, customer_mobile, whatsapp_enabled, preferred_language")
+    .select(
+      "status, order_number, customer_name, customer_mobile, product, delivery_date, delivery_time, whatsapp_enabled, preferred_channel, preferred_language, notification_preferences"
+    )
     .eq("id", orderId)
     .single();
   if (fetchError || !current) throw new Error(fetchError?.message ?? "Order not found");
@@ -234,18 +236,24 @@ export async function updateEmployeeJobStatus(orderId: string, status: OrderStat
     newValue: { status },
   });
 
-  await notifyOrderStatusChanged({
-    orderId,
-    orderNumber: current.order_number,
-    customerName: current.customer_name,
-    customerMobile: current.customer_mobile,
-    whatsappEnabled: current.whatsapp_enabled,
-    language: current.preferred_language,
-    fromStatus: current.status,
-    toStatus: status,
-    actorId: session.employeeId,
-    actorName: session.fullName,
-  });
+  await notifyOrderStatusChanged(
+    {
+      orderId,
+      orderNumber: current.order_number,
+      customerName: current.customer_name,
+      customerMobile: current.customer_mobile,
+      product: current.product,
+      deliveryDate: current.delivery_date,
+      deliveryTime: current.delivery_time,
+      whatsappEnabled: current.whatsapp_enabled,
+      preferredChannel: current.preferred_channel,
+      language: current.preferred_language,
+      notificationPreferences: current.notification_preferences,
+      toStatus: status,
+    },
+    session.employeeId,
+    session.fullName
+  );
 
   await broadcast(CHANNELS.production, "order.updated", { orderId });
   revalidatePath("/employee");

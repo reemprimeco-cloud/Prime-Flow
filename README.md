@@ -15,8 +15,9 @@ Required env vars (see `.env.local.example`):
 
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — from Supabase Project Settings → API
 - `SESSION_SECRET` — `openssl rand -base64 32`
-- `TWILIO_*` — optional; WhatsApp sends run stub-safe (logged, not sent) when unset
-- `CRON_SECRET` — required by `/api/cron/month-end`
+- `TWILIO_*` — optional; WhatsApp sends run stub-safe (logged, not sent) when unset. See `docs/NOTIFICATIONS.md` for setup, including the free WhatsApp Sandbox for development.
+- `COMPANY_NAME`, `PICKUP_LOCATION` — optional, used in WhatsApp message templates
+- `CRON_SECRET` — required by `/api/cron/retry-notifications` and (once built) `/api/cron/month-end`
 
 ## Structure
 

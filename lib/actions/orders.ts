@@ -13,11 +13,20 @@ import { DELAYABLE_STATUSES } from "@/types/domain";
 import { isDemoMode } from "@/lib/demo/mode";
 import { getDemoDashboardStats, getDemoOrderDetail, getDemoOrders } from "@/lib/demo/data";
 import { recordAuditLog } from "@/lib/audit/log";
-import { notifyOrderCreated } from "@/lib/notifications/service";
+import {
+  notifyEmployeeHighPriorityAssigned,
+  notifyEmployeeJobAssigned,
+  notifyEmployeeJobCancelled,
+  notifyEmployeeJobReassigned,
+  notifyOrderCreated,
+} from "@/lib/notifications/service";
+import { DEFAULT_NOTIFICATION_PREFERENCES, normalizeNotificationPreferences } from "@/lib/notifications/constants";
+import type { NotificationPreferences } from "@/lib/notifications/constants";
 import type {
   MaterialPriority,
   MaterialRequestStatus,
   MaterialType,
+  NotificationChannel,
   OrderFileType,
   OrderLanguage,
   OrderPriority,
@@ -67,6 +76,8 @@ export interface OrderDetail {
   customerMobile: string;
   preferredLanguage: OrderLanguage;
   whatsappEnabled: boolean;
+  preferredChannel: NotificationChannel;
+  notificationPreferences: NotificationPreferences;
   product: string;
   paper: string | null;
   paperSize: string | null;
@@ -288,6 +299,8 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
     customerMobile: order.customer_mobile,
     preferredLanguage: order.preferred_language,
     whatsappEnabled: order.whatsapp_enabled,
+    preferredChannel: order.preferred_channel,
+    notificationPreferences: normalizeNotificationPreferences(order.notification_preferences),
     product: order.product,
     paper: order.paper,
     paperSize: order.paper_size,
@@ -416,6 +429,8 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
       customer_mobile: input.customerMobile,
       preferred_language: input.preferredLanguage,
       whatsapp_enabled: input.whatsappEnabled,
+      preferred_channel: input.preferredChannel,
+      notification_preferences: input.notificationPreferences,
       product: input.product,
       paper: input.paper || null,
       paper_size: input.paperSize || null,
@@ -475,12 +490,39 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
       orderNumber: order.order_number,
       customerName: input.customerName,
       customerMobile: input.customerMobile,
+      product: input.product,
+      deliveryDate: input.deliveryDate,
+      deliveryTime: input.deliveryTime,
       whatsappEnabled: input.whatsappEnabled,
+      preferredChannel: input.preferredChannel,
       language: input.preferredLanguage,
+      notificationPreferences: input.notificationPreferences,
     },
     session.employeeId,
     session.fullName
   );
+
+  if (input.employeeIds.length > 0) {
+    const assignedEmployees = await fetchEmployeePhones(supabase, input.employeeIds);
+    for (const employeeId of input.employeeIds) {
+      const employee = assignedEmployees.get(employeeId);
+      if (!employee) continue;
+      const context = {
+        employeeId,
+        employeePhone: employee.phone,
+        orderId: order.id,
+        orderNumber: order.order_number,
+        product: input.product,
+        deliveryDate: input.deliveryDate,
+        deliveryTime: input.deliveryTime,
+      };
+      if (input.priority === "urgent") {
+        await notifyEmployeeHighPriorityAssigned(context, session.employeeId, session.fullName);
+      } else {
+        await notifyEmployeeJobAssigned(context, session.employeeId, session.fullName);
+      }
+    }
+  }
 
   await broadcast(CHANNELS.production, "order.created", { orderId: order.id });
   revalidatePath("/dashboard");
@@ -501,6 +543,8 @@ export async function updateOrder(orderId: string, formData: FormData): Promise<
       customer_mobile: input.customerMobile,
       preferred_language: input.preferredLanguage,
       whatsapp_enabled: input.whatsappEnabled,
+      preferred_channel: input.preferredChannel,
+      notification_preferences: input.notificationPreferences,
       product: input.product,
       paper: input.paper || null,
       paper_size: input.paperSize || null,
@@ -553,6 +597,37 @@ export async function updateOrder(orderId: string, formData: FormData): Promise<
         newValue: { employeeId },
       });
     }
+
+    // A removal in the same update means these adds are filling a vacated
+    // slot — "reassigned" — rather than a fresh assignment.
+    const isReassignment = toRemove.length > 0;
+    const [assignedEmployees, orderRow] = await Promise.all([
+      fetchEmployeePhones(supabase, toAdd),
+      supabase.from("orders").select("order_number").eq("id", orderId).single(),
+    ]);
+    const orderNumber = orderRow.data?.order_number ?? orderId;
+
+    for (const employeeId of toAdd) {
+      const employee = assignedEmployees.get(employeeId);
+      if (!employee) continue;
+      const context = {
+        employeeId,
+        employeePhone: employee.phone,
+        orderId,
+        orderNumber,
+        product: input.product,
+        deliveryDate: input.deliveryDate,
+        deliveryTime: input.deliveryTime,
+      };
+
+      if (input.priority === "urgent") {
+        await notifyEmployeeHighPriorityAssigned(context, session.employeeId, session.fullName);
+      } else if (isReassignment) {
+        await notifyEmployeeJobReassigned(context, session.employeeId, session.fullName);
+      } else {
+        await notifyEmployeeJobAssigned(context, session.employeeId, session.fullName);
+      }
+    }
   }
 
   await uploadOrderFiles(supabase, orderId, session.employeeId, formData);
@@ -593,6 +668,8 @@ export async function duplicateOrder(orderId: string): Promise<{ id: string }> {
       customer_mobile: original.customer_mobile,
       preferred_language: original.preferred_language,
       whatsapp_enabled: original.whatsapp_enabled,
+      preferred_channel: original.preferred_channel,
+      notification_preferences: original.notification_preferences,
       product: original.product,
       paper: original.paper,
       paper_size: original.paper_size,
@@ -659,7 +736,16 @@ export async function deleteOrder(orderId: string): Promise<void> {
   if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
   const supabase = createServiceClient();
 
-  const { data: order } = await supabase.from("orders").select("order_number, product").eq("id", orderId).single();
+  const [{ data: order }, { data: assignments }] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("order_number, product, delivery_date, delivery_time")
+      .eq("id", orderId)
+      .single(),
+    supabase.from("order_assignments").select("employee_id").eq("order_id", orderId),
+  ]);
+  const assignedEmployeeIds = (assignments ?? []).map((a) => a.employee_id);
+  const assignedEmployees = await fetchEmployeePhones(supabase, assignedEmployeeIds);
 
   const { data: files } = await supabase
     .from("order_files")
@@ -684,6 +770,26 @@ export async function deleteOrder(orderId: string): Promise<void> {
     orderId: null,
     oldValue: { orderNumber: order?.order_number, product: order?.product },
   });
+
+  if (order) {
+    for (const employeeId of assignedEmployeeIds) {
+      const employee = assignedEmployees.get(employeeId);
+      if (!employee?.phone) continue;
+      await notifyEmployeeJobCancelled(
+        {
+          employeeId,
+          employeePhone: employee.phone,
+          orderId: null, // the order row is already gone — see EmployeeNotificationContext
+          orderNumber: order.order_number,
+          product: order.product,
+          deliveryDate: order.delivery_date,
+          deliveryTime: order.delivery_time,
+        },
+        session.employeeId,
+        session.fullName
+      );
+    }
+  }
 
   await broadcast(CHANNELS.production, "order.deleted", { orderId });
   revalidatePath("/dashboard");
@@ -714,11 +820,23 @@ export async function deleteOrderFile(fileId: string): Promise<void> {
 // ---------------------------------------------------------------------------
 
 function parseOrderForm(formData: FormData) {
+  const rawPreferences = formData.get("notificationPreferences");
+  let notificationPreferences: unknown = DEFAULT_NOTIFICATION_PREFERENCES;
+  if (typeof rawPreferences === "string" && rawPreferences.length > 0) {
+    try {
+      notificationPreferences = JSON.parse(rawPreferences);
+    } catch {
+      // fall through with defaults — validated (and rejected if malformed) by the schema below
+    }
+  }
+
   const raw = {
     customerName: formData.get("customerName"),
     customerMobile: formData.get("customerMobile"),
     preferredLanguage: formData.get("preferredLanguage"),
     whatsappEnabled: formData.get("whatsappEnabled") === "true",
+    preferredChannel: formData.get("preferredChannel") || "whatsapp",
+    notificationPreferences,
     product: formData.get("product"),
     paper: formData.get("paper") || undefined,
     paperSize: formData.get("paperSize") || undefined,
@@ -742,6 +860,15 @@ async function fetchEmployeeNames(supabase: ServiceClient, ids: string[]): Promi
   if (ids.length === 0) return new Map();
   const { data } = await supabase.from("employees").select("id, full_name").in("id", ids);
   return new Map((data ?? []).map((e) => [e.id, e.full_name]));
+}
+
+async function fetchEmployeePhones(
+  supabase: ServiceClient,
+  ids: string[]
+): Promise<Map<string, { phone: string | null }>> {
+  if (ids.length === 0) return new Map();
+  const { data } = await supabase.from("employees").select("id, phone").in("id", ids);
+  return new Map((data ?? []).map((e) => [e.id, { phone: e.phone }]));
 }
 
 async function signUrls(

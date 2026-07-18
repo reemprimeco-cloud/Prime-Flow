@@ -45,9 +45,10 @@ Filters on the Manager order board are URL-synced via `nuqs` — shareable and b
 
 ## What's deferred
 
-Reports/analytics UI, Archive screen polish, the month-end archival cron, and a live Twilio WhatsApp provider are intentionally not built yet. The **Notification Service**, **Audit Log**, and **Status Engine** built in the infrastructure phase are designed so those land as pure additions — no dashboard code changes required.
+Reports/analytics UI, Archive screen polish, and the month-end archival cron are intentionally not built yet. Email and SMS notification providers are also deferred — only WhatsApp (via Twilio) is implemented, behind the same provider abstraction the other two will use (see `NOTIFICATIONS.md`). The **Notification Service**, **Audit Log**, and **Status Engine** built in the infrastructure phase are designed so all of this lands as pure additions — no dashboard code changes required.
 
 ## Known gaps (not yet built, tracked here rather than silently)
 
-- Material request **approve/reject** — `/material-requests` is currently a read-only table with no mutation actions.
 - Manager-initiated order status changes — today only employees change `orders.status` (via `updateEmployeeJobStatus`); a manager override action doesn't exist.
+- No persistent customer entity — customer info (including notification preferences) is denormalized per-order, not shared across a customer's orders. Deliberate, per "not an ERP/CRM"; means preferences are re-entered per order rather than remembered.
+- Live Twilio delivery was not runtime-verified in this environment (sandbox network policy blocks direct third-party API calls) — see the Testing boundary in `NOTIFICATIONS.md`.

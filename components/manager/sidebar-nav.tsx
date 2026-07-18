@@ -10,7 +10,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutGrid },
   { href: "/employees", label: "Employees", icon: Users },
   { href: "/material-requests", label: "Material Requests", icon: PackageSearch },
-  { href: "/notifications", label: "Notifications", icon: Bell },
+  { href: "/notifications", label: "Notification Center", icon: Bell },
   { href: "/reports", label: "Reports", icon: BarChart3, comingSoon: true },
   { href: "/archive", label: "Archive", icon: Archive },
 ] as const;

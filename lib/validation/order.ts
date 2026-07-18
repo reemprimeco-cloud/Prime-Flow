@@ -1,10 +1,20 @@
 import { z } from "zod";
 
+const notificationPreferencesSchema = z.object({
+  order_received: z.boolean(),
+  order_in_production: z.boolean(),
+  ready_for_pickup: z.boolean(),
+  out_for_delivery: z.boolean(),
+  delivered: z.boolean(),
+});
+
 export const orderFormSchema = z.object({
   customerName: z.string().trim().min(1, "Customer name is required").max(200),
   customerMobile: z.string().trim().min(6, "Enter a valid mobile number").max(30),
   preferredLanguage: z.enum(["ar", "en"]),
   whatsappEnabled: z.boolean(),
+  preferredChannel: z.enum(["whatsapp", "email", "sms"]).default("whatsapp"),
+  notificationPreferences: notificationPreferencesSchema,
   product: z.string().trim().min(1, "Product is required").max(200),
   paper: z.string().trim().max(200).optional().or(z.literal("")),
   paperSize: z.string().trim().max(100).optional().or(z.literal("")),

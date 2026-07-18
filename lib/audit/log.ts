@@ -5,7 +5,8 @@ import { isDemoMode } from "@/lib/demo/mode";
 import type { AuditAction } from "@/types/database.types";
 
 export interface AuditLogEntry {
-  actorId: string;
+  /** null for system-triggered actions with no employee actor (e.g. the retry-notifications cron). */
+  actorId: string | null;
   actorName: string;
   action: AuditAction;
   entityType: string;

@@ -1,9 +1,14 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import { requireAdmin } from "@/lib/auth/guards";
 import { createServiceClient } from "@/lib/supabase/server";
+import { broadcast, CHANNELS } from "@/lib/realtime/channels";
 import { isDemoMode } from "@/lib/demo/mode";
 import { getDemoMaterialRequests } from "@/lib/demo/data";
+import { recordAuditLog } from "@/lib/audit/log";
+import { notifyEmployeeMaterialApproved } from "@/lib/notifications/service";
 import type {
   MaterialPriority,
   MaterialRequestStatus,
@@ -62,4 +67,102 @@ export async function listMaterialRequests(): Promise<MaterialRequestListItem[]>
     status: r.status,
     createdAt: r.created_at,
   }));
+}
+
+const DEMO_WRITE_ERROR = "This is a read-only demo — writes are disabled.";
+
+export async function approveMaterialRequest(requestId: string): Promise<void> {
+  const session = await requireAdmin();
+  if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
+  const supabase = createServiceClient();
+
+  const { data: request, error: fetchError } = await supabase
+    .from("material_requests")
+    .select("id, order_id, employee_id, status")
+    .eq("id", requestId)
+    .single();
+  if (fetchError || !request) throw new Error(fetchError?.message ?? "Material request not found");
+  if (request.status !== "pending") throw new Error("Only pending requests can be approved.");
+
+  const { error } = await supabase
+    .from("material_requests")
+    .update({ status: "approved", resolved_at: new Date().toISOString(), resolved_by: session.employeeId })
+    .eq("id", requestId);
+  if (error) throw new Error(error.message);
+
+  await recordAuditLog({
+    actorId: session.employeeId,
+    actorName: session.fullName,
+    action: "material_approved",
+    entityType: "material_request",
+    entityId: requestId,
+    orderId: request.order_id,
+    oldValue: { status: "pending" },
+    newValue: { status: "approved" },
+  });
+
+  if (request.order_id) {
+    const [{ data: employee }, { data: order }] = await Promise.all([
+      supabase.from("employees").select("phone").eq("id", request.employee_id).single(),
+      supabase
+        .from("orders")
+        .select("order_number, product, delivery_date, delivery_time")
+        .eq("id", request.order_id)
+        .single(),
+    ]);
+    if (employee && order) {
+      await notifyEmployeeMaterialApproved(
+        {
+          employeeId: request.employee_id,
+          employeePhone: employee.phone,
+          orderId: request.order_id,
+          orderNumber: order.order_number,
+          product: order.product,
+          deliveryDate: order.delivery_date,
+          deliveryTime: order.delivery_time,
+        },
+        session.employeeId,
+        session.fullName
+      );
+    }
+  }
+
+  await broadcast(CHANNELS.materialRequests, "material_request.updated", { requestId });
+  revalidatePath("/material-requests");
+  revalidatePath("/dashboard");
+}
+
+export async function rejectMaterialRequest(requestId: string): Promise<void> {
+  const session = await requireAdmin();
+  if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
+  const supabase = createServiceClient();
+
+  const { data: request, error: fetchError } = await supabase
+    .from("material_requests")
+    .select("id, order_id, status")
+    .eq("id", requestId)
+    .single();
+  if (fetchError || !request) throw new Error(fetchError?.message ?? "Material request not found");
+  if (request.status !== "pending") throw new Error("Only pending requests can be rejected.");
+
+  const { error } = await supabase
+    .from("material_requests")
+    .update({ status: "rejected", resolved_at: new Date().toISOString(), resolved_by: session.employeeId })
+    .eq("id", requestId);
+  if (error) throw new Error(error.message);
+
+  await recordAuditLog({
+    actorId: session.employeeId,
+    actorName: session.fullName,
+    action: "material_rejected",
+    entityType: "material_request",
+    entityId: requestId,
+    orderId: request.order_id,
+    oldValue: { status: "pending" },
+    newValue: { status: "rejected" },
+  });
+
+  await broadcast(CHANNELS.materialRequests, "material_request.updated", { requestId });
+  revalidatePath("/material-requests");
+  revalidatePath("/dashboard");
 }

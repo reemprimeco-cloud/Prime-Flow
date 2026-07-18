@@ -214,12 +214,16 @@ export type Database = {
       }
       notification_logs: {
         Row: {
+          body: string | null
+          channel: Database["public"]["Enums"]["notification_channel"]
           created_at: string
           error: string | null
           id: string
           language: Database["public"]["Enums"]["order_language"]
+          last_attempted_at: string
           order_id: string | null
           phone: string
+          provider_response: Json | null
           receiver_type: Database["public"]["Enums"]["notification_receiver"]
           retry_count: number
           sent_at: string | null
@@ -227,12 +231,16 @@ export type Database = {
           template_name: string
         }
         Insert: {
+          body?: string | null
+          channel?: Database["public"]["Enums"]["notification_channel"]
           created_at?: string
           error?: string | null
           id?: string
           language: Database["public"]["Enums"]["order_language"]
+          last_attempted_at?: string
           order_id?: string | null
           phone: string
+          provider_response?: Json | null
           receiver_type: Database["public"]["Enums"]["notification_receiver"]
           retry_count?: number
           sent_at?: string | null
@@ -240,12 +248,16 @@ export type Database = {
           template_name: string
         }
         Update: {
+          body?: string | null
+          channel?: Database["public"]["Enums"]["notification_channel"]
           created_at?: string
           error?: string | null
           id?: string
           language?: Database["public"]["Enums"]["order_language"]
+          last_attempted_at?: string
           order_id?: string | null
           phone?: string
+          provider_response?: Json | null
           receiver_type?: Database["public"]["Enums"]["notification_receiver"]
           retry_count?: number
           sent_at?: string | null
@@ -437,9 +449,11 @@ export type Database = {
           finishing: string | null
           id: string
           notes: string | null
+          notification_preferences: Json
           order_number: string
           paper: string | null
           paper_size: string | null
+          preferred_channel: Database["public"]["Enums"]["notification_channel"]
           preferred_language: Database["public"]["Enums"]["order_language"]
           priority: Database["public"]["Enums"]["order_priority"]
           product: string
@@ -460,9 +474,11 @@ export type Database = {
           finishing?: string | null
           id?: string
           notes?: string | null
+          notification_preferences?: Json
           order_number?: string
           paper?: string | null
           paper_size?: string | null
+          preferred_channel?: Database["public"]["Enums"]["notification_channel"]
           preferred_language?: Database["public"]["Enums"]["order_language"]
           priority?: Database["public"]["Enums"]["order_priority"]
           product: string
@@ -483,9 +499,11 @@ export type Database = {
           finishing?: string | null
           id?: string
           notes?: string | null
+          notification_preferences?: Json
           order_number?: string
           paper?: string | null
           paper_size?: string | null
+          preferred_channel?: Database["public"]["Enums"]["notification_channel"]
           preferred_language?: Database["public"]["Enums"]["order_language"]
           priority?: Database["public"]["Enums"]["order_priority"]
           product?: string
@@ -533,6 +551,7 @@ export type Database = {
         | "packaging"
         | "lamination"
         | "other"
+      notification_channel: "whatsapp" | "email" | "sms"
       notification_receiver: "customer" | "employee"
       notification_status:
         | "pending"
@@ -702,6 +721,7 @@ export const Constants = {
         "lamination",
         "other",
       ],
+      notification_channel: ["whatsapp", "email", "sms"],
       notification_receiver: ["customer", "employee"],
       notification_status: [
         "pending",
@@ -741,4 +761,5 @@ export type MaterialPriority = Database["public"]["Enums"]["material_priority"]
 export type MaterialRequestStatus = Database["public"]["Enums"]["material_request_status"]
 export type NotificationReceiver = Database["public"]["Enums"]["notification_receiver"]
 export type NotificationStatus = Database["public"]["Enums"]["notification_status"]
+export type NotificationChannel = Database["public"]["Enums"]["notification_channel"]
 export type AuditAction = Database["public"]["Enums"]["audit_action"]

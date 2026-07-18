@@ -3,147 +3,320 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
 import { isDemoMode } from "@/lib/demo/mode";
 import { recordAuditLog } from "@/lib/audit/log";
-import type { NotificationReceiver, NotificationStatus, OrderLanguage, OrderStatus } from "@/types/database.types";
+import { renderTemplate, type TemplateName, type TemplateVariables } from "@/lib/notifications/templates";
+import { TwilioWhatsAppProvider } from "@/lib/notifications/providers/twilio-whatsapp";
+import { normalizeNotificationPreferences, type NotificationPreferences } from "@/lib/notifications/constants";
+import type {
+  NotificationChannel,
+  NotificationReceiver,
+  NotificationStatus,
+  OrderLanguage,
+  OrderStatus,
+} from "@/types/database.types";
 
 /**
  * Reusable notification layer — the only thing dashboards and Server
- * Actions should ever call. It owns *when* a notification fires and *what*
- * gets logged; it does not know or care how a message is actually
- * delivered. Swapping in a real WhatsApp/SMS/email provider later means
- * implementing `NotificationProvider` and changing `ACTIVE_PROVIDERS` here
- * — nothing outside this file changes.
+ * Actions should ever call. It owns *when* a notification fires, *what*
+ * template it uses, and *which channel* it routes to; callers never touch
+ * a provider, a phone number, or notification_logs directly. Adding Email
+ * or SMS later means implementing `NotificationProvider` and registering
+ * it in `PROVIDERS` — nothing outside this file changes.
  */
 
 export interface NotificationPayload {
-  orderId: string;
+  orderId: string | null;
   phone: string;
   receiverType: NotificationReceiver;
-  templateName: string;
+  templateName: TemplateName;
   language: OrderLanguage;
+  channel: NotificationChannel;
+  body: string;
 }
 
 export interface NotificationResult {
   status: NotificationStatus;
   error?: string;
+  providerResponse?: unknown;
 }
 
 export interface NotificationProvider {
-  readonly channel: "whatsapp" | "browser" | "email" | "sms";
+  readonly channel: NotificationChannel;
   send(payload: NotificationPayload): Promise<NotificationResult>;
 }
 
-/**
- * Stub-safe default provider: never calls a real API, always logs the
- * attempt as 'skipped'. This keeps the notification pipeline fully wired
- * end-to-end (order events -> notification_logs -> audit trail) without a
- * live Twilio/SMTP/etc integration, matching the project's "stub-safe"
- * design — see Phase 6 for the real WhatsApp provider.
- */
-class LogOnlyProvider implements NotificationProvider {
-  readonly channel = "whatsapp" as const;
+/** Registered providers, keyed by channel. Only "whatsapp" is implemented — see docs/NOTIFICATIONS.md. */
+const PROVIDERS: Partial<Record<NotificationChannel, NotificationProvider>> = {
+  whatsapp: new TwilioWhatsAppProvider(),
+};
 
-  async send(): Promise<NotificationResult> {
-    return { status: "skipped" };
-  }
-}
-
-const ACTIVE_PROVIDERS: NotificationProvider[] = [new LogOnlyProvider()];
-
-async function dispatch(payload: NotificationPayload, actorId: string, actorName: string): Promise<void> {
+async function dispatch(payload: NotificationPayload, actorId: string | null, actorName: string): Promise<void> {
   if (isDemoMode()) return;
 
   const supabase = createServiceClient();
+  const provider = PROVIDERS[payload.channel];
+  const result: NotificationResult = provider
+    ? await provider.send(payload)
+    : { status: "skipped", error: `"${payload.channel}" channel isn't implemented yet` };
 
-  for (const provider of ACTIVE_PROVIDERS) {
-    const result = await provider.send(payload);
-
-    const { error } = await supabase.from("notification_logs").insert({
-      order_id: payload.orderId,
-      phone: payload.phone,
-      receiver_type: payload.receiverType,
-      template_name: payload.templateName,
-      language: payload.language,
-      status: result.status,
-      error: result.error ?? null,
-      sent_at: result.status === "sent" || result.status === "delivered" ? new Date().toISOString() : null,
-    });
-    if (error) {
-      console.error(`[notifications] failed to log ${payload.templateName}`, error);
-      continue;
-    }
-
-    await recordAuditLog({
-      actorId,
-      actorName,
-      action: "notification_sent",
-      entityType: "order",
-      entityId: payload.orderId,
-      orderId: payload.orderId,
-      newValue: { templateName: payload.templateName, receiverType: payload.receiverType, status: result.status },
-    });
+  const { error } = await supabase.from("notification_logs").insert({
+    order_id: payload.orderId,
+    phone: payload.phone,
+    receiver_type: payload.receiverType,
+    template_name: payload.templateName,
+    channel: payload.channel,
+    language: payload.language,
+    body: payload.body,
+    status: result.status,
+    error: result.error ?? null,
+    provider_response: (result.providerResponse as never) ?? null,
+    sent_at: result.status === "sent" || result.status === "delivered" ? new Date().toISOString() : null,
+    last_attempted_at: new Date().toISOString(),
+  });
+  if (error) {
+    console.error(`[notifications] failed to log ${payload.templateName}`, error);
+    return;
   }
+
+  await recordAuditLog({
+    actorId,
+    actorName,
+    action: "notification_sent",
+    entityType: "order",
+    entityId: payload.orderId,
+    orderId: payload.orderId,
+    newValue: { templateName: payload.templateName, receiverType: payload.receiverType, status: result.status },
+  });
 }
+
+// ---------------------------------------------------------------------------
+// Customer notifications — gated by whatsappEnabled + per-order preferences
+// ---------------------------------------------------------------------------
 
 interface OrderNotificationContext {
   orderId: string;
   orderNumber: string;
   customerName: string;
   customerMobile: string;
+  product: string;
+  deliveryDate: string;
+  deliveryTime: string;
   whatsappEnabled: boolean;
+  preferredChannel: NotificationChannel;
   language: OrderLanguage;
+  notificationPreferences: unknown;
 }
 
-/** Customer-facing statuses worth a notification — internal workflow steps (in_progress, waiting_materials) stay silent. */
-const CUSTOMER_NOTIFIABLE_STATUSES: Partial<Record<OrderStatus, string>> = {
-  ready_pickup: "order_ready_for_pickup",
-  ready_delivery: "order_out_for_delivery",
-  collected: "order_collected_confirmation",
-  delivered: "order_delivered_confirmation",
-};
-
-export async function notifyOrderCreated(
+async function sendCustomerNotification(
   order: OrderNotificationContext,
+  templateName: TemplateName,
+  preferenceKey: keyof NotificationPreferences,
   actorId: string,
   actorName: string
 ): Promise<void> {
   if (!order.whatsappEnabled || !order.customerMobile) return;
+  const prefs = normalizeNotificationPreferences(order.notificationPreferences);
+  if (!prefs[preferenceKey]) return;
+
+  const vars: TemplateVariables = {
+    customerName: order.customerName,
+    orderNumber: order.orderNumber,
+    productName: order.product,
+    deliveryDate: order.deliveryDate,
+    deliveryTime: order.deliveryTime,
+  };
+
   await dispatch(
     {
       orderId: order.orderId,
       phone: order.customerMobile,
       receiverType: "customer",
-      templateName: "order_created",
+      templateName,
       language: order.language,
+      channel: order.preferredChannel,
+      body: renderTemplate(templateName, order.language, vars),
     },
     actorId,
     actorName
   );
 }
 
-export async function notifyOrderStatusChanged(params: {
-  orderId: string;
+export async function notifyOrderCreated(
+  order: OrderNotificationContext,
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  await sendCustomerNotification(order, "order_received", "order_received", actorId, actorName);
+}
+
+const STATUS_TEMPLATE: Partial<
+  Record<OrderStatus, { template: CustomerStatusTemplate; preference: keyof NotificationPreferences }>
+> = {
+  in_progress: { template: "order_in_production", preference: "order_in_production" },
+  ready_pickup: { template: "order_ready_for_pickup", preference: "ready_for_pickup" },
+  ready_delivery: { template: "order_out_for_delivery", preference: "out_for_delivery" },
+  collected: { template: "order_collected_confirmation", preference: "ready_for_pickup" },
+  delivered: { template: "order_delivered_confirmation", preference: "delivered" },
+};
+
+type CustomerStatusTemplate = Extract<
+  TemplateName,
+  "order_in_production" | "order_ready_for_pickup" | "order_out_for_delivery" | "order_collected_confirmation" | "order_delivered_confirmation"
+>;
+
+export async function notifyOrderStatusChanged(
+  order: OrderNotificationContext & { toStatus: OrderStatus },
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  const mapping = STATUS_TEMPLATE[order.toStatus];
+  if (!mapping) return;
+  await sendCustomerNotification(order, mapping.template, mapping.preference, actorId, actorName);
+}
+
+// ---------------------------------------------------------------------------
+// Employee notifications — always WhatsApp, no preference gating (staff,
+// not customers); English only — employees have no stored language
+// preference in this schema.
+// ---------------------------------------------------------------------------
+
+interface EmployeeNotificationContext {
+  employeeId: string;
+  employeePhone: string | null;
+  /** null when the order no longer exists (e.g. job_cancelled fires after deleteOrder) — the notification_logs FK can't reference a deleted row. */
+  orderId: string | null;
   orderNumber: string;
-  customerName: string;
-  customerMobile: string;
-  whatsappEnabled: boolean;
-  language: OrderLanguage;
-  fromStatus: OrderStatus;
-  toStatus: OrderStatus;
-  actorId: string;
-  actorName: string;
-}): Promise<void> {
-  const template = CUSTOMER_NOTIFIABLE_STATUSES[params.toStatus];
-  if (!template || !params.whatsappEnabled || !params.customerMobile) return;
+  product: string;
+  deliveryDate: string;
+  deliveryTime: string;
+}
+
+async function sendEmployeeNotification(
+  employee: EmployeeNotificationContext,
+  templateName: EmployeeTemplateNameLocal,
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  if (!employee.employeePhone) return;
+
+  const vars: TemplateVariables = {
+    orderNumber: employee.orderNumber,
+    productName: employee.product,
+    deliveryDate: employee.deliveryDate,
+    deliveryTime: employee.deliveryTime,
+  };
 
   await dispatch(
     {
-      orderId: params.orderId,
-      phone: params.customerMobile,
-      receiverType: "customer",
-      templateName: template,
-      language: params.language,
+      orderId: employee.orderId,
+      phone: employee.employeePhone,
+      receiverType: "employee",
+      templateName,
+      language: "en",
+      channel: "whatsapp",
+      body: renderTemplate(templateName, "en", vars),
     },
-    params.actorId,
-    params.actorName
+    actorId,
+    actorName
   );
+}
+
+type EmployeeTemplateNameLocal = Extract<
+  TemplateName,
+  "job_assigned" | "job_reassigned" | "high_priority_job_assigned" | "material_request_approved" | "job_cancelled"
+>;
+
+export async function notifyEmployeeJobAssigned(
+  employee: EmployeeNotificationContext,
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  await sendEmployeeNotification(employee, "job_assigned", actorId, actorName);
+}
+
+export async function notifyEmployeeJobReassigned(
+  employee: EmployeeNotificationContext,
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  await sendEmployeeNotification(employee, "job_reassigned", actorId, actorName);
+}
+
+export async function notifyEmployeeHighPriorityAssigned(
+  employee: EmployeeNotificationContext,
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  await sendEmployeeNotification(employee, "high_priority_job_assigned", actorId, actorName);
+}
+
+export async function notifyEmployeeJobCancelled(
+  employee: EmployeeNotificationContext,
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  await sendEmployeeNotification(employee, "job_cancelled", actorId, actorName);
+}
+
+export async function notifyEmployeeMaterialApproved(
+  employee: EmployeeNotificationContext,
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  await sendEmployeeNotification(employee, "material_request_approved", actorId, actorName);
+}
+
+// ---------------------------------------------------------------------------
+// Manual resend — Notification Center "resend" button
+// ---------------------------------------------------------------------------
+
+/** Re-sends a previously logged notification using its original phone/template/language, incrementing retry_count. */
+export async function resendNotification(logId: string, actorId: string | null, actorName: string): Promise<void> {
+  if (isDemoMode()) throw new Error("This is a read-only demo — writes are disabled.");
+
+  const supabase = createServiceClient();
+  const { data: log, error: fetchError } = await supabase
+    .from("notification_logs")
+    .select("*")
+    .eq("id", logId)
+    .single();
+  if (fetchError || !log) throw new Error(fetchError?.message ?? "Notification not found");
+
+  if (!log.body) throw new Error("This notification has no stored message body to resend.");
+
+  const channel: NotificationChannel = "whatsapp"; // only implemented channel — see PROVIDERS above
+  const provider = PROVIDERS[channel];
+  const result: NotificationResult = provider
+    ? await provider.send({
+        orderId: log.order_id,
+        phone: log.phone,
+        receiverType: log.receiver_type,
+        templateName: log.template_name as TemplateName,
+        language: log.language,
+        channel,
+        body: log.body,
+      })
+    : { status: "skipped", error: `"${channel}" channel isn't implemented yet` };
+
+  const { error: updateError } = await supabase
+    .from("notification_logs")
+    .update({
+      status: result.status,
+      error: result.error ?? null,
+      provider_response: (result.providerResponse as never) ?? null,
+      retry_count: log.retry_count + 1,
+      sent_at: result.status === "sent" || result.status === "delivered" ? new Date().toISOString() : log.sent_at,
+      last_attempted_at: new Date().toISOString(),
+    })
+    .eq("id", logId);
+  if (updateError) throw new Error(updateError.message);
+
+  await recordAuditLog({
+    actorId,
+    actorName,
+    action: "notification_sent",
+    entityType: "order",
+    entityId: log.order_id,
+    orderId: log.order_id,
+    newValue: { templateName: log.template_name, manualResend: true, status: result.status },
+  });
 }

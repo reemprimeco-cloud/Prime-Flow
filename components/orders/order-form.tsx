@@ -28,6 +28,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileUpload } from "@/components/shared/file-upload";
 import { DESIGN_FILE_ACCEPT, PRODUCT_IMAGE_ACCEPT } from "@/lib/files/constants";
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  NOTIFICATION_PREFERENCE_LABELS,
+  type NotificationPreferences,
+} from "@/lib/notifications/constants";
 import { ORDER_PRIORITY_LABELS } from "@/types/domain";
 
 interface OrderFormProps {
@@ -51,6 +56,8 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
       customerMobile: "",
       preferredLanguage: "ar",
       whatsappEnabled: true,
+      preferredChannel: "whatsapp",
+      notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
       product: "",
       paper: "",
       paperSize: "",
@@ -68,6 +75,8 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
     customerMobile: order.customerMobile,
     preferredLanguage: order.preferredLanguage,
     whatsappEnabled: order.whatsappEnabled,
+    preferredChannel: order.preferredChannel,
+    notificationPreferences: order.notificationPreferences,
     product: order.product,
     paper: order.paper ?? "",
     paperSize: order.paperSize ?? "",
@@ -143,6 +152,8 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
         formData.set("customerMobile", values.customerMobile);
         formData.set("preferredLanguage", values.preferredLanguage);
         formData.set("whatsappEnabled", String(values.whatsappEnabled));
+        formData.set("preferredChannel", values.preferredChannel ?? "whatsapp");
+        formData.set("notificationPreferences", JSON.stringify(values.notificationPreferences));
         formData.set("product", values.product);
         formData.set("paper", values.paper ?? "");
         formData.set("paperSize", values.paperSize ?? "");
@@ -222,6 +233,50 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                     )}
                   />
                 </div>
+              </div>
+            </section>
+
+            <section className="flex flex-col gap-4">
+              <h3 className="text-sm font-bold text-muted-foreground">Notifications</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Preferred Channel">
+                  <Controller
+                    control={control}
+                    name="preferredChannel"
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                          <SelectItem value="email" disabled>
+                            Email (coming soon)
+                          </SelectItem>
+                          <SelectItem value="sms" disabled>
+                            SMS (coming soon)
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </Field>
+              </div>
+              <div className="flex flex-col gap-1 rounded-xl border border-border p-3">
+                <span className="mb-1 text-xs font-semibold text-muted-foreground">Send the customer a message when:</span>
+                {(Object.keys(NOTIFICATION_PREFERENCE_LABELS) as (keyof NotificationPreferences)[]).map((key) => (
+                  <Controller
+                    key={key}
+                    control={control}
+                    name={`notificationPreferences.${key}`}
+                    render={({ field }) => (
+                      <label className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-muted/40">
+                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                        <span className="text-sm">{NOTIFICATION_PREFERENCE_LABELS[key]}</span>
+                      </label>
+                    )}
+                  />
+                ))}
               </div>
             </section>
 
