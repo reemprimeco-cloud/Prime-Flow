@@ -193,7 +193,12 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
           </SheetDescription>
         </SheetHeader>
 
-        <form id="order-form" onSubmit={handleSubmit(onSubmit)} noValidate>
+        <form
+          id="order-form"
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
+          className="flex min-h-0 flex-1 flex-col"
+        >
           <SheetBody className="flex flex-col gap-6">
             <section className="flex flex-col gap-4">
               <h3 className="text-sm font-bold text-muted-foreground">Customer</h3>
