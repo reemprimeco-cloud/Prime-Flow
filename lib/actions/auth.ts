@@ -20,45 +20,52 @@ export async function login(input: { username: string; password: string }): Prom
     return { error: GENERIC_LOGIN_ERROR };
   }
 
-  const supabase = createServiceClient();
-  const { data: employee } = await supabase
-    .from("employees")
-    .select("id, username, password_hash, full_name, role, active")
-    .eq("username", parsed.data.username)
-    .maybeSingle();
-
-  if (!employee || !employee.active) {
-    return { error: GENERIC_LOGIN_ERROR };
-  }
-
-  const passwordMatches = await verifyPassword(parsed.data.password, employee.password_hash);
-  if (!passwordMatches) {
-    return { error: GENERIC_LOGIN_ERROR };
-  }
-
-  let token: string;
+  let destination: string;
   try {
-    token = await signSession({
+    const supabase = createServiceClient();
+    const { data: employee, error: dbError } = await supabase
+      .from("employees")
+      .select("id, username, password_hash, full_name, role, active")
+      .eq("username", parsed.data.username)
+      .maybeSingle();
+
+    if (dbError) {
+      console.error("[login] Database error looking up employee:", dbError);
+      return { error: "Server configuration error. Please contact your administrator." };
+    }
+
+    if (!employee || !employee.active) {
+      return { error: GENERIC_LOGIN_ERROR };
+    }
+
+    const passwordMatches = await verifyPassword(parsed.data.password, employee.password_hash);
+    if (!passwordMatches) {
+      return { error: GENERIC_LOGIN_ERROR };
+    }
+
+    const token = await signSession({
       employeeId: employee.id,
       username: employee.username,
       fullName: employee.full_name,
       role: employee.role,
     });
+
+    const store = await cookies();
+    store.set(SESSION_COOKIE, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: SESSION_MAX_AGE,
+      path: "/",
+    });
+
+    destination = employee.role === "admin" ? "/dashboard" : "/employee";
   } catch (error) {
-    console.error("[login] Failed to sign session:", error);
+    console.error("[login] Unexpected error:", error);
     return { error: "Server configuration error. Please contact your administrator." };
   }
 
-  const store = await cookies();
-  store.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: SESSION_MAX_AGE,
-    path: "/",
-  });
-
-  redirect(employee.role === "admin" ? "/dashboard" : "/employee");
+  redirect(destination);
 }
 
 export async function logout(): Promise<void> {
