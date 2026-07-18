@@ -116,15 +116,18 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
 
   // RHF only reads `defaultValues` on first mount — since this form is a
   // single long-lived instance reused for every order, we have to
-  // explicitly re-sync whenever the `order` prop changes (new order opened
-  // for edit, or cleared back to create-mode).
+  // explicitly re-sync whenever the sheet opens. Keying only on `order`
+  // isn't enough: "New Order" always passes order=null, so reopening a
+  // blank form after closing one without saving left whatever had been
+  // typed still in place, since null === null triggers no re-sync.
   useEffect(() => {
+    if (!open) return;
     reset(defaultValues(order));
     setExistingImages(order?.productImages ?? []);
     setExistingDesigns(order?.designFiles ?? []);
     setProductImages([]);
     setDesignFiles([]);
-  }, [order, reset]);
+  }, [open, order, reset]);
 
   const removeExistingFile = (fileId: string, kind: "image" | "design") => {
     setRemovingId(fileId);
