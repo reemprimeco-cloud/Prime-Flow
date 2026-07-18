@@ -27,9 +27,14 @@ export function LoginForm() {
   const onSubmit = (values: LoginInput) => {
     setFormError(null);
     startTransition(async () => {
-      const result = await login(values);
-      if (result?.error) {
-        setFormError(result.error);
+      try {
+        const result = await login(values);
+        if (result?.error) {
+          setFormError(result.error);
+        }
+      } catch (error) {
+        console.error("[login] Request failed:", error);
+        setFormError("Couldn't reach the server. Please refresh the page and try again.");
       }
     });
   };
