@@ -4,9 +4,26 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { SESSION_COOKIE, verifySession, type SessionPayload } from "@/lib/auth/session";
+import { isDemoMode } from "@/lib/demo/mode";
+
+const DEMO_ADMIN_SESSION: SessionPayload = {
+  employeeId: "demo-admin",
+  username: "admin",
+  fullName: "Rana Al-Fadhli",
+  role: "admin",
+};
+
+const DEMO_EMPLOYEE_SESSION: SessionPayload = {
+  employeeId: "demo-emp-1",
+  username: "hassan",
+  fullName: "Hassan Youssef",
+  role: "employee",
+};
 
 /** Reads and verifies the session cookie for the current request. Null if absent/invalid. */
 export async function getSession(): Promise<SessionPayload | null> {
+  if (isDemoMode()) return DEMO_ADMIN_SESSION;
+
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
@@ -15,6 +32,8 @@ export async function getSession(): Promise<SessionPayload | null> {
 
 /** For Server Components/Actions on manager-only routes. Redirects otherwise. */
 export async function requireAdmin(): Promise<SessionPayload> {
+  if (isDemoMode()) return DEMO_ADMIN_SESSION;
+
   const session = await getSession();
   if (!session) redirect("/login");
   if (session.role !== "admin") redirect("/employee");
@@ -23,6 +42,8 @@ export async function requireAdmin(): Promise<SessionPayload> {
 
 /** For Server Components/Actions on the employee routes. Redirects otherwise. */
 export async function requireEmployee(): Promise<SessionPayload> {
+  if (isDemoMode()) return DEMO_EMPLOYEE_SESSION;
+
   const session = await getSession();
   if (!session) redirect("/login");
   if (session.role === "admin") redirect("/dashboard");
@@ -31,6 +52,8 @@ export async function requireEmployee(): Promise<SessionPayload> {
 
 /** Any authenticated employee record, admin or otherwise. Redirects if signed out. */
 export async function requireSession(): Promise<SessionPayload> {
+  if (isDemoMode()) return DEMO_ADMIN_SESSION;
+
   const session = await getSession();
   if (!session) redirect("/login");
   return session;

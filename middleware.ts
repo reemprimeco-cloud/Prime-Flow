@@ -1,8 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { SESSION_COOKIE, verifySession } from "@/lib/auth/session";
+import { isDemoMode } from "@/lib/demo/mode";
 
 export async function middleware(request: NextRequest) {
+  if (isDemoMode()) {
+    // Demo mode bypasses auth entirely — see lib/demo/mode.ts.
+    return NextResponse.next();
+  }
+
   const { pathname } = request.nextUrl;
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const session = token ? await verifySession(token) : null;

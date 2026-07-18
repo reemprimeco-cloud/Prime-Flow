@@ -33,6 +33,15 @@ export const ACTIVE_ORDER_STATUSES: OrderStatus[] = ORDER_STATUSES.filter(
   (status) => status !== "completed"
 );
 
+/** Statuses that still count as "in flight" for delayed-order detection. */
+export const DELAYABLE_STATUSES: OrderStatus[] = [
+  "new",
+  "in_progress",
+  "waiting_materials",
+  "ready_pickup",
+  "ready_delivery",
+];
+
 export const EMPLOYEE_ROLE_LABELS: Record<EmployeeRole, string> = {
   admin: "Administrator",
   employee: "Employee",
