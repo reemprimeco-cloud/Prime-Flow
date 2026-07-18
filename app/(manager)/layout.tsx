@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/guards";
 import { isDemoMode } from "@/lib/demo/mode";
 import { SidebarNav } from "@/components/manager/sidebar-nav";
+import { GlobalSearch } from "@/components/manager/global-search";
 import { LogoutButton } from "@/components/shared/logout-button";
 import { DemoModeBanner } from "@/components/shared/demo-mode-banner";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,8 @@ export default async function ManagerLayout({ children }: { children: React.Reac
               <div className="text-xs text-muted-foreground leading-tight">Production Board</div>
             </div>
           </Link>
+
+          <GlobalSearch />
 
           <SidebarNav />
 

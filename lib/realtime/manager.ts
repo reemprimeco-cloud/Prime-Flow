@@ -24,6 +24,7 @@ interface ChannelEntry {
   listeners: Set<Listener>;
   retryTimeout: ReturnType<typeof setTimeout> | null;
   retryAttempt: number;
+  status: string;
 }
 
 const entries = new Map<string, ChannelEntry>();
@@ -48,11 +49,17 @@ function handleStatus(channelName: string, status: string) {
   const entry = entries.get(channelName);
   if (!entry) return;
 
+  entry.status = status;
   if (status === "SUBSCRIBED") {
     entry.retryAttempt = 0;
   } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
     scheduleReconnect(channelName);
   }
+}
+
+/** Current subscription status for a channel — "SUBSCRIBED" | "CHANNEL_ERROR" | "TIMED_OUT" | "CLOSED" | undefined if not open. Used by the diagnostics page. */
+export function getChannelStatus(channelName: string): string | undefined {
+  return entries.get(channelName)?.status;
 }
 
 /** Subscribes `listener` to `channelName`, sharing one physical channel across all callers. Returns an unsubscribe function. */
@@ -62,7 +69,7 @@ export function subscribeToChannel(channelName: string, listener: Listener): () 
   if (!entry) {
     const supabase = getBrowserClient();
     const channel = supabase.channel(channelName);
-    entry = { channel, listeners: new Set(), retryTimeout: null, retryAttempt: 0 };
+    entry = { channel, listeners: new Set(), retryTimeout: null, retryAttempt: 0, status: "SUBSCRIBING" };
     entries.set(channelName, entry);
 
     channel

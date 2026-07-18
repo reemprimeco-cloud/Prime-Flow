@@ -8,6 +8,7 @@ import { format, parseISO } from "date-fns";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,9 +36,19 @@ interface OrderCardProps {
   onEdit: (order: OrderListItem) => void;
   onDuplicate: (order: OrderListItem) => void;
   onDelete: (order: OrderListItem) => void;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
-export const OrderCard = memo(function OrderCard({ order, onOpen, onEdit, onDuplicate, onDelete }: OrderCardProps) {
+export const OrderCard = memo(function OrderCard({
+  order,
+  onOpen,
+  onEdit,
+  onDuplicate,
+  onDelete,
+  selected,
+  onToggleSelect,
+}: OrderCardProps) {
   const isInFlight = DELAYABLE_STATUSES.includes(order.status);
   const countdownColor = useCountdownColor(order.deliveryDate, order.deliveryTime);
 
@@ -46,9 +57,15 @@ export const OrderCard = memo(function OrderCard({ order, onOpen, onEdit, onDupl
       className={cn(
         "group relative flex flex-col gap-3 overflow-hidden p-4 pl-5 before:absolute before:inset-y-0 before:left-0 before:w-1",
         "transition-shadow hover:shadow-lg hover:shadow-black/10",
-        isInFlight ? ACCENT_BORDER[countdownColor] : "before:bg-border"
+        isInFlight ? ACCENT_BORDER[countdownColor] : "before:bg-border",
+        selected && "ring-2 ring-secondary"
       )}
     >
+      {onToggleSelect && (
+        <div className="absolute top-3 right-3 z-10">
+          <Checkbox checked={selected ?? false} onCheckedChange={() => onToggleSelect(order.id)} />
+        </div>
+      )}
       <div className="flex items-start gap-3">
         <button
           type="button"

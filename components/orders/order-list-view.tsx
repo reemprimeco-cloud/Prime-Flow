@@ -8,6 +8,7 @@ import { format, parseISO } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +28,8 @@ interface OrderListViewProps {
   onEdit: (order: OrderListItem) => void;
   onDuplicate: (order: OrderListItem) => void;
   onDelete: (order: OrderListItem) => void;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
 }
 
 export const OrderListView = memo(function OrderListView({
@@ -35,11 +38,14 @@ export const OrderListView = memo(function OrderListView({
   onEdit,
   onDuplicate,
   onDelete,
+  selectedIds,
+  onToggleSelect,
 }: OrderListViewProps) {
   return (
     <Table>
       <TableHeader>
         <TableRow>
+          {onToggleSelect && <TableHead className="w-8" />}
           <TableHead>Order</TableHead>
           <TableHead>Customer / Product</TableHead>
           <TableHead>Assigned</TableHead>
@@ -55,6 +61,11 @@ export const OrderListView = memo(function OrderListView({
           const isInFlight = DELAYABLE_STATUSES.includes(order.status);
           return (
             <TableRow key={order.id} className="cursor-pointer" onClick={() => onOpen(order)}>
+              {onToggleSelect && (
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <Checkbox checked={selectedIds?.has(order.id) ?? false} onCheckedChange={() => onToggleSelect(order.id)} />
+                </TableCell>
+              )}
               <TableCell>
                 <div className="flex items-center gap-2.5">
                   <div className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted/40">

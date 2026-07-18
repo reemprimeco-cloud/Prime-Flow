@@ -19,6 +19,14 @@ import type { ArchivedOrderItem } from "@/lib/actions/archive";
 import type { EmployeeJobItem } from "@/lib/actions/employee-jobs";
 import type { TvBoardData, TvDaySummary, TvOrderCardData } from "@/lib/actions/tv";
 import type { CurrentMonthStats, MonthlyStatisticItem } from "@/lib/actions/reports";
+import type { TimelineEntry } from "@/lib/actions/timeline";
+import type { ActivityEntry } from "@/lib/actions/activity";
+import type { OperationsKpis } from "@/lib/actions/operations";
+import type { EmployeeWorkload } from "@/lib/actions/workload";
+import type { CalendarOrder } from "@/lib/actions/calendar";
+import type { SearchResult } from "@/lib/actions/search";
+import type { DiagnosticsSnapshot } from "@/lib/actions/diagnostics";
+import { describeAuditEntry } from "@/lib/timeline/describe";
 import { DELAYABLE_STATUSES, EMPLOYEE_ACTIVE_STATUSES, type TvColumnKey } from "@/types/domain";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/notifications/constants";
 import type { MaterialType, OrderStatus } from "@/types/database.types";
@@ -283,6 +291,213 @@ export function getDemoOrderDetail(orderId: string): OrderDetail {
     statusHistory,
     materialRequests,
   };
+}
+
+export function getDemoOrderTimeline(orderId: string): TimelineEntry[] {
+  const now = new Date();
+  const seed = ORDER_SEEDS.find((s) => s.id === orderId);
+  if (!seed) return [];
+
+  const order = buildOrder(seed, now);
+  const createdAt = subDays(new Date(`${order.deliveryDate}T${order.deliveryTime}`), 4);
+
+  const events: { minutesAgo: number; actorName: string; action: TimelineEntry["action"]; oldValue: unknown; newValue: unknown }[] = [
+    { minutesAgo: differenceInMinutesFromNow(createdAt, now), actorName: "Rana Al-Fadhli", action: "order_created", oldValue: null, newValue: { orderNumber: order.orderNumber } },
+  ];
+
+  seed.assignedTo.forEach((employeeId, i) => {
+    events.push({
+      minutesAgo: differenceInMinutesFromNow(createdAt, now) - 10 * (i + 1),
+      actorName: "Rana Al-Fadhli",
+      action: "employee_assigned",
+      oldValue: null,
+      newValue: { employeeId },
+    });
+  });
+
+  const statusFlow: OrderStatus[] = ["new", "in_progress", "waiting_materials", "ready_pickup", "ready_delivery", "collected", "delivered", "completed"];
+  const currentIndex = statusFlow.indexOf(seed.status);
+  const actorName = order.assignedEmployees[0]?.fullName ?? "Hassan Youssef";
+  for (let i = 1; i <= currentIndex; i++) {
+    events.push({
+      minutesAgo: seed.assignedHoursAgo * 60 - i * 40,
+      actorName,
+      action: "status_changed",
+      oldValue: { status: statusFlow[i - 1] },
+      newValue: { status: statusFlow[i] },
+    });
+  }
+
+  seed.pendingMaterials.forEach((materialType, i) => {
+    events.push({
+      minutesAgo: 60 + i * 15,
+      actorName,
+      action: "material_requested",
+      oldValue: null,
+      newValue: { materialType },
+    });
+  });
+
+  if (seed.whatsappEnabled) {
+    events.push({
+      minutesAgo: differenceInMinutesFromNow(createdAt, now) - 2,
+      actorName: "System",
+      action: "notification_sent",
+      oldValue: null,
+      newValue: { templateName: "order_received", status: "sent" },
+    });
+  }
+
+  const sorted = events
+    .filter((e) => e.minutesAgo >= 0)
+    .sort((a, b) => b.minutesAgo - a.minutesAgo);
+
+  let previousTimestamp: Date | null = null;
+  return sorted.map((event, i) => {
+    const timestamp = subMinutes(now, event.minutesAgo);
+    const minutesSincePrevious = previousTimestamp
+      ? Math.round((timestamp.getTime() - previousTimestamp.getTime()) / 60_000)
+      : null;
+    previousTimestamp = timestamp;
+    return {
+      id: `${orderId}-timeline-${i}`,
+      timestamp: timestamp.toISOString(),
+      actorName: event.actorName,
+      action: event.action,
+      label: describeAuditEntry(event.action, event.oldValue, event.newValue),
+      minutesSincePrevious,
+    };
+  });
+}
+
+function differenceInMinutesFromNow(date: Date, now: Date): number {
+  return Math.round((now.getTime() - date.getTime()) / 60_000);
+}
+
+export function getDemoDiagnostics(): DiagnosticsSnapshot {
+  return {
+    databaseConnected: true,
+    supabaseLatencyMs: 84,
+    notificationQueuePending: 0,
+    notificationQueueFailed: 1,
+    twilioConfigured: false,
+    activeUsersApprox: 2,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+export function getDemoGlobalSearch(term: string): SearchResult[] {
+  const now = new Date();
+  const needle = term.toLowerCase();
+  const orders = getAllDemoOrders(now).filter(
+    (o) =>
+      o.orderNumber.toLowerCase().includes(needle) ||
+      o.customerName.toLowerCase().includes(needle) ||
+      o.customerMobile.toLowerCase().includes(needle) ||
+      o.product.toLowerCase().includes(needle) ||
+      (o.notes ?? "").toLowerCase().includes(needle)
+  );
+  const employees = DEMO_EMPLOYEES.filter(
+    (e) => e.fullName.toLowerCase().includes(needle) || (e.phone ?? "").toLowerCase().includes(needle)
+  );
+
+  return [
+    ...orders.slice(0, 8).map((o) => ({
+      type: "order" as const,
+      id: o.id,
+      title: `${o.orderNumber} — ${o.customerName}`,
+      subtitle: o.product,
+      href: `/dashboard?order=${o.id}`,
+    })),
+    ...employees.slice(0, 8).map((e) => ({
+      type: "employee" as const,
+      id: e.id,
+      title: e.fullName,
+      subtitle: e.phone ?? "No phone on file",
+      href: "/employees",
+    })),
+  ];
+}
+
+export function getDemoCalendarOrders(startDate: string, endDate: string): CalendarOrder[] {
+  const now = new Date();
+  return getAllDemoOrders(now)
+    .filter((o) => o.deliveryDate >= startDate && o.deliveryDate <= endDate)
+    .map((o) => ({
+      id: o.id,
+      orderNumber: o.orderNumber,
+      customerName: o.customerName,
+      product: o.product,
+      deliveryDate: o.deliveryDate,
+      deliveryTime: o.deliveryTime,
+      status: o.status,
+      priority: o.priority,
+      isOverdue: DELAYABLE_STATUSES.includes(o.status) && new Date(`${o.deliveryDate}T${o.deliveryTime}`) < now,
+    }));
+}
+
+const DEMO_AVG_COMPLETION_BY_EMPLOYEE: Record<string, number> = {
+  "demo-emp-1": 330,
+  "demo-emp-2": 365,
+  "demo-emp-3": 310,
+  "demo-emp-4": 395,
+};
+
+export function getDemoEmployeeWorkload(): EmployeeWorkload[] {
+  const now = new Date();
+  const employeeSeeds = DEMO_EMPLOYEES.filter((e) => e.role === "employee" && e.active);
+
+  return employeeSeeds
+    .map((emp) => {
+      const mySeeds = ORDER_SEEDS.filter((s) => s.assignedTo.includes(emp.id));
+      const myOrders = mySeeds.map((s) => buildOrder(s, now));
+
+      return {
+        employeeId: emp.id,
+        employeeName: emp.fullName,
+        activeJobs: myOrders.filter((o) => EMPLOYEE_ACTIVE_STATUSES.includes(o.status)).length,
+        queuedJobs: myOrders.filter((o) => o.status === "new").length,
+        completedToday: myOrders.filter((o) => o.status === "collected" || o.status === "delivered").length,
+        avgCompletionMinutes: DEMO_AVG_COMPLETION_BY_EMPLOYEE[emp.id] ?? 350,
+        waitingMaterials: myOrders.filter((o) => o.status === "waiting_materials").length,
+        delayedJobs: myOrders.filter(
+          (o) => DELAYABLE_STATUSES.includes(o.status) && new Date(`${o.deliveryDate}T${o.deliveryTime}`) < now
+        ).length,
+      };
+    })
+    .sort((a, b) => b.activeJobs - a.activeJobs);
+}
+
+export function getDemoOperationsKpis(): OperationsKpis {
+  const now = new Date();
+  const orders = getAllDemoOrders(now);
+  const active = orders.filter((o) => o.status !== "completed");
+
+  return {
+    ordersInProduction: active.filter((o) => o.status === "in_progress").length,
+    ordersDelayed: active.filter(
+      (o) => DELAYABLE_STATUSES.includes(o.status) && new Date(`${o.deliveryDate}T${o.deliveryTime}`) < now
+    ).length,
+    avgProductionMinutes: 342,
+    pendingMaterialRequests: getDemoMaterialRequests().filter((r) => r.status === "pending").length,
+    employeeUtilizationPercent: 80,
+    completionRatePercent: 87,
+    todaysDeliveries: active.filter(
+      (o) => o.deliveryDate === format(now, "yyyy-MM-dd") && (o.status === "ready_delivery" || o.status === "delivered")
+    ).length,
+    todaysPickups: active.filter(
+      (o) => o.deliveryDate === format(now, "yyyy-MM-dd") && (o.status === "ready_pickup" || o.status === "collected")
+    ).length,
+  };
+}
+
+export function getDemoActivityFeed(limit: number): ActivityEntry[] {
+  const all = ORDER_SEEDS.flatMap((seed) =>
+    getDemoOrderTimeline(seed.id).map((entry) => ({ ...entry, orderNumber: seed.orderNumber }))
+  );
+  return all
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, limit);
 }
 
 // ---------------------------------------------------------------------------

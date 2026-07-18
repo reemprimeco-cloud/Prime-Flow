@@ -2,17 +2,32 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Users, PackageSearch, Bell, BarChart3, Archive } from "lucide-react";
+import {
+  Activity,
+  Archive,
+  BarChart3,
+  Bell,
+  CalendarDays,
+  Gauge,
+  HeartPulse,
+  LayoutGrid,
+  PackageSearch,
+  Users,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutGrid },
+  { href: "/operations", label: "Operations", icon: Activity },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/workload", label: "Workload", icon: Gauge },
   { href: "/employees", label: "Employees", icon: Users },
   { href: "/material-requests", label: "Material Requests", icon: PackageSearch },
   { href: "/notifications", label: "Notification Center", icon: Bell },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/archive", label: "Archive", icon: Archive },
+  { href: "/diagnostics", label: "Diagnostics", icon: HeartPulse },
 ] as const;
 
 export function SidebarNav() {

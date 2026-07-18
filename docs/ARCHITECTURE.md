@@ -8,6 +8,7 @@ This document describes the system **as built**. For focused deep-dives, see:
 - [`STATUS_ENGINE.md`](./STATUS_ENGINE.md) — order workflow state machine
 - [`NOTIFICATIONS.md`](./NOTIFICATIONS.md) — notification service
 - [`AUDIT_LOG.md`](./AUDIT_LOG.md) — audit trail
+- [`OPERATIONS.md`](./OPERATIONS.md) — Operations Control Center (timeline, workload, calendar, KPIs, search, bulk actions, manager override, activity feed, diagnostics)
 
 ## Tech stack
 
@@ -49,13 +50,18 @@ Filters on the Manager order board are URL-synced via `nuqs` — shareable and b
 
 `/reports` (`lib/actions/reports.ts`, `components/manager/reports-client.tsx`) charts that history with recharts, plus CSV export. `/archive` lists everything the cron has archived, with search and a month filter.
 
+## Operations Control Center
+
+Built on top of the Production Core infrastructure (Realtime, Audit Log, Status Engine) without new tracking tables — the Live Production Timeline and Activity Feed are both just filtered/formatted reads of `audit_logs`, and Manager Override is the sole deliberate exception that bypasses the Status Engine (with a required reason and an audit trail flagging it as such). Full module-by-module detail — Employee Workload, Production Calendar, the Operations Dashboard KPIs, Global Search, Bulk Actions, and the Diagnostics health check — is in `OPERATIONS.md`.
+
 ## What's deferred
 
 Email and SMS notification providers — only WhatsApp (via Twilio) is implemented, behind the same provider abstraction the other two will use (see `NOTIFICATIONS.md`). The **Notification Service**, **Audit Log**, and **Status Engine** built in the infrastructure phase are designed so both land as pure additions — no dashboard code changes required.
 
 ## Known gaps (not yet built, tracked here rather than silently)
 
-- Manager-initiated order status changes — today only employees change `orders.status` (via `updateEmployeeJobStatus`); a manager override action doesn't exist.
 - No persistent customer entity — customer info (including notification preferences) is denormalized per-order, not shared across a customer's orders. Deliberate, per "not an ERP/CRM"; means preferences are re-entered per order rather than remembered.
 - Live Twilio delivery was not runtime-verified in this environment (sandbox network policy blocks direct third-party API calls) — see the Testing boundary in `NOTIFICATIONS.md`.
 - The month-end cron has no scheduler wired up yet (e.g. Vercel Cron config) — the endpoint exists and works, but nothing calls it automatically until that's configured on deployment.
+- No persisted "pickup vs. delivery" field on an order — Operations KPIs and the Calendar infer it from current status. See `OPERATIONS.md`.
+- "Active Users" on the Diagnostics page is an approximation (distinct recent audit-log actors), not a real session count — there's no session-tracking table since auth is stateless JWT cookies. See `OPERATIONS.md`.

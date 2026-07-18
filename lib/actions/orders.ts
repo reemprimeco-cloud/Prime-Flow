@@ -797,6 +797,54 @@ export async function deleteOrder(orderId: string): Promise<void> {
   revalidatePath("/dashboard");
 }
 
+/**
+ * Manager override — deliberately bypasses the status engine's transition
+ * graph (lib/status/engine.ts). That graph exists to stop an *employee*
+ * from skipping steps by mistake; a manager correcting a stuck or
+ * mis-clicked order needs to be able to set any status directly. The
+ * tradeoff is enforced here instead: every use requires a reason and is
+ * audit-logged with `managerOverride: true` so it's always visible in the
+ * order's timeline and distinguishable from a normal transition.
+ */
+export async function overrideOrderStatus(orderId: string, newStatus: OrderStatus, reason: string): Promise<void> {
+  const session = await requireAdmin();
+  if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
+  if (!reason.trim()) throw new Error("A reason is required for a manager override.");
+  const supabase = createServiceClient();
+
+  const { data: current, error: fetchError } = await supabase
+    .from("orders")
+    .select("status")
+    .eq("id", orderId)
+    .single();
+  if (fetchError || !current) throw new Error(fetchError?.message ?? "Order not found");
+  if (current.status === newStatus) throw new Error("Order is already in that status.");
+
+  const { error } = await supabase.from("orders").update({ status: newStatus }).eq("id", orderId);
+  if (error) throw new Error(error.message);
+
+  await supabase.from("order_status_history").insert({
+    order_id: orderId,
+    from_status: current.status,
+    to_status: newStatus,
+    changed_by: session.employeeId,
+  });
+
+  await recordAuditLog({
+    actorId: session.employeeId,
+    actorName: session.fullName,
+    action: "status_changed",
+    entityType: "order",
+    entityId: orderId,
+    orderId,
+    oldValue: { status: current.status },
+    newValue: { status: newStatus, managerOverride: true, reason },
+  });
+
+  await broadcast(CHANNELS.production, "order.updated", { orderId });
+  revalidatePath("/dashboard");
+}
+
 export async function deleteOrderFile(fileId: string): Promise<void> {
   await requireAdmin();
   if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);

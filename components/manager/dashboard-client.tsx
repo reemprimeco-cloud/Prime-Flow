@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useQueryState } from "nuqs";
@@ -27,6 +27,7 @@ import { OrderFilters as OrderFiltersBar } from "@/components/manager/order-filt
 import { ViewToggle, type OrderView } from "@/components/manager/view-toggle";
 import { OrderCard } from "@/components/orders/order-card";
 import { OrderListView } from "@/components/orders/order-list-view";
+import { BulkActionsBar } from "@/components/manager/bulk-actions-bar";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Card } from "@/components/ui/card";
 
@@ -55,6 +56,7 @@ export function DashboardClient({ initialStats, initialOrders, employees }: Dash
   const [viewParam, setViewParam] = useQueryState("view", { defaultValue: "card" });
   const view: OrderView = viewParam === "list" ? "list" : "card";
   const setView = (next: OrderView) => setViewParam(next === "card" ? null : next);
+  const [orderParam, setOrderParam] = useQueryState("order");
 
   const filters: OrderFilters = {
     search,
@@ -95,6 +97,26 @@ export function DashboardClient({ initialStats, initialOrders, employees }: Dash
   const [deleteTarget, setDeleteTarget] = useState<OrderListItem | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  // Deep link from Global Search (?order=ID) — open the drawer once, then
+  // drop the param so it doesn't reopen on back/forward navigation.
+  useEffect(() => {
+    if (orderParam) {
+      setDetailOrderId(orderParam);
+      setDetailOpen(true);
+      setOrderParam(null);
+    }
+  }, [orderParam, setOrderParam]);
 
   const refreshLists = () => {
     queryClient.invalidateQueries({ queryKey: ["orders"] });
@@ -174,6 +196,16 @@ export function DashboardClient({ initialStats, initialOrders, employees }: Dash
         <ViewToggle view={view} onChange={setView} />
       </div>
 
+      <BulkActionsBar
+        selectedIds={[...selectedIds]}
+        employees={employees}
+        onClear={() => setSelectedIds(new Set())}
+        onDone={() => {
+          setSelectedIds(new Set());
+          refreshLists();
+        }}
+      />
+
       {ordersQuery.isLoading ? (
         <SkeletonGrid />
       ) : orders.length === 0 ? (
@@ -185,6 +217,8 @@ export function DashboardClient({ initialStats, initialOrders, employees }: Dash
           onEdit={handleEditFromCard}
           onDuplicate={handleDuplicate}
           onDelete={setDeleteTarget}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -196,6 +230,8 @@ export function DashboardClient({ initialStats, initialOrders, employees }: Dash
               onEdit={handleEditFromCard}
               onDuplicate={handleDuplicate}
               onDelete={setDeleteTarget}
+              selected={selectedIds.has(order.id)}
+              onToggleSelect={toggleSelect}
             />
           ))}
         </div>

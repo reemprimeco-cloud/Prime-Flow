@@ -1,9 +1,10 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { format, parseISO } from "date-fns";
-import { FileText, ImageIcon, Loader2, MessageSquareText, Pencil } from "lucide-react";
+import { FileText, ImageIcon, Loader2, MessageSquareText, Pencil, ShieldAlert } from "lucide-react";
 
 import { getOrderDetail } from "@/lib/actions/orders";
 import {
@@ -20,11 +21,12 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { CountdownTimer } from "@/components/orders/countdown-timer";
+import { OrderTimeline } from "@/components/orders/order-timeline";
+import { OverrideStatusDialog } from "@/components/orders/override-status-dialog";
 import {
   DELAYABLE_STATUSES,
   MATERIAL_REQUEST_STATUS_LABELS,
   MATERIAL_TYPE_LABELS,
-  ORDER_STATUS_LABELS,
 } from "@/types/domain";
 
 interface OrderDetailDrawerProps {
@@ -35,6 +37,8 @@ interface OrderDetailDrawerProps {
 }
 
 export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: OrderDetailDrawerProps) {
+  const queryClient = useQueryClient();
+  const [overrideOpen, setOverrideOpen] = useState(false);
   const { data: order, isLoading } = useQuery({
     queryKey: ["order", orderId],
     queryFn: () => getOrderDetail(orderId as string),
@@ -202,21 +206,8 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                 )}
               </DetailSection>
 
-              <DetailSection title="Status History">
-                <ol className="flex flex-col gap-3 border-l border-border pl-4">
-                  {order.statusHistory.map((entry) => (
-                    <li key={entry.id} className="relative">
-                      <span className="absolute -left-[21px] top-1 size-2.5 rounded-full bg-secondary" />
-                      <p className="text-sm font-medium text-foreground">
-                        {entry.fromStatus ? `${ORDER_STATUS_LABELS[entry.fromStatus]} → ` : ""}
-                        {ORDER_STATUS_LABELS[entry.toStatus]}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {entry.employeeName} · {format(new Date(entry.changedAt), "MMM d, h:mm a")}
-                      </p>
-                    </li>
-                  ))}
-                </ol>
+              <DetailSection title="Production Timeline">
+                <OrderTimeline orderId={order.id} />
               </DetailSection>
             </>
           )}
@@ -224,11 +215,31 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
 
         {order && (
           <SheetFooter>
+            <Button variant="outline" onClick={() => setOverrideOpen(true)} className="gap-2">
+              <ShieldAlert className="size-4" />
+              Override Status
+            </Button>
             <Button variant="primary" onClick={onEdit} className="gap-2">
               <Pencil className="size-4" />
               Edit Order
             </Button>
           </SheetFooter>
+        )}
+
+        {order && (
+          <OverrideStatusDialog
+            open={overrideOpen}
+            onOpenChange={setOverrideOpen}
+            orderId={order.id}
+            orderNumber={order.orderNumber}
+            currentStatus={order.status}
+            onOverridden={() => {
+              queryClient.invalidateQueries({ queryKey: ["order", orderId] });
+              queryClient.invalidateQueries({ queryKey: ["orders"] });
+              queryClient.invalidateQueries({ queryKey: ["stats"] });
+              queryClient.invalidateQueries({ queryKey: ["order-timeline", orderId] });
+            }}
+          />
         )}
       </SheetContent>
     </Sheet>
