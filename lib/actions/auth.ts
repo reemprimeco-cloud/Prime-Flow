@@ -31,7 +31,10 @@ export async function login(input: { username: string; password: string }): Prom
 
     if (dbError) {
       console.error("[login] Database error looking up employee:", dbError);
-      return { error: "Server configuration error. Please contact your administrator." };
+      // TEMPORARY RC3 diagnostic: surfacing the real error inline since
+      // Netlify Function logs aren't reachable from this environment.
+      // Revert to the generic message once the production issue is fixed.
+      return { error: `[DEBUG:DB] ${dbError.message}` };
     }
 
     if (!employee || !employee.active) {
@@ -62,7 +65,9 @@ export async function login(input: { username: string; password: string }): Prom
     destination = employee.role === "admin" ? "/dashboard" : "/employee";
   } catch (error) {
     console.error("[login] Unexpected error:", error);
-    return { error: "Server configuration error. Please contact your administrator." };
+    // TEMPORARY RC3 diagnostic: see note above.
+    const message = error instanceof Error ? error.message : String(error);
+    return { error: `[DEBUG:EXC] ${message}` };
   }
 
   redirect(destination);
