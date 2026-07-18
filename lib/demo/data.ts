@@ -11,7 +11,14 @@ import {
   subMonths,
 } from "date-fns";
 
-import type { DashboardStats, OrderDetail, OrderFilters, OrderListItem, OrderListResult } from "@/lib/actions/orders";
+import type {
+  CustomerSuggestion,
+  DashboardStats,
+  OrderDetail,
+  OrderFilters,
+  OrderListItem,
+  OrderListResult,
+} from "@/lib/actions/orders";
 import { DEFAULT_ORDERS_PAGE_SIZE } from "@/lib/orders/constants";
 import type { EmployeeListItem } from "@/lib/actions/employees";
 import type { MaterialRequestListItem } from "@/lib/actions/material-requests";
@@ -185,6 +192,26 @@ export function getDemoOrders(filters: OrderFilters = {}): OrderListResult {
   const from = (page - 1) * pageSize;
 
   return { items: sorted.slice(from, from + pageSize), totalCount: sorted.length, page, pageSize };
+}
+
+export function getDemoCustomerSuggestions(term: string): CustomerSuggestion[] {
+  const lower = term.toLowerCase();
+  const seen = new Set<string>();
+  const suggestions: CustomerSuggestion[] = [];
+  for (const seed of ORDER_SEEDS) {
+    if (!seed.customerName.toLowerCase().includes(lower)) continue;
+    if (seen.has(seed.customerMobile)) continue;
+    seen.add(seed.customerMobile);
+    suggestions.push({
+      customerName: seed.customerName,
+      customerMobile: seed.customerMobile,
+      preferredLanguage: seed.preferredLanguage,
+      whatsappEnabled: seed.whatsappEnabled,
+      preferredChannel: "whatsapp",
+    });
+    if (suggestions.length >= 8) break;
+  }
+  return suggestions;
 }
 
 function isCurrentMonth(date: Date, now: Date) {

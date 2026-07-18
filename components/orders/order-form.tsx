@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
@@ -8,7 +8,14 @@ import { toast } from "sonner";
 import type { z } from "zod";
 
 import { orderFormSchema, type OrderFormInput } from "@/lib/validation/order";
-import { createOrder, deleteOrderFile, updateOrder, type OrderDetail } from "@/lib/actions/orders";
+import {
+  createOrder,
+  deleteOrderFile,
+  searchCustomers,
+  updateOrder,
+  type CustomerSuggestion,
+  type OrderDetail,
+} from "@/lib/actions/orders";
 import type { EmployeeListItem } from "@/lib/actions/employees";
 import {
   Sheet,
@@ -101,6 +108,12 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
   const [existingDesigns, setExistingDesigns] = useState(order?.designFiles ?? []);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
+  const [customerQuery, setCustomerQuery] = useState("");
+  const [customerSuggestions, setCustomerSuggestions] = useState<CustomerSuggestion[]>([]);
+  const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false);
+  const [isSearchingCustomers, setIsSearchingCustomers] = useState(false);
+  const customerSearchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -129,7 +142,41 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
     setExistingDesigns(order?.designFiles ?? []);
     setProductImages([]);
     setDesignFiles([]);
+    setCustomerQuery("");
+    setCustomerSuggestions([]);
+    setShowCustomerSuggestions(false);
   }, [open, order, reset]);
+
+  // Debounced customer-name autocomplete, sourced from past orders (not a
+  // real customer entity — see ARCHITECTURE.md). Only triggered by genuine
+  // typing (the input's onChange below), never by the reset() above, so
+  // opening the sheet or switching to edit an order doesn't fire a search.
+  useEffect(() => {
+    if (customerSearchDebounce.current) clearTimeout(customerSearchDebounce.current);
+    if (customerQuery.trim().length < 2) {
+      setCustomerSuggestions([]);
+      return;
+    }
+    setIsSearchingCustomers(true);
+    customerSearchDebounce.current = setTimeout(() => {
+      searchCustomers(customerQuery)
+        .then(setCustomerSuggestions)
+        .finally(() => setIsSearchingCustomers(false));
+    }, 250);
+    return () => {
+      if (customerSearchDebounce.current) clearTimeout(customerSearchDebounce.current);
+    };
+  }, [customerQuery]);
+
+  const handleSelectCustomer = (customer: CustomerSuggestion) => {
+    setValue("customerName", customer.customerName, { shouldValidate: true });
+    setValue("customerMobile", customer.customerMobile, { shouldValidate: true });
+    setValue("preferredLanguage", customer.preferredLanguage);
+    setValue("whatsappEnabled", customer.whatsappEnabled);
+    setValue("preferredChannel", customer.preferredChannel);
+    setShowCustomerSuggestions(false);
+    setCustomerSuggestions([]);
+  };
 
   const removeExistingFile = (fileId: string, kind: "image" | "design") => {
     setRemovingId(fileId);
@@ -210,7 +257,54 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
               <h3 className="text-sm font-bold text-muted-foreground">Customer</h3>
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Customer Name" error={errors.customerName?.message}>
-                  <Input {...register("customerName")} aria-invalid={!!errors.customerName} />
+                  <div className="relative">
+                    <Controller
+                      control={control}
+                      name="customerName"
+                      render={({ field }) => (
+                        <Input
+                          {...field}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            setCustomerQuery(e.target.value);
+                            setShowCustomerSuggestions(true);
+                          }}
+                          onFocus={() => setShowCustomerSuggestions(true)}
+                          onBlur={() => {
+                            field.onBlur();
+                            // Delay so a suggestion's onClick can fire before the list unmounts.
+                            setTimeout(() => setShowCustomerSuggestions(false), 150);
+                          }}
+                          autoComplete="off"
+                          aria-invalid={!!errors.customerName}
+                        />
+                      )}
+                    />
+                    {showCustomerSuggestions && customerQuery.trim().length >= 2 && (
+                      <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-xl border border-border bg-card shadow-lg scrollbar-thin">
+                        {isSearchingCustomers && (
+                          <div className="flex items-center justify-center gap-2 px-3 py-2.5 text-xs text-muted-foreground">
+                            <Loader2 className="size-3.5 animate-spin" /> Searching…
+                          </div>
+                        )}
+                        {!isSearchingCustomers && customerSuggestions.length === 0 && (
+                          <p className="px-3 py-2.5 text-xs text-muted-foreground">No matching customers.</p>
+                        )}
+                        {customerSuggestions.map((customer) => (
+                          <button
+                            key={customer.customerMobile}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => handleSelectCustomer(customer)}
+                            className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-muted/40"
+                          >
+                            <span className="text-sm font-medium text-foreground">{customer.customerName}</span>
+                            <span className="text-xs text-muted-foreground">{customer.customerMobile}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </Field>
                 <Field label="Mobile Number" error={errors.customerMobile?.message}>
                   <Input {...register("customerMobile")} aria-invalid={!!errors.customerMobile} placeholder="+965 5000 1111" />

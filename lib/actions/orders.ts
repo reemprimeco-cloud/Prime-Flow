@@ -12,7 +12,7 @@ import { toDeliveryDate } from "@/lib/utils/countdown";
 import { DEFAULT_ORDERS_PAGE_SIZE } from "@/lib/orders/constants";
 import { DELAYABLE_STATUSES } from "@/types/domain";
 import { isDemoMode } from "@/lib/demo/mode";
-import { getDemoDashboardStats, getDemoOrderDetail, getDemoOrders } from "@/lib/demo/data";
+import { getDemoCustomerSuggestions, getDemoDashboardStats, getDemoOrderDetail, getDemoOrders } from "@/lib/demo/data";
 import { recordAuditLog } from "@/lib/audit/log";
 import {
   notifyEmployeeHighPriorityAssigned,
@@ -134,6 +134,14 @@ export interface DashboardStats {
   readyDelivery: number;
   completedThisMonth: number;
   delayed: number;
+}
+
+export interface CustomerSuggestion {
+  customerName: string;
+  customerMobile: string;
+  preferredLanguage: OrderLanguage;
+  whatsappEnabled: boolean;
+  preferredChannel: NotificationChannel;
 }
 
 // ---------------------------------------------------------------------------
@@ -285,6 +293,50 @@ export async function getOrders(filters: OrderFilters = {}): Promise<OrderListRe
   });
 
   return { items, totalCount, page, pageSize };
+}
+
+/**
+ * Powers the customer-name autocomplete on the order form. Not a real
+ * customer entity (see ARCHITECTURE.md's "not an ERP/CRM" note) -- just a
+ * distinct-by-mobile-number read over existing order history, so a repeat
+ * customer's name/mobile/preferences don't need retyping from scratch.
+ */
+export async function searchCustomers(query: string): Promise<CustomerSuggestion[]> {
+  await requireAdmin();
+  const term = query.trim();
+  if (term.length < 2) return [];
+  if (isDemoMode()) return getDemoCustomerSuggestions(term);
+
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("orders")
+    .select("customer_name, customer_mobile, preferred_language, whatsapp_enabled, preferred_channel, created_at")
+    .ilike("customer_name", `%${term.replace(/[%,]/g, "")}%`)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) throw new Error(error.message);
+
+  return dedupeCustomersByMobile(
+    (data ?? []).map((row) => ({
+      customerName: row.customer_name,
+      customerMobile: row.customer_mobile,
+      preferredLanguage: row.preferred_language,
+      whatsappEnabled: row.whatsapp_enabled,
+      preferredChannel: row.preferred_channel,
+    }))
+  );
+}
+
+function dedupeCustomersByMobile(rows: CustomerSuggestion[]): CustomerSuggestion[] {
+  const seen = new Set<string>();
+  const suggestions: CustomerSuggestion[] = [];
+  for (const row of rows) {
+    if (seen.has(row.customerMobile)) continue;
+    seen.add(row.customerMobile);
+    suggestions.push(row);
+    if (suggestions.length >= 8) break;
+  }
+  return suggestions;
 }
 
 export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
