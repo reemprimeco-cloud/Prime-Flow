@@ -30,7 +30,12 @@ const NAV_ITEMS = [
   { href: "/diagnostics", label: "Diagnostics", icon: HeartPulse },
 ] as const;
 
-export function SidebarNav() {
+interface SidebarNavProps {
+  /** Fires after a real navigation link is clicked — lets the mobile drawer close itself. */
+  onNavigate?: () => void;
+}
+
+export function SidebarNav({ onNavigate }: SidebarNavProps = {}) {
   const pathname = usePathname();
 
   return (
@@ -59,6 +64,7 @@ export function SidebarNav() {
           <Link
             key={href}
             href={href}
+            onClick={onNavigate}
             className={cn(
               "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors",
               isActive
