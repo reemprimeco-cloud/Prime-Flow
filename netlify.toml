@@ -1,10 +1,34 @@
+# Netlify build configuration for this Next.js 15 (App Router) app.
+# This file is the single source of truth for deploy settings — nothing
+# here should require manual configuration in the Netlify dashboard.
+# Official reference: https://docs.netlify.com/frameworks/next-js/overview/
+
 [build]
+  # pnpm is auto-detected from pnpm-lock.yaml; the command is still spelled
+  # out explicitly rather than left to Netlify's own command-guessing.
   command = "pnpm run build"
 
-# Deliberately no `publish` directory here. The Next.js Runtime
-# (@netlify/plugin-nextjs, auto-detected for this app) manages its own
-# output internally — explicitly setting `publish` to the repo base
-# directory is what caused the first production deploy to fail with
-# "Your publish directory cannot be the same as the base directory of
-# your site." Leave this alone unless Netlify's own docs say otherwise
-# for a future framework change.
+  # Deliberately no `publish` directory. The Next.js Runtime plugin
+  # (declared below) manages its own build output and needs to own this
+  # setting itself. Explicitly pointing `publish` at the repo's base
+  # directory is exactly what broke the first production deploy attempt:
+  # "Your publish directory cannot be the same as the base directory of
+  # your site." Do not set one without reading that error again first.
+
+[build.environment]
+  # Pins the Node version Netlify's build image uses, independent of
+  # whatever that image's own default happens to be today or later.
+  # Matches the version this app has been built and verified against.
+  NODE_VERSION = "22"
+
+[[plugins]]
+  # The Next.js Runtime. Declared explicitly here rather than relying on
+  # Netlify auto-installing it after detecting Next.js in package.json —
+  # this repo should work the same way regardless of dashboard state.
+  # This is what actually makes the app run correctly on Netlify:
+  #   - Server Actions and Route Handlers  -> Netlify Functions
+  #   - Middleware                          -> a Netlify Edge Function
+  #   - next/image                          -> served through Netlify's Image CDN
+  #   - static/prerendered pages            -> served directly from the CDN
+  # None of the above needs any separate configuration in this file.
+  package = "@netlify/plugin-nextjs"
