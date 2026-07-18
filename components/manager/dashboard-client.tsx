@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useQueryState } from "nuqs";
+import { useQueryState, parseAsInteger } from "nuqs";
 import { toast } from "sonner";
-import { PackageOpen } from "lucide-react";
+import { ChevronLeft, ChevronRight, PackageOpen } from "lucide-react";
 
 import {
   deleteOrder,
@@ -17,7 +17,9 @@ import {
   type OrderDetail,
   type OrderFilters,
   type OrderListItem,
+  type OrderListResult,
 } from "@/lib/actions/orders";
+import { DEFAULT_ORDERS_PAGE_SIZE } from "@/lib/orders/constants";
 import type { EmployeeListItem } from "@/lib/actions/employees";
 import { useRealtimeChannel } from "@/lib/realtime/use-realtime-channel";
 import { CHANNELS } from "@/lib/realtime/constants";
@@ -30,6 +32,7 @@ import { OrderListView } from "@/components/orders/order-list-view";
 import { BulkActionsBar } from "@/components/manager/bulk-actions-bar";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 // Both dialogs carry real weight (RHF + Zod + file upload UI) and stay
 // hidden until the user opens them — no reason to ship that JS on first paint.
@@ -41,11 +44,11 @@ const OrderDetailDrawer = dynamic(
 
 interface DashboardClientProps {
   initialStats: DashboardStats;
-  initialOrders: OrderListItem[];
+  initialOrdersResult: OrderListResult;
   employees: EmployeeListItem[];
 }
 
-export function DashboardClient({ initialStats, initialOrders, employees }: DashboardClientProps) {
+export function DashboardClient({ initialStats, initialOrdersResult, employees }: DashboardClientProps) {
   const queryClient = useQueryClient();
 
   const [search] = useQueryState("q", { defaultValue: "" });
@@ -57,6 +60,7 @@ export function DashboardClient({ initialStats, initialOrders, employees }: Dash
   const view: OrderView = viewParam === "list" ? "list" : "card";
   const setView = (next: OrderView) => setViewParam(next === "card" ? null : next);
   const [orderParam, setOrderParam] = useQueryState("order");
+  const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
 
   const filters: OrderFilters = {
     search,
@@ -64,14 +68,28 @@ export function DashboardClient({ initialStats, initialOrders, employees }: Dash
     employeeId,
     priority: priority as OrderFilters["priority"],
     deliveryDate,
+    page,
+    pageSize: DEFAULT_ORDERS_PAGE_SIZE,
   };
   const isDefaultFilters =
     !search && status === "all" && employeeId === "all" && priority === "all" && !deliveryDate;
 
+  // Any real filter change invalidates the current page — otherwise
+  // "page 3" of a brand-new, narrower filter could just be empty even
+  // though matching orders exist on page 1.
+  const filterSignature = `${search}|${status}|${employeeId}|${priority}|${deliveryDate}`;
+  const previousSignature = useRef(filterSignature);
+  useEffect(() => {
+    if (previousSignature.current !== filterSignature) {
+      previousSignature.current = filterSignature;
+      if (page !== 1) setPage(1);
+    }
+  }, [filterSignature, page, setPage]);
+
   const ordersQuery = useQuery({
     queryKey: ["orders", filters],
     queryFn: () => getOrders(filters),
-    initialData: isDefaultFilters ? initialOrders : undefined,
+    initialData: isDefaultFilters && page === 1 ? initialOrdersResult : undefined,
   });
 
   const statsQuery = useQuery({
@@ -182,7 +200,10 @@ export function DashboardClient({ initialStats, initialOrders, employees }: Dash
     });
   };
 
-  const orders = ordersQuery.data ?? [];
+  const ordersResult =
+    ordersQuery.data ?? { items: [] as OrderListItem[], totalCount: 0, page, pageSize: DEFAULT_ORDERS_PAGE_SIZE };
+  const orders = ordersResult.items;
+  const totalPages = Math.max(1, Math.ceil(ordersResult.totalCount / ordersResult.pageSize));
 
   return (
     <div className="flex flex-col gap-6">
@@ -234,6 +255,38 @@ export function DashboardClient({ initialStats, initialOrders, employees }: Dash
               onToggleSelect={toggleSelect}
             />
           ))}
+        </div>
+      )}
+
+      {orders.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            {(page - 1) * ordersResult.pageSize + 1}–{(page - 1) * ordersResult.pageSize + orders.length} of{" "}
+            {ordersResult.totalCount}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage(page - 1)}
+            >
+              <ChevronLeft className="size-4" /> Previous
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Page {page} of {totalPages}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => setPage(page + 1)}
+            >
+              Next <ChevronRight className="size-4" />
+            </Button>
+          </div>
         </div>
       )}
 

@@ -11,7 +11,8 @@ import {
   subMonths,
 } from "date-fns";
 
-import type { DashboardStats, OrderDetail, OrderFilters, OrderListItem } from "@/lib/actions/orders";
+import type { DashboardStats, OrderDetail, OrderFilters, OrderListItem, OrderListResult } from "@/lib/actions/orders";
+import { DEFAULT_ORDERS_PAGE_SIZE } from "@/lib/orders/constants";
 import type { EmployeeListItem } from "@/lib/actions/employees";
 import type { MaterialRequestListItem } from "@/lib/actions/material-requests";
 import type { NotificationLogItem } from "@/lib/actions/notifications";
@@ -135,7 +136,7 @@ function getAllDemoOrders(now: Date = new Date()) {
   return ORDER_SEEDS.map((seed) => buildOrder(seed, now));
 }
 
-export function getDemoOrders(filters: OrderFilters = {}): OrderListItem[] {
+export function getDemoOrders(filters: OrderFilters = {}): OrderListResult {
   const now = new Date();
   let orders = getAllDemoOrders(now).filter((o) => o.status !== "completed" || (o.completedAt && isCurrentMonth(o.completedAt, now)));
 
@@ -162,7 +163,7 @@ export function getDemoOrders(filters: OrderFilters = {}): OrderListItem[] {
     );
   }
 
-  return orders
+  const sorted = orders
     .sort((a, b) => `${a.deliveryDate}${a.deliveryTime}`.localeCompare(`${b.deliveryDate}${b.deliveryTime}`))
     .map((order) => {
       const { completedAt, assignedAt, ...listItem } = order;
@@ -170,6 +171,12 @@ export function getDemoOrders(filters: OrderFilters = {}): OrderListItem[] {
       void assignedAt;
       return listItem;
     });
+
+  const page = Math.max(1, Math.floor(filters.page ?? 1));
+  const pageSize = Math.min(Math.max(1, Math.floor(filters.pageSize ?? DEFAULT_ORDERS_PAGE_SIZE)), 100);
+  const from = (page - 1) * pageSize;
+
+  return { items: sorted.slice(from, from + pageSize), totalCount: sorted.length, page, pageSize };
 }
 
 function isCurrentMonth(date: Date, now: Date) {

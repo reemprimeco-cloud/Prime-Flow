@@ -9,6 +9,7 @@ import { broadcast, CHANNELS } from "@/lib/realtime/channels";
 import { orderFormSchema } from "@/lib/validation/order";
 import { isAllowedUpload, MAX_FILE_SIZE_BYTES } from "@/lib/files/constants";
 import { toDeliveryDate } from "@/lib/utils/countdown";
+import { DEFAULT_ORDERS_PAGE_SIZE } from "@/lib/orders/constants";
 import { DELAYABLE_STATUSES } from "@/types/domain";
 import { isDemoMode } from "@/lib/demo/mode";
 import { getDemoDashboardStats, getDemoOrderDetail, getDemoOrders } from "@/lib/demo/data";
@@ -45,6 +46,15 @@ export interface OrderFilters {
   employeeId?: string | "all";
   priority?: OrderPriority | "all";
   deliveryDate?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface OrderListResult {
+  items: OrderListItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface OrderListItem {
@@ -127,15 +137,43 @@ export interface DashboardStats {
 // Reads
 // ---------------------------------------------------------------------------
 
-export async function getOrders(filters: OrderFilters = {}): Promise<OrderListItem[]> {
+/**
+ * Paginated by design — an earlier version fetched every non-archived order
+ * in one unbounded query, which is fine at today's data volume but was
+ * flagged as the top scaling risk for shops running 1000+ active orders
+ * (see docs/QA_REPORT_v1.0.0.md §6). `employeeId` can't be pushed into the
+ * main `.range()` query directly since assignment lives in a join table
+ * (order_assignments), not a column on `orders` — so when it's set, this
+ * resolves the employee's order IDs first and adds them as an `.in()`
+ * filter to the same paginated query, rather than fetching a page and then
+ * filtering it in JS (which would silently under-fill or empty out pages).
+ */
+export async function getOrders(filters: OrderFilters = {}): Promise<OrderListResult> {
   await requireAdmin();
   if (isDemoMode()) return getDemoOrders(filters);
   const supabase = createServiceClient();
 
+  const page = Math.max(1, Math.floor(filters.page ?? 1));
+  const pageSize = Math.min(Math.max(1, Math.floor(filters.pageSize ?? DEFAULT_ORDERS_PAGE_SIZE)), 100);
+
+  let employeeOrderIds: string[] | null = null;
+  if (filters.employeeId && filters.employeeId !== "all") {
+    const { data: assignments, error: assignError } = await supabase
+      .from("order_assignments")
+      .select("order_id")
+      .eq("employee_id", filters.employeeId);
+    if (assignError) throw new Error(assignError.message);
+    employeeOrderIds = [...new Set((assignments ?? []).map((a) => a.order_id))];
+    if (employeeOrderIds.length === 0) {
+      return { items: [], totalCount: 0, page, pageSize };
+    }
+  }
+
   let query = supabase
     .from("orders")
     .select(
-      "id, order_number, customer_name, customer_mobile, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, status, notes, whatsapp_enabled, preferred_language"
+      "id, order_number, customer_name, customer_mobile, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, status, notes, whatsapp_enabled, preferred_language",
+      { count: "exact" }
     )
     .eq("archived", false)
     .order("delivery_date", { ascending: true })
@@ -150,6 +188,9 @@ export async function getOrders(filters: OrderFilters = {}): Promise<OrderListIt
   if (filters.deliveryDate) {
     query = query.eq("delivery_date", filters.deliveryDate);
   }
+  if (employeeOrderIds) {
+    query = query.in("id", employeeOrderIds);
+  }
   if (filters.search?.trim()) {
     const term = `%${filters.search.trim().replace(/[%,]/g, "")}%`;
     query = query.or(
@@ -157,9 +198,11 @@ export async function getOrders(filters: OrderFilters = {}): Promise<OrderListIt
     );
   }
 
-  const { data: orders, error } = await query;
+  const from = (page - 1) * pageSize;
+  const { data: orders, error, count } = await query.range(from, from + pageSize - 1);
   if (error) throw new Error(error.message);
-  if (!orders || orders.length === 0) return [];
+  const totalCount = count ?? 0;
+  if (!orders || orders.length === 0) return { items: [], totalCount, page, pageSize };
 
   const orderIds = orders.map((o) => o.id);
 
@@ -212,7 +255,7 @@ export async function getOrders(filters: OrderFilters = {}): Promise<OrderListIt
     }
   }
 
-  let items: OrderListItem[] = orders.map((o) => {
+  const items: OrderListItem[] = orders.map((o) => {
     const thumbnailPath = thumbnailPathByOrder.get(o.id);
     return {
       id: o.id,
@@ -237,11 +280,7 @@ export async function getOrders(filters: OrderFilters = {}): Promise<OrderListIt
     };
   });
 
-  if (filters.employeeId && filters.employeeId !== "all") {
-    items = items.filter((item) => item.assignedEmployees.some((e) => e.id === filters.employeeId));
-  }
-
-  return items;
+  return { items, totalCount, page, pageSize };
 }
 
 export async function getOrderDetail(orderId: string): Promise<OrderDetail> {

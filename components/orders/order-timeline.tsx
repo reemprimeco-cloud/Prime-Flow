@@ -6,11 +6,13 @@ import {
   Bell,
   CircleDot,
   FilePlus,
+  KeyRound,
   Loader2,
   PackagePlus,
   PackageCheck,
   PackageX,
   Trash2,
+  UserCog,
   UserMinus,
   UserPlus,
 } from "lucide-react";
@@ -29,6 +31,9 @@ const ACTION_ICONS: Record<AuditAction, React.ComponentType<{ className?: string
   material_approved: PackageCheck,
   material_rejected: PackageX,
   notification_sent: Bell,
+  employee_created: UserPlus,
+  employee_updated: UserCog,
+  employee_password_reset: KeyRound,
 };
 
 function formatDuration(minutes: number): string {

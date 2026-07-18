@@ -39,6 +39,19 @@ export function describeAuditEntry(action: AuditAction, oldValue: unknown, newVa
       const status = typeof next.status === "string" ? next.status : "";
       return `Notification sent: ${template}${status ? ` (${status})` : ""}`;
     }
+    case "employee_created":
+      return "Employee account created";
+    case "employee_updated": {
+      if (typeof next.active === "boolean" && old.active !== next.active) {
+        return next.active ? "Employee activated" : "Employee deactivated";
+      }
+      if (typeof next.role === "string" && old.role !== next.role) {
+        return `Employee role changed to ${next.role}`;
+      }
+      return "Employee profile updated";
+    }
+    case "employee_password_reset":
+      return "Employee password reset";
     default:
       return action;
   }

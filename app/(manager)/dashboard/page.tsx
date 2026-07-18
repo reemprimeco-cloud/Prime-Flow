@@ -22,7 +22,7 @@ export default async function DashboardPage() {
   const session = await requireAdmin();
   const now = new Date();
 
-  const [stats, orders, employees] = await Promise.all([
+  const [stats, ordersResult, employees] = await Promise.all([
     getDashboardStats(),
     getOrders(),
     listEmployees(),
@@ -45,7 +45,7 @@ export default async function DashboardPage() {
       </div>
 
       <Suspense fallback={null}>
-        <DashboardClient initialStats={stats} initialOrders={orders} employees={employees} />
+        <DashboardClient initialStats={stats} initialOrdersResult={ordersResult} employees={employees} />
       </Suspense>
     </div>
   );

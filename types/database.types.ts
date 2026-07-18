@@ -541,6 +541,9 @@ export type Database = {
         | "material_approved"
         | "material_rejected"
         | "notification_sent"
+        | "employee_created"
+        | "employee_updated"
+        | "employee_password_reset"
       employee_role: "admin" | "employee" | "supervisor" | "store" | "delivery"
       material_priority: "low" | "normal" | "urgent"
       material_request_status: "pending" | "approved" | "rejected" | "fulfilled"
@@ -709,6 +712,9 @@ export const Constants = {
         "material_approved",
         "material_rejected",
         "notification_sent",
+        "employee_created",
+        "employee_updated",
+        "employee_password_reset",
       ],
       employee_role: ["admin", "employee", "supervisor", "store", "delivery"],
       material_priority: ["low", "normal", "urgent"],
