@@ -36,7 +36,7 @@ export async function middleware(request: NextRequest) {
   const session = token ? await verifySession(token) : null;
 
   const isManagerRoute = MANAGER_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
-  const isEmployeeRoute = pathname.startsWith("/employee");
+  const isEmployeeRoute = pathname === "/employee" || pathname.startsWith("/employee/");
   const isLoginRoute = pathname === "/login";
 
   if ((isManagerRoute || isEmployeeRoute) && !session) {
