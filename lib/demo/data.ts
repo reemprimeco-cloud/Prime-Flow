@@ -4,6 +4,7 @@ import {
   addMinutes,
   format,
   startOfMonth,
+  startOfWeek,
   subDays,
   subHours,
   subMinutes,
@@ -16,7 +17,8 @@ import type { MaterialRequestListItem } from "@/lib/actions/material-requests";
 import type { NotificationLogItem } from "@/lib/actions/notifications";
 import type { ArchivedOrderItem } from "@/lib/actions/archive";
 import type { EmployeeJobItem } from "@/lib/actions/employee-jobs";
-import { DELAYABLE_STATUSES, EMPLOYEE_ACTIVE_STATUSES } from "@/types/domain";
+import type { TvBoardData, TvDaySummary, TvOrderCardData } from "@/lib/actions/tv";
+import { DELAYABLE_STATUSES, EMPLOYEE_ACTIVE_STATUSES, type TvColumnKey } from "@/types/domain";
 import type { MaterialType, OrderStatus } from "@/types/database.types";
 
 // ---------------------------------------------------------------------------
@@ -471,4 +473,102 @@ export function getDemoArchivedOrders(): ArchivedOrderItem[] {
     { id: "demo-archive-2", orderNumber: "#0905", customerName: "Desert Rose Events", product: "Table Numbers", status: "completed", completedAt: addDays(lastMonth, 10).toISOString(), deliveryDate: format(addDays(lastMonth, 9), "yyyy-MM-dd") },
     { id: "demo-archive-3", orderNumber: "#0888", customerName: "Marina Mall Kiosk", product: "Vinyl Decals", status: "completed", completedAt: addDays(lastMonth, 18).toISOString(), deliveryDate: format(addDays(lastMonth, 17), "yyyy-MM-dd") },
   ];
+}
+
+// ---------------------------------------------------------------------------
+// Demo TV board
+// ---------------------------------------------------------------------------
+
+const TV_COLUMN_KEYS: TvColumnKey[] = ["in_progress", "waiting_materials", "ready_pickup", "ready_delivery"];
+const TERMINAL_STATUSES: OrderStatus[] = ["completed", "delivered", "collected"];
+/** Baseline order counts Sun..Sat for days other than today, just to give the weekly strip believable shape. */
+const WEEK_BASELINE_COUNTS = [4, 6, 7, 8, 5, 6, 3];
+
+export function getDemoTvBoard(): TvBoardData {
+  const now = new Date();
+  const orders = getAllDemoOrders(now);
+  const activeRows = orders.filter((o) => o.status !== "completed");
+
+  const workingEmployeeIds = new Set<string>();
+  for (const o of activeRows) {
+    if (EMPLOYEE_ACTIVE_STATUSES.includes(o.status)) {
+      o.assignedEmployees.forEach((e) => workingEmployeeIds.add(e.id));
+    }
+  }
+
+  const delayedOrders = activeRows.filter(
+    (o) => DELAYABLE_STATUSES.includes(o.status) && new Date(`${o.deliveryDate}T${o.deliveryTime}`) < now
+  ).length;
+
+  const toCard = (o: OrderListItem): TvOrderCardData => ({
+    id: o.id,
+    orderNumber: o.orderNumber,
+    customerName: o.customerName,
+    product: o.product,
+    assignedEmployees: o.assignedEmployees.map((e) => e.fullName),
+    deliveryDate: o.deliveryDate,
+    deliveryTime: o.deliveryTime,
+    priority: o.priority,
+    status: o.status,
+    thumbnailUrl: null,
+  });
+
+  const columns = Object.fromEntries(
+    TV_COLUMN_KEYS.map((key) => [
+      key,
+      activeRows
+        .filter((o) => o.status === key)
+        .map(toCard)
+        .sort((a, b) => `${a.deliveryDate}${a.deliveryTime}`.localeCompare(`${b.deliveryDate}${b.deliveryTime}`)),
+    ])
+  ) as Record<TvColumnKey, TvOrderCardData[]>;
+
+  const weekStart = startOfWeek(now);
+  const todayIndex = now.getDay();
+  const week: TvDaySummary[] = Array.from({ length: 7 }).map((_, i) => {
+    const date = addDays(weekStart, i);
+    const isoDate = format(date, "yyyy-MM-dd");
+    const label = format(date, "EEEE");
+
+    if (i === todayIndex) {
+      const todaysOrders = orders.filter((o) => o.deliveryDate === isoDate);
+      return {
+        dayIndex: i,
+        label,
+        date: isoDate,
+        totalOrders: todaysOrders.length,
+        completedOrders: todaysOrders.filter((o) => TERMINAL_STATUSES.includes(o.status)).length,
+        pendingOrders: todaysOrders.filter((o) => !TERMINAL_STATUSES.includes(o.status)).length,
+        orders: todaysOrders
+          .sort((a, b) => a.deliveryTime.localeCompare(b.deliveryTime))
+          .map((o) => ({
+            orderNumber: o.orderNumber,
+            customerName: o.customerName,
+            deliveryTime: o.deliveryTime,
+            status: o.status,
+          })),
+      };
+    }
+
+    const total = WEEK_BASELINE_COUNTS[i];
+    const completed = i < todayIndex ? total : 0;
+    return {
+      dayIndex: i,
+      label,
+      date: isoDate,
+      totalOrders: total,
+      completedOrders: completed,
+      pendingOrders: total - completed,
+      orders: [],
+    };
+  });
+
+  return {
+    activeOrders: activeRows.length,
+    delayedOrders,
+    employeesWorking: workingEmployeeIds.size,
+    columns,
+    week,
+    generatedAt: now.toISOString(),
+  };
 }

@@ -125,3 +125,8 @@ export const PRIORITY_SORT_WEIGHT: Record<OrderPriority, number> = {
   urgent: 0,
   normal: 1,
 };
+
+/** The four production columns shown on the TV Dashboard board. */
+export type TvColumnKey = "in_progress" | "waiting_materials" | "ready_pickup" | "ready_delivery";
+
+export const TV_COLUMNS: TvColumnKey[] = ["in_progress", "waiting_materials", "ready_pickup", "ready_delivery"];
