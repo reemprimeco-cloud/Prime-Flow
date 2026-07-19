@@ -175,6 +175,10 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
     customerSearchDebounce.current = setTimeout(() => {
       searchCustomers(customerQuery)
         .then(setCustomerSuggestions)
+        .catch((error) => {
+          setCustomerSuggestions([]);
+          toast.error(error instanceof Error ? error.message : "Couldn't search customers — try reloading the page.");
+        })
         .finally(() => setIsSearchingCustomers(false));
     }, 250);
     return () => {
