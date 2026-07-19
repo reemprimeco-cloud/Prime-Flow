@@ -14,6 +14,7 @@ import { DELAYABLE_STATUSES } from "@/types/domain";
 import { isDemoMode } from "@/lib/demo/mode";
 import { getDemoCustomerSuggestions, getDemoDashboardStats, getDemoOrderDetail, getDemoOrders } from "@/lib/demo/data";
 import { recordAuditLog } from "@/lib/audit/log";
+import { applyOrderStatusTransition } from "@/lib/actions/status-transition";
 import {
   notifyEmployeeHighPriorityAssigned,
   notifyEmployeeJobAssigned,
@@ -1010,6 +1011,24 @@ export async function deleteOrder(orderId: string): Promise<void> {
 
   await broadcast(CHANNELS.production, "order.deleted", { orderId });
   revalidatePath("/dashboard");
+}
+
+/**
+ * The same guarded "next status" action the employee dashboard uses (Start
+ * Production, Ready for Pickup/Delivery, Collected/Delivered, etc.) —
+ * available on the manager dashboard too, since an admin doing floor work
+ * shouldn't have to reach for Override Status (which requires typing a
+ * reason and bypasses the Status Engine) just to advance an order normally.
+ * Unlike the employee path there's no order_assignments check — an admin
+ * can act on any order — and admins don't need to be told about their own
+ * change, so notifyAdmins is skipped.
+ */
+export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
+  const session = await requireAdmin();
+  if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
+  const supabase = createServiceClient();
+
+  await applyOrderStatusTransition(supabase, orderId, status, session.employeeId, session.fullName);
 }
 
 /**

@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CountdownTimer, useCountdownColor } from "@/components/orders/countdown-timer";
 import { MaterialRequestBadge } from "@/components/orders/material-request-badge";
-import { StatusActions } from "@/components/employee/status-actions";
+import { StatusActions } from "@/components/orders/status-actions";
 import { cn } from "@/lib/utils";
 import { buildGoogleMapsLink } from "@/lib/utils/maps";
 import type { EmployeeJobItem } from "@/lib/actions/employee-jobs";

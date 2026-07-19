@@ -5,8 +5,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { format, parseISO } from "date-fns";
 import { FileText, ImageIcon, Loader2, MapPin, MessageSquareText, Pencil, ShieldAlert } from "lucide-react";
+import { toast } from "sonner";
 
-import { getOrderDetail } from "@/lib/actions/orders";
+import { getOrderDetail, updateOrderStatus } from "@/lib/actions/orders";
 import { buildGoogleMapsLink } from "@/lib/utils/maps";
 import { useRealtimeChannel } from "@/lib/realtime/use-realtime-channel";
 import { CHANNELS } from "@/lib/realtime/constants";
@@ -23,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
+import { StatusActions } from "@/components/orders/status-actions";
 import { CountdownTimer } from "@/components/orders/countdown-timer";
 import { OrderTimeline } from "@/components/orders/order-timeline";
 import { OverrideStatusDialog } from "@/components/orders/override-status-dialog";
@@ -30,7 +32,9 @@ import {
   DELAYABLE_STATUSES,
   MATERIAL_REQUEST_STATUS_LABELS,
   MATERIAL_TYPE_LABELS,
+  ORDER_STATUS_LABELS,
 } from "@/types/domain";
+import type { OrderStatus } from "@/types/database.types";
 
 interface OrderDetailDrawerProps {
   orderId: string | null;
@@ -42,6 +46,7 @@ interface OrderDetailDrawerProps {
 export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: OrderDetailDrawerProps) {
   const queryClient = useQueryClient();
   const [overrideOpen, setOverrideOpen] = useState(false);
+  const [statusPending, setStatusPending] = useState(false);
   const { data: order, isLoading } = useQuery({
     queryKey: ["order", orderId],
     queryFn: () => getOrderDetail(orderId as string),
@@ -60,6 +65,21 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
   useRealtimeChannel(CHANNELS.materialRequests, () => {
     if (orderId) queryClient.invalidateQueries({ queryKey: ["order", orderId] });
   });
+
+  const handleStatusChange = (status: OrderStatus) => {
+    if (!order) return;
+    setStatusPending(true);
+    updateOrderStatus(order.id, status)
+      .then(() => {
+        toast.success(`${order.orderNumber} → ${ORDER_STATUS_LABELS[status]}`);
+        queryClient.invalidateQueries({ queryKey: ["order", orderId] });
+        queryClient.invalidateQueries({ queryKey: ["orders"] });
+        queryClient.invalidateQueries({ queryKey: ["stats"] });
+        queryClient.invalidateQueries({ queryKey: ["order-timeline", orderId] });
+      })
+      .catch((error) => toast.error(error instanceof Error ? error.message : "Failed to update status"))
+      .finally(() => setStatusPending(false));
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -90,6 +110,14 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                 <Badge variant="muted">{order.preferredLanguage === "ar" ? "Arabic" : "English"}</Badge>
                 <Badge variant="muted">WhatsApp {order.whatsappEnabled ? "on" : "off"}</Badge>
               </section>
+
+              <StatusActions
+                status={order.status}
+                fulfillmentType={order.fulfillmentType}
+                isOutsourced={false}
+                pending={statusPending}
+                onChange={handleStatusChange}
+              />
 
               <DetailSection title="Customer">
                 <DetailRow label="Name" value={order.customerName} />

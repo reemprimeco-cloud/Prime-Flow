@@ -1,14 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockRequireAdmin, mockIsDemoMode, mockRecordAuditLog, mockBroadcast, mockNotifyOrderCreated, mockRevalidatePath } =
-  vi.hoisted(() => ({
-    mockRequireAdmin: vi.fn(),
-    mockIsDemoMode: vi.fn(() => false),
-    mockRecordAuditLog: vi.fn(async () => {}),
-    mockBroadcast: vi.fn(async () => {}),
-    mockNotifyOrderCreated: vi.fn(async () => {}),
-    mockRevalidatePath: vi.fn(),
-  }));
+const {
+  mockRequireAdmin,
+  mockIsDemoMode,
+  mockRecordAuditLog,
+  mockBroadcast,
+  mockNotifyOrderCreated,
+  mockNotifyOrderStatusChanged,
+  mockRevalidatePath,
+} = vi.hoisted(() => ({
+  mockRequireAdmin: vi.fn(),
+  mockIsDemoMode: vi.fn(() => false),
+  mockRecordAuditLog: vi.fn(async () => {}),
+  mockBroadcast: vi.fn(async () => {}),
+  mockNotifyOrderCreated: vi.fn(async () => {}),
+  mockNotifyOrderStatusChanged: vi.fn(async () => {}),
+  mockRevalidatePath: vi.fn(),
+}));
 
 vi.mock("@/lib/auth/guards", () => ({ requireAdmin: mockRequireAdmin }));
 vi.mock("@/lib/demo/mode", () => ({ isDemoMode: mockIsDemoMode }));
@@ -24,7 +32,10 @@ vi.mock("@/lib/notifications/service", () => ({
   notifyEmployeeHighPriorityAssigned: vi.fn(async () => {}),
   notifyEmployeeJobReassigned: vi.fn(async () => {}),
   notifyEmployeeJobCancelled: vi.fn(async () => {}),
-  notifyOrderStatusChanged: vi.fn(async () => {}),
+  notifyOrderStatusChanged: mockNotifyOrderStatusChanged,
+  notifyOrderMovedBackToProduction: vi.fn(async () => {}),
+  notifyEmployeeInternalPickupReady: vi.fn(async () => {}),
+  notifyEmployeeOutForDeliveryStaff: vi.fn(async () => {}),
 }));
 
 // Same minimal chainable Supabase stand-in as lib/actions/material-requests.test.ts.
@@ -62,7 +73,7 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-import { createOrder } from "@/lib/actions/orders";
+import { createOrder, updateOrderStatus } from "@/lib/actions/orders";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/notifications/constants";
 
 const ADMIN_SESSION = { employeeId: "admin-1", username: "admin", fullName: "Rana Al-Fadhli", role: "admin" as const };
@@ -132,5 +143,71 @@ describe("Order Creation — createOrder", () => {
   it("requires admin auth before validating or touching the database", async () => {
     mockRequireAdmin.mockRejectedValueOnce(new Error("REDIRECT:/login"));
     await expect(createOrder(minimalOrderFormData())).rejects.toThrow("REDIRECT:/login");
+  });
+});
+
+function currentOrderRow(status: string) {
+  return {
+    status,
+    order_number: "#1050",
+    customer_name: "Layla Hassan",
+    customer_mobile: "+96555044444",
+    product: "Business Cards",
+    delivery_date: "2026-07-20",
+    delivery_time: "14:00",
+    delivery_address: null,
+    whatsapp_enabled: true,
+    preferred_channel: "whatsapp",
+    preferred_language: "en",
+    notification_preferences: DEFAULT_NOTIFICATION_PREFERENCES,
+  };
+}
+
+describe("Manager quick status action — updateOrderStatus", () => {
+  it("lets an admin advance an order the same way an employee would (e.g. Ready for Delivery)", async () => {
+    resetSupabaseMock({
+      orders: [
+        { data: currentOrderRow("in_progress"), error: null },
+        { data: null, error: null },
+      ],
+      order_status_history: [{ data: null, error: null }],
+      employees: [{ data: [], error: null }],
+    });
+
+    await updateOrderStatus("order-1", "ready_delivery");
+
+    expect(mockRecordAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "status_changed",
+        entityId: "order-1",
+        oldValue: { status: "in_progress" },
+        newValue: { status: "ready_delivery" },
+      })
+    );
+    expect(mockNotifyOrderStatusChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ orderNumber: "#1050", toStatus: "ready_delivery" }),
+      "admin-1",
+      "Rana Al-Fadhli"
+    );
+    expect(mockBroadcast).toHaveBeenCalledWith("production", "order.updated", { orderId: "order-1" });
+  });
+
+  it("rejects a transition the Status Engine doesn't allow from the current status", async () => {
+    resetSupabaseMock({
+      orders: [{ data: currentOrderRow("new"), error: null }],
+    });
+
+    await expect(updateOrderStatus("order-1", "ready_delivery")).rejects.toThrow();
+    expect(mockRecordAuditLog).not.toHaveBeenCalled();
+  });
+
+  it("blocks writes in demo mode without touching the database", async () => {
+    mockIsDemoMode.mockReturnValue(true);
+    await expect(updateOrderStatus("order-1", "in_progress")).rejects.toThrow("read-only demo");
+  });
+
+  it("requires admin auth", async () => {
+    mockRequireAdmin.mockRejectedValueOnce(new Error("REDIRECT:/login"));
+    await expect(updateOrderStatus("order-1", "in_progress")).rejects.toThrow("REDIRECT:/login");
   });
 });

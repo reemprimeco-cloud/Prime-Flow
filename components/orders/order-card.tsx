@@ -61,11 +61,6 @@ export const OrderCard = memo(function OrderCard({
         selected && "ring-2 ring-secondary"
       )}
     >
-      {onToggleSelect && (
-        <div className="absolute top-2.5 right-2.5 z-10">
-          <Checkbox checked={selected ?? false} onCheckedChange={() => onToggleSelect(order.id)} />
-        </div>
-      )}
       <div className="flex items-start gap-2.5">
         <button
           type="button"
@@ -90,8 +85,11 @@ export const OrderCard = memo(function OrderCard({
             >
               {order.orderNumber}
             </button>
-            <div className="flex items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1.5">
               {order.priority === "urgent" && <Badge variant="destructive">Urgent</Badge>}
+              {onToggleSelect && (
+                <Checkbox checked={selected ?? false} onCheckedChange={() => onToggleSelect(order.id)} />
+              )}
               <OrderActionsMenu order={order} onOpen={onOpen} onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
             </div>
           </div>
