@@ -142,6 +142,7 @@ function buildOrder(seed: DemoOrderSeed, now: Date): OrderListItem & { completed
     assignedEmployees: emp(...seed.assignedTo),
     thumbnailUrl: null,
     pendingMaterialTypes: seed.pendingMaterials,
+    itemCount: 0,
     completedAt,
     assignedAt: subHours(now, seed.assignedHoursAgo),
   };
@@ -318,6 +319,7 @@ export function getDemoOrderDetail(orderId: string): OrderDetail {
     createdAt,
     updatedAt: new Date().toISOString(),
     assignedEmployees: order.assignedEmployees,
+    items: [],
     productImages: [],
     designFiles: [],
     orderNotes:

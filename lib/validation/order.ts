@@ -8,6 +8,17 @@ const notificationPreferencesSchema = z.object({
   delivered: z.boolean(),
 });
 
+const orderItemSchema = z.object({
+  product: z.string().trim().min(1, "Product is required").max(200),
+  paper: z.string().trim().max(200).optional().or(z.literal("")),
+  paperSize: z.string().trim().max(100).optional().or(z.literal("")),
+  quantity: z.coerce.number().int("Whole numbers only").positive("Must be greater than 0"),
+  finishing: z.string().trim().max(300).optional().or(z.literal("")),
+  employeeId: z.string().uuid().optional().or(z.literal("")),
+});
+
+export type OrderItemInput = z.infer<typeof orderItemSchema>;
+
 export const orderFormSchema = z.object({
   customerName: z.string().trim().min(1, "Customer name is required").max(200),
   customerMobile: z.string().trim().min(6, "Enter a valid mobile number").max(30),
@@ -26,6 +37,7 @@ export const orderFormSchema = z.object({
   deliveryTime: z.string().min(1, "Delivery time is required"),
   notes: z.string().trim().max(2000).optional().or(z.literal("")),
   employeeIds: z.array(z.string().uuid()).default([]),
+  items: z.array(orderItemSchema).default([]),
 });
 
 export type OrderFormInput = z.infer<typeof orderFormSchema>;

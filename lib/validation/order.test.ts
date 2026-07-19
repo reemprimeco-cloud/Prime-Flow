@@ -113,4 +113,37 @@ describe("Order Creation — orderFormSchema", () => {
     const result = orderFormSchema.safeParse(validOrder({ preferredChannel: "carrier_pigeon" }));
     expect(result.success).toBe(false);
   });
+
+  it("defaults items to an empty array when omitted", () => {
+    const result = orderFormSchema.safeParse(validOrder());
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.items).toEqual([]);
+  });
+
+  it("accepts one or more additional items, each with its own optional employee", () => {
+    const result = orderFormSchema.safeParse(
+      validOrder({
+        items: [
+          { product: "Flyers", paper: "170gsm Gloss", paperSize: "A6", quantity: 300, finishing: "", employeeId: "7ab83d84-613c-4ae0-96d0-7e704426ede9" },
+          { product: "Posters", quantity: 10, employeeId: "" },
+        ],
+      })
+    );
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.items).toHaveLength(2);
+  });
+
+  it("rejects an additional item with a blank product name", () => {
+    const result = orderFormSchema.safeParse(
+      validOrder({ items: [{ product: "", quantity: 1 }] })
+    );
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an additional item with a zero quantity", () => {
+    const result = orderFormSchema.safeParse(
+      validOrder({ items: [{ product: "Flyers", quantity: 0 }] })
+    );
+    expect(result.success).toBe(false);
+  });
 });

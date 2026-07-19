@@ -90,7 +90,6 @@ export type Database = {
           created_at?: string
           full_name: string
           id?: string
-          is_internal_pickup_contact?: boolean
           is_outsourced?: boolean
           password_hash: string
           phone?: string | null
@@ -102,7 +101,6 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
-          is_internal_pickup_contact?: boolean
           is_outsourced?: boolean
           password_hash?: string
           phone?: string | null
@@ -356,6 +354,60 @@ export type Database = {
             columns: ["uploaded_by"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_items: {
+        Row: {
+          created_at: string
+          employee_id: string | null
+          finishing: string | null
+          id: string
+          order_id: string
+          paper: string | null
+          paper_size: string | null
+          product: string
+          quantity: number
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          employee_id?: string | null
+          finishing?: string | null
+          id?: string
+          order_id: string
+          paper?: string | null
+          paper_size?: string | null
+          product: string
+          quantity: number
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string | null
+          finishing?: string | null
+          id?: string
+          order_id?: string
+          paper?: string | null
+          paper_size?: string | null
+          product?: string
+          quantity?: number
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]

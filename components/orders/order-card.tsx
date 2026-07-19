@@ -96,7 +96,10 @@ export const OrderCard = memo(function OrderCard({
             </div>
           </div>
           <div className="truncate text-sm font-semibold text-foreground">{order.customerName}</div>
-          <div className="truncate text-xs text-muted-foreground">{order.product}</div>
+          <div className="truncate text-xs text-muted-foreground">
+            {order.product}
+            {order.itemCount > 0 && ` +${order.itemCount} more item${order.itemCount > 1 ? "s" : ""}`}
+          </div>
         </div>
       </div>
 

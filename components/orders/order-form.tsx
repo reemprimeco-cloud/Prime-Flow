@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import type { z } from "zod";
 
@@ -76,6 +76,7 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
       deliveryTime: "",
       notes: "",
       employeeIds: [],
+      items: [],
     };
   }
   return {
@@ -96,6 +97,14 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
     deliveryTime: order.deliveryTime.slice(0, 5),
     notes: order.notes ?? "",
     employeeIds: order.assignedEmployees.map((e) => e.id),
+    items: order.items.map((item) => ({
+      product: item.product,
+      paper: item.paper ?? "",
+      paperSize: item.paperSize ?? "",
+      quantity: item.quantity,
+      finishing: item.finishing ?? "",
+      employeeId: item.employeeId ?? "",
+    })),
   };
 }
 
@@ -128,6 +137,11 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
   });
 
   const employeeIds = watch("employeeIds") ?? [];
+
+  const { fields: itemFields, append: appendItem, remove: removeItem } = useFieldArray({
+    control,
+    name: "items",
+  });
 
   // RHF only reads `defaultValues` on first mount — since this form is a
   // single long-lived instance reused for every order, we have to
@@ -223,6 +237,7 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
         formData.set("deliveryDate", values.deliveryDate);
         formData.set("deliveryTime", values.deliveryTime);
         formData.set("notes", values.notes ?? "");
+        formData.set("items", JSON.stringify(values.items));
         values.employeeIds.forEach((id) => formData.append("employeeIds", id));
         productImages.forEach((file) => formData.append("productImages", file));
         designFiles.forEach((file) => formData.append("designFiles", file));
@@ -411,6 +426,90 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                   <Input {...register("finishing")} placeholder="Lamination, rounded corners" />
                 </Field>
               </div>
+            </section>
+
+            <section className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-muted-foreground">Additional Items</h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    appendItem({ product: "", paper: "", paperSize: "", quantity: 1, finishing: "", employeeId: "" })
+                  }
+                >
+                  <Plus className="size-3.5" /> Add Item
+                </Button>
+              </div>
+
+              {itemFields.map((field, index) => (
+                <div key={field.id} className="flex flex-col gap-3 rounded-xl border border-border p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground">Item {index + 2}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-6 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeItem(index)}
+                      aria-label={`Remove item ${index + 2}`}
+                    >
+                      <X className="size-3.5" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Product" error={errors.items?.[index]?.product?.message}>
+                      <Input
+                        {...register(`items.${index}.product`)}
+                        aria-invalid={!!errors.items?.[index]?.product}
+                        placeholder="Flyers"
+                      />
+                    </Field>
+                    <Field label="Quantity" error={errors.items?.[index]?.quantity?.message}>
+                      <Input
+                        type="number"
+                        min={1}
+                        {...register(`items.${index}.quantity`)}
+                        aria-invalid={!!errors.items?.[index]?.quantity}
+                      />
+                    </Field>
+                    <Field label="Paper">
+                      <Input {...register(`items.${index}.paper`)} placeholder="170gsm Gloss" />
+                    </Field>
+                    <Field label="Paper Size">
+                      <Input {...register(`items.${index}.paperSize`)} placeholder="A6" />
+                    </Field>
+                    <Field label="Finishing" className="col-span-2">
+                      <Input {...register(`items.${index}.finishing`)} placeholder="Lamination" />
+                    </Field>
+                    <Field label="Assign To" className="col-span-2">
+                      <Controller
+                        control={control}
+                        name={`items.${index}.employeeId`}
+                        render={({ field: employeeField }) => (
+                          <Select
+                            value={employeeField.value || "none"}
+                            onValueChange={(value) => employeeField.onChange(value === "none" ? "" : value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Unassigned</SelectItem>
+                              {employees.map((employee) => (
+                                <SelectItem key={employee.id} value={employee.id}>
+                                  {employee.fullName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </Field>
+                  </div>
+                </div>
+              ))}
             </section>
 
             <section className="flex flex-col gap-4">

@@ -79,6 +79,18 @@ export interface OrderListItem {
   assignedEmployees: { id: string; fullName: string }[];
   thumbnailUrl: string | null;
   pendingMaterialTypes: MaterialType[];
+  itemCount: number;
+}
+
+export interface OrderItemDetail {
+  id: string;
+  product: string;
+  paper: string | null;
+  paperSize: string | null;
+  quantity: number;
+  finishing: string | null;
+  employeeId: string | null;
+  employeeName: string | null;
 }
 
 export interface OrderDetail {
@@ -104,6 +116,7 @@ export interface OrderDetail {
   createdAt: string;
   updatedAt: string;
   assignedEmployees: { id: string; fullName: string }[];
+  items: OrderItemDetail[];
   productImages: { id: string; fileName: string; url: string | null }[];
   designFiles: { id: string; fileName: string; url: string | null }[];
   orderNotes: { id: string; note: string; employeeName: string; createdAt: string }[];
@@ -217,7 +230,7 @@ export async function getOrders(filters: OrderFilters = {}): Promise<OrderListRe
 
   const orderIds = orders.map((o) => o.id);
 
-  const [{ data: assignmentRows }, { data: fileRows }, { data: materialRows }] = await Promise.all([
+  const [{ data: assignmentRows }, { data: fileRows }, { data: materialRows }, { data: itemRows }] = await Promise.all([
     supabase.from("order_assignments").select("order_id, employee_id").in("order_id", orderIds),
     supabase
       .from("order_files")
@@ -225,6 +238,7 @@ export async function getOrders(filters: OrderFilters = {}): Promise<OrderListRe
       .in("order_id", orderIds)
       .eq("file_type", "product_image"),
     supabase.from("material_requests").select("order_id, status, material_type").in("order_id", orderIds),
+    supabase.from("order_items").select("order_id").in("order_id", orderIds),
   ]);
 
   const employeeIds = [...new Set((assignmentRows ?? []).map((r) => r.employee_id))];
@@ -253,6 +267,11 @@ export async function getOrders(filters: OrderFilters = {}): Promise<OrderListRe
       if (!list.includes(row.material_type)) list.push(row.material_type);
       pendingTypesByOrder.set(row.order_id, list);
     }
+  }
+
+  const itemCountByOrder = new Map<string, number>();
+  for (const row of itemRows ?? []) {
+    if (row.order_id) itemCountByOrder.set(row.order_id, (itemCountByOrder.get(row.order_id) ?? 0) + 1);
   }
 
   const thumbnailPaths = [...thumbnailPathByOrder.values()];
@@ -289,6 +308,7 @@ export async function getOrders(filters: OrderFilters = {}): Promise<OrderListRe
       assignedEmployees: assignmentsByOrder.get(o.id) ?? [],
       thumbnailUrl: thumbnailPath ? signedUrlByPath.get(thumbnailPath) ?? null : null,
       pendingMaterialTypes: pendingTypesByOrder.get(o.id) ?? [],
+      itemCount: itemCountByOrder.get(o.id) ?? 0,
     };
   });
 
@@ -347,7 +367,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
   const { data: order, error } = await supabase.from("orders").select("*").eq("id", orderId).single();
   if (error || !order) throw new Error(error?.message ?? "Order not found");
 
-  const [{ data: assignmentRows }, { data: fileRows }, { data: noteRows }, { data: historyRows }, { data: materialRows }] =
+  const [{ data: assignmentRows }, { data: fileRows }, { data: noteRows }, { data: historyRows }, { data: materialRows }, { data: itemRows }] =
     await Promise.all([
       supabase.from("order_assignments").select("employee_id").eq("order_id", orderId),
       supabase
@@ -370,6 +390,11 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
         .select("id, material_type, description, quantity, priority, status, employee_id, created_at")
         .eq("order_id", orderId)
         .order("created_at", { ascending: false }),
+      supabase
+        .from("order_items")
+        .select("id, product, paper, paper_size, quantity, finishing, employee_id")
+        .eq("order_id", orderId)
+        .order("sort_order"),
     ]);
 
   const employeeIds = new Set<string>();
@@ -379,6 +404,9 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
     if (r.changed_by) employeeIds.add(r.changed_by);
   });
   (materialRows ?? []).forEach((r) => employeeIds.add(r.employee_id));
+  (itemRows ?? []).forEach((r) => {
+    if (r.employee_id) employeeIds.add(r.employee_id);
+  });
   const employeesById = await fetchEmployeeNames(supabase, [...employeeIds]);
 
   const productImageFiles = (fileRows ?? []).filter((f) => f.file_type === "product_image");
@@ -414,6 +442,16 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
     assignedEmployees: (assignmentRows ?? []).map((r) => ({
       id: r.employee_id,
       fullName: employeesById.get(r.employee_id) ?? "Unknown",
+    })),
+    items: (itemRows ?? []).map((r) => ({
+      id: r.id,
+      product: r.product,
+      paper: r.paper,
+      paperSize: r.paper_size,
+      quantity: r.quantity,
+      finishing: r.finishing,
+      employeeId: r.employee_id,
+      employeeName: r.employee_id ? employeesById.get(r.employee_id) ?? "Unknown" : null,
     })),
     productImages: productImageFiles.map((f) => ({
       id: f.id,
@@ -520,6 +558,14 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
   const supabase = createServiceClient();
   const input = parseOrderForm(formData);
 
+  // An item can be assigned to an employee who wasn't separately checked in
+  // the "Assign Employees" list — folding item-level assignees into the
+  // same order_assignments set (rather than a parallel path) means they
+  // still show up on the order and get the normal assignment notification,
+  // without duplicating that logic.
+  const itemEmployeeIds = input.items.map((item) => item.employeeId).filter((id): id is string => !!id);
+  const allEmployeeIds = [...new Set([...input.employeeIds, ...itemEmployeeIds])];
+
   const { data: order, error } = await supabase
     .from("orders")
     .insert({
@@ -546,11 +592,27 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
 
   if (error || !order) throw new Error(error?.message ?? "Failed to create order");
 
-  if (input.employeeIds.length > 0) {
+  if (allEmployeeIds.length > 0) {
     const { error: assignError } = await supabase
       .from("order_assignments")
-      .insert(input.employeeIds.map((employeeId) => ({ order_id: order.id, employee_id: employeeId })));
+      .insert(allEmployeeIds.map((employeeId) => ({ order_id: order.id, employee_id: employeeId })));
     if (assignError) throw new Error(assignError.message);
+  }
+
+  if (input.items.length > 0) {
+    const { error: itemsError } = await supabase.from("order_items").insert(
+      input.items.map((item, index) => ({
+        order_id: order.id,
+        product: item.product,
+        paper: item.paper || null,
+        paper_size: item.paperSize || null,
+        quantity: item.quantity,
+        finishing: item.finishing || null,
+        employee_id: item.employeeId || null,
+        sort_order: index,
+      }))
+    );
+    if (itemsError) throw new Error(itemsError.message);
   }
 
   await supabase.from("order_status_history").insert({
@@ -571,7 +633,7 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
     orderId: order.id,
     newValue: { orderNumber: order.order_number, product: input.product, deliveryDate: input.deliveryDate },
   });
-  for (const employeeId of input.employeeIds) {
+  for (const employeeId of allEmployeeIds) {
     await recordAuditLog({
       actorId: session.employeeId,
       actorName: session.fullName,
@@ -601,9 +663,9 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
     session.fullName
   );
 
-  if (input.employeeIds.length > 0) {
-    const assignedEmployees = await fetchEmployeePhones(supabase, input.employeeIds);
-    for (const employeeId of input.employeeIds) {
+  if (allEmployeeIds.length > 0) {
+    const assignedEmployees = await fetchEmployeePhones(supabase, allEmployeeIds);
+    for (const employeeId of allEmployeeIds) {
       const employee = assignedEmployees.get(employeeId);
       if (!employee) continue;
       const context = {
@@ -658,12 +720,34 @@ export async function updateOrder(orderId: string, formData: FormData): Promise<
     .eq("id", orderId);
   if (error) throw new Error(error.message);
 
+  // Items are replaced wholesale on every edit (rather than diffed) since
+  // the form always submits the full current item list with no stable
+  // client-side item id to diff against.
+  await supabase.from("order_items").delete().eq("order_id", orderId);
+  if (input.items.length > 0) {
+    const { error: itemsError } = await supabase.from("order_items").insert(
+      input.items.map((item, index) => ({
+        order_id: orderId,
+        product: item.product,
+        paper: item.paper || null,
+        paper_size: item.paperSize || null,
+        quantity: item.quantity,
+        finishing: item.finishing || null,
+        employee_id: item.employeeId || null,
+        sort_order: index,
+      }))
+    );
+    if (itemsError) throw new Error(itemsError.message);
+  }
+
+  const itemEmployeeIds = input.items.map((item) => item.employeeId).filter((id): id is string => !!id);
+
   const { data: existingAssignments } = await supabase
     .from("order_assignments")
     .select("employee_id")
     .eq("order_id", orderId);
   const existingIds = new Set((existingAssignments ?? []).map((a) => a.employee_id));
-  const nextIds = new Set(input.employeeIds);
+  const nextIds = new Set([...input.employeeIds, ...itemEmployeeIds]);
 
   const toRemove = [...existingIds].filter((id) => !nextIds.has(id));
   const toAdd = [...nextIds].filter((id) => !existingIds.has(id));
@@ -756,9 +840,13 @@ export async function duplicateOrder(orderId: string): Promise<{ id: string }> {
   const { data: original, error } = await supabase.from("orders").select("*").eq("id", orderId).single();
   if (error || !original) throw new Error(error?.message ?? "Order not found");
 
-  const [{ data: assignments }, { data: files }] = await Promise.all([
+  const [{ data: assignments }, { data: files }, { data: existingItems }] = await Promise.all([
     supabase.from("order_assignments").select("employee_id").eq("order_id", orderId),
     supabase.from("order_files").select("*").eq("order_id", orderId),
+    supabase
+      .from("order_items")
+      .select("product, paper, paper_size, quantity, finishing, employee_id, sort_order")
+      .eq("order_id", orderId),
   ]);
 
   const { data: newOrder, error: insertError } = await supabase
@@ -791,6 +879,21 @@ export async function duplicateOrder(orderId: string): Promise<{ id: string }> {
     await supabase
       .from("order_assignments")
       .insert(assignments.map((a) => ({ order_id: newOrder.id, employee_id: a.employee_id })));
+  }
+
+  if (existingItems && existingItems.length > 0) {
+    await supabase.from("order_items").insert(
+      existingItems.map((item) => ({
+        order_id: newOrder.id,
+        product: item.product,
+        paper: item.paper,
+        paper_size: item.paper_size,
+        quantity: item.quantity,
+        finishing: item.finishing,
+        employee_id: item.employee_id,
+        sort_order: item.sort_order,
+      }))
+    );
   }
 
   for (const file of files ?? []) {
@@ -979,6 +1082,16 @@ function parseOrderForm(formData: FormData) {
     }
   }
 
+  const rawItems = formData.get("items");
+  let items: unknown = [];
+  if (typeof rawItems === "string" && rawItems.length > 0) {
+    try {
+      items = JSON.parse(rawItems);
+    } catch {
+      // fall through with an empty array — validated (and rejected if malformed) by the schema below
+    }
+  }
+
   const raw = {
     customerName: formData.get("customerName"),
     customerMobile: formData.get("customerMobile"),
@@ -997,6 +1110,7 @@ function parseOrderForm(formData: FormData) {
     deliveryTime: formData.get("deliveryTime"),
     notes: formData.get("notes") || undefined,
     employeeIds: formData.getAll("employeeIds").map(String),
+    items,
   };
 
   const parsed = orderFormSchema.safeParse(raw);
