@@ -229,6 +229,10 @@ interface EmployeeNotificationContext {
   deliveryTime: string;
   /** Customer delivery address, if the manager entered one — rendered into a clickable Google Maps link for delivery-staff notifications (see lib/utils/maps.ts). Ignored by templates that don't reference it. */
   deliveryAddress?: string | null;
+  /** Which employee did the thing being reported — used by admin_order_note_added/admin_order_status_changed. */
+  employeeName?: string;
+  noteText?: string;
+  statusLabel?: string;
 }
 
 async function sendEmployeeNotification(
@@ -245,6 +249,9 @@ async function sendEmployeeNotification(
     deliveryDate: employee.deliveryDate,
     deliveryTime: employee.deliveryTime,
     mapsLink: employee.deliveryAddress ? buildGoogleMapsLink(employee.deliveryAddress) : undefined,
+    employeeName: employee.employeeName,
+    noteText: employee.noteText,
+    statusLabel: employee.statusLabel,
   };
 
   await dispatch(
@@ -273,6 +280,8 @@ type EmployeeTemplateNameLocal = Extract<
   | "order_out_for_delivery_staff"
   | "material_purchase_needed"
   | "job_ready_for_you"
+  | "admin_order_note_added"
+  | "admin_order_status_changed"
 >;
 
 export async function notifyEmployeeJobAssigned(
@@ -349,6 +358,24 @@ export async function notifyEmployeeJobReadyForYou(
   actorName: string
 ): Promise<void> {
   await sendEmployeeNotification(employee, "job_ready_for_you", actorId, actorName);
+}
+
+/** Fires to every active admin when an employee adds a floor note to an order. */
+export async function notifyAdminOrderNoteAdded(
+  employee: EmployeeNotificationContext,
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  await sendEmployeeNotification(employee, "admin_order_note_added", actorId, actorName);
+}
+
+/** Fires to every active admin when an employee moves an order to a new status. */
+export async function notifyAdminOrderStatusChanged(
+  employee: EmployeeNotificationContext,
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  await sendEmployeeNotification(employee, "admin_order_status_changed", actorId, actorName);
 }
 
 // ---------------------------------------------------------------------------

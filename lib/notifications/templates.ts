@@ -30,7 +30,9 @@ export type EmployeeTemplateName =
   | "internal_pickup_ready"
   | "order_out_for_delivery_staff"
   | "material_purchase_needed"
-  | "job_ready_for_you";
+  | "job_ready_for_you"
+  | "admin_order_note_added"
+  | "admin_order_status_changed";
 
 export type TemplateName = CustomerTemplateName | EmployeeTemplateName;
 
@@ -47,6 +49,10 @@ export interface TemplateVariables {
   trackingLink?: string;
   /** Google Maps search-by-address link, built from the order's delivery address — see lib/utils/maps.ts. */
   mapsLink?: string;
+  /** The floor note text, for admin_order_note_added. */
+  noteText?: string;
+  /** Human-readable status label (ORDER_STATUS_LABELS), for admin_order_status_changed. */
+  statusLabel?: string;
 }
 
 type TemplateFn = (vars: TemplateVariables) => string;
@@ -121,6 +127,14 @@ const TEMPLATES: Record<TemplateName, Record<OrderLanguage, TemplateFn>> = {
   job_ready_for_you: {
     en: (v) => `Job ${v.orderNumber} (${v.productName}) is ready for your stage — the work before you is done.`,
     ar: (v) => `المهمة ${v.orderNumber} (${v.productName}) جاهزة لمرحلتك — انتهى العمل الذي قبلك.`,
+  },
+  admin_order_note_added: {
+    en: (v) => `${v.employeeName} added a note to ${v.orderNumber} (${v.productName}): "${v.noteText}"`,
+    ar: (v) => `أضاف ${v.employeeName} ملاحظة على الطلب ${v.orderNumber} (${v.productName}): "${v.noteText}"`,
+  },
+  admin_order_status_changed: {
+    en: (v) => `${v.employeeName} moved ${v.orderNumber} (${v.productName}) to ${v.statusLabel}.`,
+    ar: (v) => `قام ${v.employeeName} بنقل الطلب ${v.orderNumber} (${v.productName}) إلى ${v.statusLabel}.`,
   },
 };
 

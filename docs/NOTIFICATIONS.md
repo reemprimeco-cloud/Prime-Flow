@@ -27,7 +27,7 @@ Twilio's REST API accepts a message and returns a SID; final delivery status (de
 
 ## Message templates
 
-`lib/notifications/templates.ts` holds every message, in English and Arabic, as small functions of `TemplateVariables` (`customerName`, `orderNumber`, `productName`, `deliveryDate`, `deliveryTime`, `pickupLocation`, `companyName`; `trackingLink` is reserved but unused — no customer-facing tracking page exists yet). `companyName`/`pickupLocation` default from the `COMPANY_NAME`/`PICKUP_LOCATION` env vars since there's one shop, not a per-order field.
+`lib/notifications/templates.ts` holds every message, in English and Arabic, as small functions of `TemplateVariables` (`customerName`, `employeeName`, `orderNumber`, `productName`, `deliveryDate`, `deliveryTime`, `pickupLocation`, `companyName`, `mapsLink`, `noteText`, `statusLabel`; `trackingLink` is reserved but unused — no customer-facing tracking page exists yet). `companyName`/`pickupLocation` default from the `COMPANY_NAME`/`PICKUP_LOCATION` env vars since there's one shop, not a per-order field.
 
 The Arabic copy is standard business MSA, not reviewed by a native speaker — treat it as a solid starting point to have proofread before real customers see it, not final copy.
 
@@ -45,7 +45,10 @@ Employee-facing, always WhatsApp, no preference gating (staff, not customers), a
 - **`notifyEmployeeJobReassigned`** — `updateOrder`, when employees are both removed and added in the same edit (the adds are read as filling a vacated slot).
 - **`notifyEmployeeHighPriorityAssigned`** — `createOrder` / `updateOrder`, takes precedence over assigned/reassigned when `priority === "urgent"`.
 - **`notifyEmployeeJobCancelled`** — `deleteOrder`, for every employee who was assigned. Fires *after* the delete succeeds, with `orderId: null` in the log row — the order no longer exists, so the FK can't reference it; `orderNumber`/`product` still reach the message via the rendered `body`.
-- **`notifyEmployeeMaterialApproved`** — `approveMaterialRequest`, only when the request is tied to an order (a general/non-order stock request has nothing to notify about).
+- **`notifyEmployeeMaterialApproved`** / **`notifyEmployeeMaterialPurchaseNeeded`** — `approveMaterialRequest`, only when the request is tied to an order. The former goes to the requester; the latter additionally goes to every active `role='delivery'` employee, since they're the ones who go buy it.
+- **`notifyEmployeeInternalPickupReady`** / **`notifyEmployeeOutForDeliveryStaff`** — `updateEmployeeJobStatus`, via `notifyDeliveryStaff` (`lib/actions/employee-jobs.ts`), to every active `role='delivery'` employee (e.g. Naresh) — auto-assigning them to the order first so it shows up on their dashboard. Fires on `ready_internal_pickup` (go collect from the outsourced worker) and `ready_delivery` (go deliver to the customer, alongside the customer's own notification). The `ready_delivery` message includes a clickable Google Maps link built from `orders.delivery_address` when the manager entered one (`mapsLink` template var, `lib/utils/maps.ts`).
+- **`notifyEmployeeJobReadyForYou`** — `handOffJob`, to the next employee in a sequential hand-off chain once the person before them clicks "Ready for Next" (see `ARCHITECTURE.md`'s Sequential Employee Hand-off section).
+- **`notifyAdminOrderNoteAdded`** / **`notifyAdminOrderStatusChanged`** — `addJobNote` / `updateEmployeeJobStatus`, to every active `role='admin'` employee, so the manager doesn't have to be watching the dashboard to know an employee added a floor note or moved an order's status. Admins aren't tracked via `order_assignments` (they already see every order), so this is a plain broadcast to the role via `notifyAdmins` rather than an assignment-based lookup.
 
 ## Notification preferences
 

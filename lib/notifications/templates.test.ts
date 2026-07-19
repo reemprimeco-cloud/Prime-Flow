@@ -22,6 +22,8 @@ const EMPLOYEE_TEMPLATES: TemplateName[] = [
   "order_out_for_delivery_staff",
   "material_purchase_needed",
   "job_ready_for_you",
+  "admin_order_note_added",
+  "admin_order_status_changed",
 ];
 
 const VARS: TemplateVariables = {
@@ -93,5 +95,25 @@ describe("Notification templates", () => {
 
     const withoutLink = renderTemplate("order_out_for_delivery_staff", "en", VARS);
     expect(withoutLink).not.toContain("Location:");
+  });
+
+  it("tells the admin who added a note and what it said", () => {
+    const rendered = renderTemplate("admin_order_note_added", "en", {
+      ...VARS,
+      employeeName: "Hassan Youssef",
+      noteText: "Ran out of gold foil, switching to backup roll.",
+    });
+    expect(rendered).toContain("Hassan Youssef");
+    expect(rendered).toContain("Ran out of gold foil, switching to backup roll.");
+  });
+
+  it("tells the admin who moved an order and to what status", () => {
+    const rendered = renderTemplate("admin_order_status_changed", "en", {
+      ...VARS,
+      employeeName: "Mariam Khalid",
+      statusLabel: "Ready for Pickup",
+    });
+    expect(rendered).toContain("Mariam Khalid");
+    expect(rendered).toContain("Ready for Pickup");
   });
 });

@@ -12,13 +12,20 @@ import { materialRequestSchema, orderNoteSchema } from "@/lib/validation/materia
 import { assertValidTransition } from "@/lib/status/engine";
 import { recordAuditLog } from "@/lib/audit/log";
 import {
+  notifyAdminOrderNoteAdded,
+  notifyAdminOrderStatusChanged,
   notifyEmployeeInternalPickupReady,
   notifyEmployeeJobReadyForYou,
   notifyEmployeeOutForDeliveryStaff,
   notifyOrderMovedBackToProduction,
   notifyOrderStatusChanged,
 } from "@/lib/notifications/service";
-import { EMPLOYEE_ACTIVE_STATUSES, EMPLOYEE_ALLOWED_TARGET_STATUSES, PRIORITY_SORT_WEIGHT } from "@/types/domain";
+import {
+  EMPLOYEE_ACTIVE_STATUSES,
+  EMPLOYEE_ALLOWED_TARGET_STATUSES,
+  ORDER_STATUS_LABELS,
+  PRIORITY_SORT_WEIGHT,
+} from "@/types/domain";
 import type { MaterialType, OrderFulfillmentType, OrderPriority, OrderStatus } from "@/types/database.types";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
@@ -336,6 +343,47 @@ async function notifyDeliveryStaff(
   }
 }
 
+/**
+ * Keeps the manager in the loop on the shop floor without them having to
+ * watch the dashboard — every active admin gets a WhatsApp message whenever
+ * an employee adds a note or moves an order's status. Admins aren't tracked
+ * via order_assignments (they already see every order), so this is a plain
+ * broadcast to the role rather than an assignment-based lookup.
+ */
+async function notifyAdmins(
+  supabase: ServiceClient,
+  orderId: string,
+  order: { order_number: string; product: string; delivery_date: string; delivery_time: string },
+  templateName: "admin_order_note_added" | "admin_order_status_changed",
+  extra: { noteText?: string; statusLabel?: string },
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  const { data: admins } = await supabase.from("employees").select("id, phone").eq("role", "admin").eq("active", true);
+  if (!admins || admins.length === 0) return;
+
+  const notify = templateName === "admin_order_note_added" ? notifyAdminOrderNoteAdded : notifyAdminOrderStatusChanged;
+
+  for (const admin of admins) {
+    await notify(
+      {
+        employeeId: admin.id,
+        employeePhone: admin.phone,
+        orderId,
+        orderNumber: order.order_number,
+        product: order.product,
+        deliveryDate: order.delivery_date,
+        deliveryTime: order.delivery_time,
+        employeeName: actorName,
+        noteText: extra.noteText,
+        statusLabel: extra.statusLabel,
+      },
+      actorId,
+      actorName
+    );
+  }
+}
+
 export async function updateEmployeeJobStatus(orderId: string, status: OrderStatus): Promise<void> {
   const session = await requireEmployee();
   if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
@@ -436,6 +484,16 @@ export async function updateEmployeeJobStatus(orderId: string, status: OrderStat
       );
     }
   }
+
+  await notifyAdmins(
+    supabase,
+    orderId,
+    current,
+    "admin_order_status_changed",
+    { statusLabel: ORDER_STATUS_LABELS[status] },
+    session.employeeId,
+    session.fullName
+  );
 
   await broadcast(CHANNELS.production, "order.updated", { orderId });
   revalidatePath("/employee");
@@ -544,6 +602,23 @@ export async function addJobNote(orderId: string, note: string): Promise<void> {
     note: parsed.data.note,
   });
   if (error) throw new Error(error.message);
+
+  const { data: order } = await supabase
+    .from("orders")
+    .select("order_number, product, delivery_date, delivery_time")
+    .eq("id", orderId)
+    .single();
+  if (order) {
+    await notifyAdmins(
+      supabase,
+      orderId,
+      order,
+      "admin_order_note_added",
+      { noteText: parsed.data.note },
+      session.employeeId,
+      session.fullName
+    );
+  }
 
   await broadcast(CHANNELS.production, "order.noted", { orderId });
   revalidatePath("/employee");
