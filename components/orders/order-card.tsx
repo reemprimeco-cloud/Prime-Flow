@@ -55,28 +55,28 @@ export const OrderCard = memo(function OrderCard({
   return (
     <Card
       className={cn(
-        "group relative flex flex-col gap-3 overflow-hidden p-4 pl-5 before:absolute before:inset-y-0 before:left-0 before:w-1",
+        "group relative flex flex-col gap-2.5 overflow-hidden p-3.5 pl-4 before:absolute before:inset-y-0 before:left-0 before:w-1",
         "transition-shadow hover:shadow-lg hover:shadow-black/10",
         isInFlight ? ACCENT_BORDER[countdownColor] : "before:bg-border",
         selected && "ring-2 ring-secondary"
       )}
     >
       {onToggleSelect && (
-        <div className="absolute top-3 right-3 z-10">
+        <div className="absolute top-2.5 right-2.5 z-10">
           <Checkbox checked={selected ?? false} onCheckedChange={() => onToggleSelect(order.id)} />
         </div>
       )}
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2.5">
         <button
           type="button"
           onClick={() => onOpen(order)}
-          className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-border bg-muted/40"
+          className="relative size-12 shrink-0 overflow-hidden rounded-xl border border-border bg-muted/40"
         >
           {order.thumbnailUrl ? (
-            <Image src={order.thumbnailUrl} alt={order.product} fill sizes="64px" className="object-cover" />
+            <Image src={order.thumbnailUrl} alt={order.product} fill sizes="48px" className="object-cover" />
           ) : (
             <div className="flex size-full items-center justify-center text-muted-foreground">
-              <ImageIcon className="size-6" />
+              <ImageIcon className="size-5" />
             </div>
           )}
         </button>
@@ -105,15 +105,15 @@ export const OrderCard = memo(function OrderCard({
 
       {/* Delivery date/time + countdown — the most operationally important
           fact on the card, so it gets top billing over spec details. */}
-      <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3.5 py-2.5">
-        <div className="flex items-center gap-2 text-foreground">
-          <CalendarClock className="size-4 shrink-0 text-muted-foreground" />
-          <span className="text-sm font-bold">
+      <div className="flex items-center justify-between gap-2.5 rounded-xl bg-muted/40 px-3 py-2">
+        <div className="flex items-center gap-1.5 text-foreground">
+          <CalendarClock className="size-3.5 shrink-0 text-muted-foreground" />
+          <span className="text-xs font-bold">
             {format(parseISO(order.deliveryDate), "EEE, MMM d")} · {order.deliveryTime.slice(0, 5)}
           </span>
         </div>
         {isInFlight && (
-          <CountdownTimer deliveryDate={order.deliveryDate} deliveryTime={order.deliveryTime} size="lg" />
+          <CountdownTimer deliveryDate={order.deliveryDate} deliveryTime={order.deliveryTime} size="sm" />
         )}
       </div>
 

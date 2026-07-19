@@ -122,30 +122,15 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                 )}
               </DetailSection>
 
-              {order.items.length > 0 && (
-                <DetailSection title="Additional Items">
-                  <ul className="flex flex-col gap-2">
-                    {order.items.map((item, index) => (
-                      <li key={item.id} className="rounded-lg border border-border bg-muted/20 px-3 py-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-medium text-foreground">
-                            Item {index + 2}: {item.product}
-                          </span>
-                          <span className="text-xs text-muted-foreground">Qty {item.quantity}</span>
-                        </div>
-                        <div className="mt-0.5 text-xs text-muted-foreground">
-                          {[item.paper, item.paperSize, item.finishing].filter(Boolean).join(" · ") || "—"}
-                        </div>
-                        {item.employeeName && (
-                          <div className="mt-1 text-xs text-muted-foreground">
-                            Assigned to <span className="font-medium text-foreground">{item.employeeName}</span>
-                          </div>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
+              {order.items.map((item, index) => (
+                <DetailSection key={item.id} title={`Item ${index + 2}: ${item.product}`}>
+                  <DetailRow label="Paper" value={item.paper || "—"} />
+                  <DetailRow label="Size" value={item.paperSize || "—"} />
+                  <DetailRow label="Quantity" value={String(item.quantity)} />
+                  <DetailRow label="Finishing" value={item.finishing || "—"} />
+                  <DetailRow label="Assigned To" value={item.employeeName || "Unassigned"} />
                 </DetailSection>
-              )}
+              ))}
 
               {order.notes && (
                 <DetailSection title="Production Notes">

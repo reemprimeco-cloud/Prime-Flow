@@ -444,6 +444,81 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
               </div>
             </section>
 
+            <section className="flex flex-col gap-3">
+              <h3 className="text-sm font-bold text-muted-foreground">Assign Employees — Item 1</h3>
+              <div className="flex max-h-52 flex-col gap-1 overflow-y-auto rounded-xl border border-border p-2 scrollbar-thin">
+                {employees.length === 0 && (
+                  <p className="px-2 py-3 text-sm text-muted-foreground">No active employees yet.</p>
+                )}
+                {employees.map((employee) => {
+                  const checked = employeeIds.includes(employee.id);
+                  return (
+                    <label
+                      key={employee.id}
+                      className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 hover:bg-muted/40"
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(value) => {
+                          setValue(
+                            "employeeIds",
+                            value
+                              ? [...employeeIds, employee.id]
+                              : employeeIds.filter((id) => id !== employee.id)
+                          );
+                        }}
+                      />
+                      <span className="text-sm">{employee.fullName}</span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              {employeeIds.length > 1 && (
+                <div className="flex flex-col gap-2 rounded-xl border border-border p-3">
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    Hand-off order — each person only sees the job once the one before them clicks &ldquo;Ready
+                    for Next&rdquo;
+                  </span>
+                  <ol className="flex flex-col gap-1.5">
+                    {employeeIds.map((id, index) => {
+                      const employee = employees.find((e) => e.id === id);
+                      return (
+                        <li key={id} className="flex items-center gap-2 rounded-lg bg-muted/30 px-2.5 py-1.5">
+                          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-bold text-secondary-foreground">
+                            {index + 1}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate text-sm">{employee?.fullName ?? "Unknown"}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-6 text-muted-foreground"
+                            disabled={index === 0}
+                            onClick={() => moveEmployee(index, index - 1)}
+                            aria-label={`Move ${employee?.fullName ?? "employee"} earlier`}
+                          >
+                            <ChevronUp className="size-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-6 text-muted-foreground"
+                            disabled={index === employeeIds.length - 1}
+                            onClick={() => moveEmployee(index, index + 1)}
+                            aria-label={`Move ${employee?.fullName ?? "employee"} later`}
+                          >
+                            <ChevronDown className="size-3.5" />
+                          </Button>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </div>
+              )}
+            </section>
+
             <section className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold text-muted-foreground">Additional Items</h3>
@@ -614,81 +689,6 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                 onRemoveExisting={(id) => removeExistingFile(id, "design")}
                 removingId={removingId}
               />
-            </section>
-
-            <section className="flex flex-col gap-3">
-              <h3 className="text-sm font-bold text-muted-foreground">Assign Employees</h3>
-              <div className="flex max-h-52 flex-col gap-1 overflow-y-auto rounded-xl border border-border p-2 scrollbar-thin">
-                {employees.length === 0 && (
-                  <p className="px-2 py-3 text-sm text-muted-foreground">No active employees yet.</p>
-                )}
-                {employees.map((employee) => {
-                  const checked = employeeIds.includes(employee.id);
-                  return (
-                    <label
-                      key={employee.id}
-                      className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 hover:bg-muted/40"
-                    >
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={(value) => {
-                          setValue(
-                            "employeeIds",
-                            value
-                              ? [...employeeIds, employee.id]
-                              : employeeIds.filter((id) => id !== employee.id)
-                          );
-                        }}
-                      />
-                      <span className="text-sm">{employee.fullName}</span>
-                    </label>
-                  );
-                })}
-              </div>
-
-              {employeeIds.length > 1 && (
-                <div className="flex flex-col gap-2 rounded-xl border border-border p-3">
-                  <span className="text-xs font-semibold text-muted-foreground">
-                    Hand-off order — each person only sees the job once the one before them clicks &ldquo;Ready
-                    for Next&rdquo;
-                  </span>
-                  <ol className="flex flex-col gap-1.5">
-                    {employeeIds.map((id, index) => {
-                      const employee = employees.find((e) => e.id === id);
-                      return (
-                        <li key={id} className="flex items-center gap-2 rounded-lg bg-muted/30 px-2.5 py-1.5">
-                          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-bold text-secondary-foreground">
-                            {index + 1}
-                          </span>
-                          <span className="min-w-0 flex-1 truncate text-sm">{employee?.fullName ?? "Unknown"}</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="size-6 text-muted-foreground"
-                            disabled={index === 0}
-                            onClick={() => moveEmployee(index, index - 1)}
-                            aria-label={`Move ${employee?.fullName ?? "employee"} earlier`}
-                          >
-                            <ChevronUp className="size-3.5" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="size-6 text-muted-foreground"
-                            disabled={index === employeeIds.length - 1}
-                            onClick={() => moveEmployee(index, index + 1)}
-                            aria-label={`Move ${employee?.fullName ?? "employee"} later`}
-                          >
-                            <ChevronDown className="size-3.5" />
-                          </Button>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                </div>
-              )}
             </section>
           </SheetBody>
         </form>
