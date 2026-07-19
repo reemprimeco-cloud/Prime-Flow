@@ -39,6 +39,7 @@ export interface EmployeeJobItem {
   priority: OrderPriority;
   deliveryDate: string;
   deliveryTime: string;
+  deliveryAddress: string | null;
   status: OrderStatus;
   fulfillmentType: OrderFulfillmentType;
   managerNotes: string | null;
@@ -92,7 +93,7 @@ export async function getMyJobs(): Promise<MyJobsResult> {
   const { data: orders, error } = await supabase
     .from("orders")
     .select(
-      "id, order_number, customer_name, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, status, fulfillment_type, notes"
+      "id, order_number, customer_name, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, delivery_address, status, fulfillment_type, notes"
     )
     .in("id", orderIds)
     .eq("archived", false)
@@ -190,6 +191,7 @@ export async function getMyJobs(): Promise<MyJobsResult> {
       priority: o.priority,
       deliveryDate: o.delivery_date,
       deliveryTime: o.delivery_time,
+      deliveryAddress: o.delivery_address,
       status: o.status,
       fulfillmentType: o.fulfillment_type,
       managerNotes: o.notes,
@@ -280,7 +282,13 @@ const DEMO_WRITE_ERROR = "This is a read-only demo — writes are disabled.";
 async function notifyDeliveryStaff(
   supabase: ServiceClient,
   orderId: string,
-  order: { order_number: string; product: string; delivery_date: string; delivery_time: string },
+  order: {
+    order_number: string;
+    product: string;
+    delivery_date: string;
+    delivery_time: string;
+    delivery_address?: string | null;
+  },
   templateName: "internal_pickup_ready" | "order_out_for_delivery_staff",
   actorId: string,
   actorName: string
@@ -320,6 +328,7 @@ async function notifyDeliveryStaff(
         product: order.product,
         deliveryDate: order.delivery_date,
         deliveryTime: order.delivery_time,
+        deliveryAddress: order.delivery_address ?? null,
       },
       actorId,
       actorName
@@ -347,7 +356,7 @@ export async function updateEmployeeJobStatus(orderId: string, status: OrderStat
   const { data: current, error: fetchError } = await supabase
     .from("orders")
     .select(
-      "status, order_number, customer_name, customer_mobile, product, delivery_date, delivery_time, whatsapp_enabled, preferred_channel, preferred_language, notification_preferences"
+      "status, order_number, customer_name, customer_mobile, product, delivery_date, delivery_time, delivery_address, whatsapp_enabled, preferred_channel, preferred_language, notification_preferences"
     )
     .eq("id", orderId)
     .single();

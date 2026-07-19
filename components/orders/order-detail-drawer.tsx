@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { format, parseISO } from "date-fns";
-import { FileText, ImageIcon, Loader2, MessageSquareText, Pencil, ShieldAlert } from "lucide-react";
+import { FileText, ImageIcon, Loader2, MapPin, MessageSquareText, Pencil, ShieldAlert } from "lucide-react";
 
 import { getOrderDetail } from "@/lib/actions/orders";
+import { buildGoogleMapsLink } from "@/lib/utils/maps";
 import { useRealtimeChannel } from "@/lib/realtime/use-realtime-channel";
 import { CHANNELS } from "@/lib/realtime/constants";
 import {
@@ -105,6 +106,20 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                   label="Delivery"
                   value={`${format(parseISO(order.deliveryDate), "EEE, MMM d")} · ${order.deliveryTime.slice(0, 5)}`}
                 />
+                {order.fulfillmentType === "delivery" && order.deliveryAddress && (
+                  <div className="flex items-center justify-between gap-4 text-sm">
+                    <span className="text-muted-foreground">Address</span>
+                    <a
+                      href={buildGoogleMapsLink(order.deliveryAddress)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1 text-right font-medium text-secondary hover:underline"
+                    >
+                      {order.deliveryAddress}
+                      <MapPin className="size-3.5 shrink-0" />
+                    </a>
+                  </div>
+                )}
               </DetailSection>
 
               {order.items.length > 0 && (

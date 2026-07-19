@@ -146,4 +146,17 @@ describe("Order Creation — orderFormSchema", () => {
     );
     expect(result.success).toBe(false);
   });
+
+  it("accepts an optional delivery address", () => {
+    const result = orderFormSchema.safeParse(
+      validOrder({ fulfillmentType: "delivery", deliveryAddress: "Block 3, Street 10, Salmiya" })
+    );
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.deliveryAddress).toBe("Block 3, Street 10, Salmiya");
+  });
+
+  it("accepts an order with no delivery address", () => {
+    const result = orderFormSchema.safeParse(validOrder());
+    expect(result.success).toBe(true);
+  });
 });

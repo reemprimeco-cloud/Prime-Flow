@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowRightCircle, FileText, ImageIcon, NotebookPen, PackagePlus } from "lucide-react";
+import { ArrowRightCircle, FileText, ImageIcon, MapPin, NotebookPen, PackagePlus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 import { Card } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { CountdownTimer, useCountdownColor } from "@/components/orders/countdown
 import { MaterialRequestBadge } from "@/components/orders/material-request-badge";
 import { StatusActions } from "@/components/employee/status-actions";
 import { cn } from "@/lib/utils";
+import { buildGoogleMapsLink } from "@/lib/utils/maps";
 import type { EmployeeJobItem } from "@/lib/actions/employee-jobs";
 import type { OrderStatus } from "@/types/database.types";
 
@@ -80,6 +81,18 @@ export function JobCard({ job, isOutsourced, pending, onStatusChange, onHandOff,
             </div>
             <CountdownTimer deliveryDate={job.deliveryDate} deliveryTime={job.deliveryTime} size="lg" />
           </div>
+
+          {job.fulfillmentType === "delivery" && job.deliveryAddress && (
+            <a
+              href={buildGoogleMapsLink(job.deliveryAddress)}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 rounded-xl border border-secondary/30 bg-secondary/10 px-4 py-3 text-sm font-semibold text-secondary hover:bg-secondary/15"
+            >
+              <MapPin className="size-4 shrink-0" />
+              {job.deliveryAddress}
+            </a>
+          )}
 
           {job.managerNotes && (
             <div className="flex items-start gap-2.5 rounded-xl border border-secondary/30 bg-secondary/10 px-4 py-3">

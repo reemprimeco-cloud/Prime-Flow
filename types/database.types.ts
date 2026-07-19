@@ -507,6 +507,7 @@ export type Database = {
           created_by: string
           customer_mobile: string
           customer_name: string
+          delivery_address: string | null
           delivery_date: string
           delivery_time: string
           finishing: string | null
@@ -533,6 +534,7 @@ export type Database = {
           created_by: string
           customer_mobile: string
           customer_name: string
+          delivery_address?: string | null
           delivery_date: string
           delivery_time: string
           finishing?: string | null
@@ -559,6 +561,7 @@ export type Database = {
           created_by?: string
           customer_mobile?: string
           customer_name?: string
+          delivery_address?: string | null
           delivery_date?: string
           delivery_time?: string
           finishing?: string | null

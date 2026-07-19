@@ -110,6 +110,7 @@ export interface OrderDetail {
   priority: OrderPriority;
   deliveryDate: string;
   deliveryTime: string;
+  deliveryAddress: string | null;
   notes: string | null;
   status: OrderStatus;
   fulfillmentType: OrderFulfillmentType;
@@ -434,6 +435,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
     priority: order.priority,
     deliveryDate: order.delivery_date,
     deliveryTime: order.delivery_time,
+    deliveryAddress: order.delivery_address,
     notes: order.notes,
     status: order.status,
     fulfillmentType: order.fulfillment_type,
@@ -584,6 +586,7 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
       priority: input.priority,
       delivery_date: input.deliveryDate,
       delivery_time: input.deliveryTime,
+      delivery_address: input.deliveryAddress || null,
       notes: input.notes || null,
       created_by: session.employeeId,
     })
@@ -719,6 +722,7 @@ export async function updateOrder(orderId: string, formData: FormData): Promise<
       priority: input.priority,
       delivery_date: input.deliveryDate,
       delivery_time: input.deliveryTime,
+      delivery_address: input.deliveryAddress || null,
       notes: input.notes || null,
     })
     .eq("id", orderId);
@@ -873,6 +877,7 @@ export async function duplicateOrder(orderId: string): Promise<{ id: string }> {
       priority: original.priority,
       delivery_date: original.delivery_date,
       delivery_time: original.delivery_time,
+      delivery_address: original.delivery_address,
       notes: original.notes,
       status: "new",
       created_by: session.employeeId,
@@ -1116,6 +1121,7 @@ function parseOrderForm(formData: FormData) {
     priority: formData.get("priority"),
     deliveryDate: formData.get("deliveryDate"),
     deliveryTime: formData.get("deliveryTime"),
+    deliveryAddress: formData.get("deliveryAddress") || undefined,
     notes: formData.get("notes") || undefined,
     employeeIds: formData.getAll("employeeIds").map(String),
     items,

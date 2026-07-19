@@ -45,6 +45,8 @@ export interface TemplateVariables {
   companyName?: string;
   /** Not implemented yet — reserved for a future customer-facing order tracking page. */
   trackingLink?: string;
+  /** Google Maps search-by-address link, built from the order's delivery address — see lib/utils/maps.ts. */
+  mapsLink?: string;
 }
 
 type TemplateFn = (vars: TemplateVariables) => string;
@@ -107,8 +109,10 @@ const TEMPLATES: Record<TemplateName, Record<OrderLanguage, TemplateFn>> = {
     ar: (v) => `المهمة ${v.orderNumber} (${v.productName}) جاهزة للاستلام من المورّد الخارجي. يرجى استلامها.`,
   },
   order_out_for_delivery_staff: {
-    en: (v) => `Order ${v.orderNumber} (${v.productName}) is ready — please deliver it to the customer, expected ${v.deliveryDate} ${v.deliveryTime}.`,
-    ar: (v) => `الطلب ${v.orderNumber} (${v.productName}) جاهز — يرجى تسليمه للعميل، الموعد المتوقع ${v.deliveryDate} ${v.deliveryTime}.`,
+    en: (v) =>
+      `Order ${v.orderNumber} (${v.productName}) is ready — please deliver it to the customer, expected ${v.deliveryDate} ${v.deliveryTime}.${v.mapsLink ? ` Location: ${v.mapsLink}` : ""}`,
+    ar: (v) =>
+      `الطلب ${v.orderNumber} (${v.productName}) جاهز — يرجى تسليمه للعميل، الموعد المتوقع ${v.deliveryDate} ${v.deliveryTime}.${v.mapsLink ? ` الموقع: ${v.mapsLink}` : ""}`,
   },
   material_purchase_needed: {
     en: (v) => `Material request approved for order ${v.orderNumber} (${v.productName}) — please go buy it.`,

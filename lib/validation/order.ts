@@ -35,6 +35,7 @@ export const orderFormSchema = z.object({
   priority: z.enum(["normal", "urgent"]),
   deliveryDate: z.string().min(1, "Delivery date is required"),
   deliveryTime: z.string().min(1, "Delivery time is required"),
+  deliveryAddress: z.string().trim().max(500).optional().or(z.literal("")),
   notes: z.string().trim().max(2000).optional().or(z.literal("")),
   employeeIds: z.array(z.string().uuid()).default([]),
   items: z.array(orderItemSchema).default([]),

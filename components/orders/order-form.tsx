@@ -74,6 +74,7 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
       priority: "normal",
       deliveryDate: "",
       deliveryTime: "",
+      deliveryAddress: "",
       notes: "",
       employeeIds: [],
       items: [],
@@ -95,6 +96,7 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
     priority: order.priority,
     deliveryDate: order.deliveryDate,
     deliveryTime: order.deliveryTime.slice(0, 5),
+    deliveryAddress: order.deliveryAddress ?? "",
     notes: order.notes ?? "",
     employeeIds: order.assignedEmployees.map((e) => e.id),
     items: order.items.map((item) => ({
@@ -137,6 +139,7 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
   });
 
   const employeeIds = watch("employeeIds") ?? [];
+  const fulfillmentType = watch("fulfillmentType");
 
   const moveEmployee = (from: number, to: number) => {
     if (to < 0 || to >= employeeIds.length) return;
@@ -248,6 +251,7 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
         formData.set("priority", values.priority);
         formData.set("deliveryDate", values.deliveryDate);
         formData.set("deliveryTime", values.deliveryTime);
+        formData.set("deliveryAddress", values.deliveryAddress ?? "");
         formData.set("notes", values.notes ?? "");
         formData.set("items", JSON.stringify(values.items));
         values.employeeIds.forEach((id) => formData.append("employeeIds", id));
@@ -573,6 +577,14 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                     )}
                   />
                 </Field>
+                {fulfillmentType === "delivery" && (
+                  <Field label="Delivery Address" className="col-span-2">
+                    <Input
+                      {...register("deliveryAddress")}
+                      placeholder="Building, street, area — used to open Google Maps for the driver"
+                    />
+                  </Field>
+                )}
               </div>
             </section>
 

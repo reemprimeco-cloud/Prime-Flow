@@ -6,6 +6,7 @@ import { recordAuditLog } from "@/lib/audit/log";
 import { renderTemplate, type TemplateName, type TemplateVariables } from "@/lib/notifications/templates";
 import { TwilioWhatsAppProvider } from "@/lib/notifications/providers/twilio-whatsapp";
 import { normalizeNotificationPreferences, type NotificationPreferences } from "@/lib/notifications/constants";
+import { buildGoogleMapsLink } from "@/lib/utils/maps";
 import type {
   NotificationChannel,
   NotificationReceiver,
@@ -226,6 +227,8 @@ interface EmployeeNotificationContext {
   product: string;
   deliveryDate: string;
   deliveryTime: string;
+  /** Customer delivery address, if the manager entered one — rendered into a clickable Google Maps link for delivery-staff notifications (see lib/utils/maps.ts). Ignored by templates that don't reference it. */
+  deliveryAddress?: string | null;
 }
 
 async function sendEmployeeNotification(
@@ -241,6 +244,7 @@ async function sendEmployeeNotification(
     productName: employee.product,
     deliveryDate: employee.deliveryDate,
     deliveryTime: employee.deliveryTime,
+    mapsLink: employee.deliveryAddress ? buildGoogleMapsLink(employee.deliveryAddress) : undefined,
   };
 
   await dispatch(

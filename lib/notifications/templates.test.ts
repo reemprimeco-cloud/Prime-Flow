@@ -85,4 +85,13 @@ describe("Notification templates", () => {
     expect(urgent.toUpperCase()).toContain("URGENT");
     expect(routine.toUpperCase()).not.toContain("URGENT");
   });
+
+  it("includes the Google Maps link in the delivery-staff notification when provided", () => {
+    const mapsLink = "https://www.google.com/maps/search/?api=1&query=Salmiya%2C%20Block%203";
+    const withLink = renderTemplate("order_out_for_delivery_staff", "en", { ...VARS, mapsLink });
+    expect(withLink).toContain(mapsLink);
+
+    const withoutLink = renderTemplate("order_out_for_delivery_staff", "en", VARS);
+    expect(withoutLink).not.toContain("Location:");
+  });
 });
