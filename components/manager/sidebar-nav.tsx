@@ -11,6 +11,7 @@ import {
   Gauge,
   HeartPulse,
   LayoutGrid,
+  PackageCheck,
   PackageSearch,
   Users,
 } from "lucide-react";
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
   { href: "/material-requests", label: "Material Requests", icon: PackageSearch },
   { href: "/notifications", label: "Notification Center", icon: Bell },
   { href: "/reports", label: "Reports", icon: BarChart3 },
+  { href: "/completed-orders", label: "Completed Orders", icon: PackageCheck },
   { href: "/archive", label: "Archive", icon: Archive },
   { href: "/diagnostics", label: "Diagnostics", icon: HeartPulse },
 ] as const;

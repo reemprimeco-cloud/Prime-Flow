@@ -14,11 +14,8 @@ import {
 } from "recharts";
 
 import { getCurrentMonthStats, listMonthlyStatistics, type CurrentMonthStats, type MonthlyStatisticItem } from "@/lib/actions/reports";
-import type { EmployeeListItem } from "@/lib/actions/employees";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CompletedOrdersPanel } from "@/components/manager/completed-orders-panel";
 
 function formatMinutes(minutes: number | null): string {
   if (minutes == null) return "—";
@@ -47,11 +44,9 @@ function downloadCsv(rows: MonthlyStatisticItem[]) {
 export function ReportsClient({
   initialStats,
   initialCurrentMonth,
-  employees,
 }: {
   initialStats: MonthlyStatisticItem[];
   initialCurrentMonth: CurrentMonthStats;
-  employees: EmployeeListItem[];
 }) {
   const statsQuery = useQuery({
     queryKey: ["monthly-statistics"],
@@ -95,93 +90,80 @@ export function ReportsClient({
         </Button>
       </div>
 
-      <Tabs defaultValue="overview">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="completed">Completed Orders</TabsTrigger>
-        </TabsList>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard icon={FileStack} label="Orders This Month" value={current.totalOrders} tone="default" />
+        <StatCard icon={PackageCheck} label="Completed" value={current.completedOrders} tone="success" />
+        <StatCard icon={Layers} label="Delayed" value={current.delayedOrders} tone="danger" />
+        <StatCard icon={Timer} label="Avg Completion Time" value={formatMinutes(current.avgCompletionMinutes)} tone="default" />
+      </div>
 
-        <TabsContent value="overview" className="flex flex-col gap-6">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatCard icon={FileStack} label="Orders This Month" value={current.totalOrders} tone="default" />
-            <StatCard icon={PackageCheck} label="Completed" value={current.completedOrders} tone="success" />
-            <StatCard icon={Layers} label="Delayed" value={current.delayedOrders} tone="danger" />
-            <StatCard icon={Timer} label="Avg Completion Time" value={formatMinutes(current.avgCompletionMinutes)} tone="default" />
+      <Card className="p-5">
+        <h2 className="mb-4 text-sm font-bold text-muted-foreground">Orders per Month</h2>
+        {trend.length === 0 ? (
+          <EmptyChart label="No monthly history yet — the first report generates at month-end." />
+        ) : (
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={trend}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis dataKey="name" stroke="var(--color-muted-foreground)" fontSize={12} />
+              <YAxis stroke="var(--color-muted-foreground)" fontSize={12} allowDecimals={false} />
+              <Tooltip
+                contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 12 }}
+              />
+              <Legend />
+              <Bar dataKey="Total" fill="var(--color-secondary)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Completed" fill="var(--color-success)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Delayed" fill="var(--color-destructive)" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </Card>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card className="p-5">
+          <h2 className="mb-4 text-sm font-bold text-muted-foreground">Orders per Employee</h2>
+          {employeeChart.length === 0 ? (
+            <EmptyChart label="No assignments recorded yet." />
+          ) : (
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={employeeChart} layout="vertical" margin={{ left: 16 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis type="number" stroke="var(--color-muted-foreground)" fontSize={12} allowDecimals={false} />
+                <YAxis type="category" dataKey="name" stroke="var(--color-muted-foreground)" fontSize={12} width={100} />
+                <Tooltip
+                  contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 12 }}
+                />
+                <Bar dataKey="Orders" fill="var(--color-secondary)" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </Card>
+
+        <Card className="flex flex-col gap-4 p-5">
+          <h2 className="text-sm font-bold text-muted-foreground">This Month at a Glance</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <InfoStat label="Most Used Paper" value={current.mostUsedPaper ?? "—"} />
+            <InfoStat label="Most Requested Material" value={current.mostRequestedMaterial ?? "—"} />
           </div>
-
-          <Card className="p-5">
-            <h2 className="mb-4 text-sm font-bold text-muted-foreground">Orders per Month</h2>
-            {trend.length === 0 ? (
-              <EmptyChart label="No monthly history yet — the first report generates at month-end." />
+          <div className="flex flex-col gap-2 rounded-xl border border-border p-3">
+            <span className="text-xs font-semibold text-muted-foreground">Monthly History</span>
+            {monthly.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No closed months yet.</p>
             ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={trend}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                  <XAxis dataKey="name" stroke="var(--color-muted-foreground)" fontSize={12} />
-                  <YAxis stroke="var(--color-muted-foreground)" fontSize={12} allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 12 }}
-                  />
-                  <Legend />
-                  <Bar dataKey="Total" fill="var(--color-secondary)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Completed" fill="var(--color-success)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Delayed" fill="var(--color-destructive)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <ul className="flex flex-col gap-1.5">
+                {monthly.slice(0, 6).map((m) => (
+                  <li key={`${m.year}-${m.month}`} className="flex items-center justify-between text-sm">
+                    <span className="text-foreground">{m.label}</span>
+                    <span className="text-muted-foreground">
+                      {m.completedOrders}/{m.totalOrders} completed · {m.delayedOrders} delayed
+                    </span>
+                  </li>
+                ))}
+              </ul>
             )}
-          </Card>
-
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card className="p-5">
-              <h2 className="mb-4 text-sm font-bold text-muted-foreground">Orders per Employee</h2>
-              {employeeChart.length === 0 ? (
-                <EmptyChart label="No assignments recorded yet." />
-              ) : (
-                <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={employeeChart} layout="vertical" margin={{ left: 16 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                    <XAxis type="number" stroke="var(--color-muted-foreground)" fontSize={12} allowDecimals={false} />
-                    <YAxis type="category" dataKey="name" stroke="var(--color-muted-foreground)" fontSize={12} width={100} />
-                    <Tooltip
-                      contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 12 }}
-                    />
-                    <Bar dataKey="Orders" fill="var(--color-secondary)" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </Card>
-
-            <Card className="flex flex-col gap-4 p-5">
-              <h2 className="text-sm font-bold text-muted-foreground">This Month at a Glance</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <InfoStat label="Most Used Paper" value={current.mostUsedPaper ?? "—"} />
-                <InfoStat label="Most Requested Material" value={current.mostRequestedMaterial ?? "—"} />
-              </div>
-              <div className="flex flex-col gap-2 rounded-xl border border-border p-3">
-                <span className="text-xs font-semibold text-muted-foreground">Monthly History</span>
-                {monthly.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No closed months yet.</p>
-                ) : (
-                  <ul className="flex flex-col gap-1.5">
-                    {monthly.slice(0, 6).map((m) => (
-                      <li key={`${m.year}-${m.month}`} className="flex items-center justify-between text-sm">
-                        <span className="text-foreground">{m.label}</span>
-                        <span className="text-muted-foreground">
-                          {m.completedOrders}/{m.totalOrders} completed · {m.delayedOrders} delayed
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </Card>
           </div>
-        </TabsContent>
-
-        <TabsContent value="completed">
-          <CompletedOrdersPanel employees={employees} />
-        </TabsContent>
-      </Tabs>
+        </Card>
+      </div>
     </div>
   );
 }

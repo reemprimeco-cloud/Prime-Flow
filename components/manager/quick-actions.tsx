@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Users, PackageSearch, BarChart3 } from "lucide-react";
+import { Plus, Users, PackageSearch, BarChart3, PackageCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -26,6 +26,12 @@ export function QuickActions({ onNewOrder }: { onNewOrder: () => void }) {
         <Link href="/reports">
           <BarChart3 className="size-4" />
           Monthly Reports
+        </Link>
+      </Button>
+      <Button asChild size="lg" variant="outline" className="gap-2">
+        <Link href="/completed-orders">
+          <PackageCheck className="size-4" />
+          Completed Orders
         </Link>
       </Button>
     </div>
