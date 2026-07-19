@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { EMPLOYEE_ROLE_LABELS } from "@/types/domain";
 import type { EmployeeRole } from "@/types/database.types";
 
@@ -31,6 +32,7 @@ interface EmployeeFormValues {
   fullName: string;
   role: EmployeeRole;
   phone?: string;
+  isOutsourced: boolean;
 }
 
 interface EmployeeFormDialogProps {
@@ -46,6 +48,7 @@ function defaultValues(employee?: EmployeeListItem | null): EmployeeFormValues {
     fullName: employee?.fullName ?? "",
     role: employee?.role ?? "employee",
     phone: employee?.phone ?? "",
+    isOutsourced: employee?.isOutsourced ?? false,
   };
 }
 
@@ -73,6 +76,7 @@ export function EmployeeFormDialog({ open, onOpenChange, employee }: EmployeeFor
           fullName: z.string().trim().min(1, "Full name is required").max(200),
           role: employeeRoleSchema,
           phone: z.string().trim().max(30).optional().or(z.literal("")),
+          isOutsourced: z.boolean(),
         })
         .superRefine((data, ctx) => {
           if (isEdit) return;
@@ -104,7 +108,12 @@ export function EmployeeFormDialog({ open, onOpenChange, employee }: EmployeeFor
   const mutation = useMutation({
     mutationFn: async (values: EmployeeFormValues): Promise<void> => {
       if (isEdit) {
-        await updateEmployee(employee.id, { fullName: values.fullName, role: values.role, phone: values.phone });
+        await updateEmployee(employee.id, {
+          fullName: values.fullName,
+          role: values.role,
+          phone: values.phone,
+          isOutsourced: values.isOutsourced,
+        });
       } else {
         // superRefine above already guarantees non-empty username/password
         // whenever isEdit is false and validation passed.
@@ -114,6 +123,7 @@ export function EmployeeFormDialog({ open, onOpenChange, employee }: EmployeeFor
           fullName: values.fullName,
           role: values.role,
           phone: values.phone,
+          isOutsourced: values.isOutsourced,
         });
       }
     },
@@ -173,6 +183,23 @@ export function EmployeeFormDialog({ open, onOpenChange, employee }: EmployeeFor
                     ))}
                   </SelectContent>
                 </Select>
+              )}
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
+            <div>
+              <Label htmlFor="isOutsourced">Outsourced / external worker</Label>
+              <p className="text-xs text-muted-foreground">
+                Their jobs skip customer-facing pickup/delivery — marking one done notifies delivery staff to
+                collect it instead.
+              </p>
+            </div>
+            <Controller
+              control={control}
+              name="isOutsourced"
+              render={({ field }) => (
+                <Switch id="isOutsourced" checked={field.value} onCheckedChange={field.onChange} />
               )}
             />
           </div>

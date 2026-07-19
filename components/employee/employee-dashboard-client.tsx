@@ -89,6 +89,7 @@ export function EmployeeDashboardClient({ initialJobs, fullName }: EmployeeDashb
               <JobCard
                 key={job.id}
                 job={job}
+                isOutsourced={data.isOutsourced}
                 pending={actioningId === job.id}
                 onStatusChange={(status) => handleStatusChange(job, status)}
                 onAddNote={() => setNoteTarget(job)}

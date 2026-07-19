@@ -8,7 +8,7 @@ import { broadcast, CHANNELS } from "@/lib/realtime/channels";
 import { isDemoMode } from "@/lib/demo/mode";
 import { getDemoMaterialRequests } from "@/lib/demo/data";
 import { recordAuditLog } from "@/lib/audit/log";
-import { notifyEmployeeMaterialApproved } from "@/lib/notifications/service";
+import { notifyEmployeeMaterialApproved, notifyEmployeeMaterialPurchaseNeeded } from "@/lib/notifications/service";
 import type {
   MaterialPriority,
   MaterialRequestStatus,
@@ -124,6 +124,27 @@ export async function approveMaterialRequest(requestId: string): Promise<void> {
         session.employeeId,
         session.fullName
       );
+    }
+
+    // Delivery-role staff (e.g. Naresh) also buy materials -- let them know
+    // to go get it, same as the original requester above.
+    if (order) {
+      const { data: deliveryStaff } = await supabase.from("employees").select("id, phone").eq("role", "delivery").eq("active", true);
+      for (const staffer of deliveryStaff ?? []) {
+        await notifyEmployeeMaterialPurchaseNeeded(
+          {
+            employeeId: staffer.id,
+            employeePhone: staffer.phone,
+            orderId: request.order_id,
+            orderNumber: order.order_number,
+            product: order.product,
+            deliveryDate: order.delivery_date,
+            deliveryTime: order.delivery_time,
+          },
+          session.employeeId,
+          session.fullName
+        );
+      }
     }
   }
 

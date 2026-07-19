@@ -13,8 +13,12 @@ import type { OrderStatus } from "@/types/database.types";
  */
 export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   new: ["in_progress"],
-  in_progress: ["waiting_materials", "ready_pickup", "ready_delivery"],
+  in_progress: ["waiting_materials", "ready_pickup", "ready_delivery", "ready_internal_pickup"],
   waiting_materials: ["in_progress"],
+  // An outsourced worker's "done" action -- no customer notification, just
+  // an internal handoff. Back to in_progress once a Prime employee collects
+  // it from them, for finishing/packaging before the customer is told.
+  ready_internal_pickup: ["in_progress"],
   // Both allow a way back to in_progress -- correcting a job marked ready by
   // mistake, before it's actually been collected/delivered.
   ready_pickup: ["collected", "in_progress"],

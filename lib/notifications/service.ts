@@ -260,7 +260,14 @@ async function sendEmployeeNotification(
 
 type EmployeeTemplateNameLocal = Extract<
   TemplateName,
-  "job_assigned" | "job_reassigned" | "high_priority_job_assigned" | "material_request_approved" | "job_cancelled"
+  | "job_assigned"
+  | "job_reassigned"
+  | "high_priority_job_assigned"
+  | "material_request_approved"
+  | "job_cancelled"
+  | "internal_pickup_ready"
+  | "order_out_for_delivery_staff"
+  | "material_purchase_needed"
 >;
 
 export async function notifyEmployeeJobAssigned(
@@ -301,6 +308,33 @@ export async function notifyEmployeeMaterialApproved(
   actorName: string
 ): Promise<void> {
   await sendEmployeeNotification(employee, "material_request_approved", actorId, actorName);
+}
+
+/** Fires to delivery-role staff when an outsourced employee marks a job ready_internal_pickup. */
+export async function notifyEmployeeInternalPickupReady(
+  employee: EmployeeNotificationContext,
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  await sendEmployeeNotification(employee, "internal_pickup_ready", actorId, actorName);
+}
+
+/** Fires to delivery-role staff when an order becomes ready_delivery, alongside the customer notification. */
+export async function notifyEmployeeOutForDeliveryStaff(
+  employee: EmployeeNotificationContext,
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  await sendEmployeeNotification(employee, "order_out_for_delivery_staff", actorId, actorName);
+}
+
+/** Fires to delivery-role staff when a material request is approved, so they know to go buy it. */
+export async function notifyEmployeeMaterialPurchaseNeeded(
+  employee: EmployeeNotificationContext,
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  await sendEmployeeNotification(employee, "material_purchase_needed", actorId, actorName);
 }
 
 // ---------------------------------------------------------------------------

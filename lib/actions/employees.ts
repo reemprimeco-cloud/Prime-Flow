@@ -29,6 +29,7 @@ export interface EmployeeListItem {
   role: EmployeeRole;
   phone: string | null;
   active: boolean;
+  isOutsourced: boolean;
   createdAt: string;
 }
 
@@ -39,7 +40,7 @@ export async function listEmployees(): Promise<EmployeeListItem[]> {
 
   const { data, error } = await supabase
     .from("employees")
-    .select("id, username, full_name, role, phone, active, created_at")
+    .select("id, username, full_name, role, phone, active, is_outsourced, created_at")
     .order("full_name");
 
   if (error) throw new Error(error.message);
@@ -51,6 +52,7 @@ export async function listEmployees(): Promise<EmployeeListItem[]> {
     role: row.role,
     phone: row.phone,
     active: row.active,
+    isOutsourced: row.is_outsourced,
     createdAt: row.created_at,
   }));
 }
@@ -126,6 +128,7 @@ export async function createEmployee(input: CreateEmployeeInput): Promise<{ id: 
       full_name: data.fullName,
       role: data.role,
       phone: data.phone || null,
+      is_outsourced: data.isOutsourced,
     })
     .select("id")
     .single();
@@ -164,7 +167,12 @@ export async function updateEmployee(employeeId: string, input: UpdateEmployeeIn
 
   const { error } = await supabase
     .from("employees")
-    .update({ full_name: data.fullName, role: data.role, phone: data.phone || null })
+    .update({
+      full_name: data.fullName,
+      role: data.role,
+      phone: data.phone || null,
+      is_outsourced: data.isOutsourced,
+    })
     .eq("id", employeeId);
   if (error) throw new Error(error.message);
 

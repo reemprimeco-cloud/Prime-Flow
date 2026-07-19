@@ -23,13 +23,14 @@ const ACCENT_BORDER = {
 
 interface JobCardProps {
   job: EmployeeJobItem;
+  isOutsourced: boolean;
   pending: boolean;
   onStatusChange: (status: OrderStatus) => void;
   onAddNote: () => void;
   onRequestMaterial: () => void;
 }
 
-export function JobCard({ job, pending, onStatusChange, onAddNote, onRequestMaterial }: JobCardProps) {
+export function JobCard({ job, isOutsourced, pending, onStatusChange, onAddNote, onRequestMaterial }: JobCardProps) {
   const countdownColor = useCountdownColor(job.deliveryDate, job.deliveryTime);
   const heroImage = job.productImages[0];
 
@@ -114,6 +115,7 @@ export function JobCard({ job, pending, onStatusChange, onAddNote, onRequestMate
         <StatusActions
           status={job.status}
           fulfillmentType={job.fulfillmentType}
+          isOutsourced={isOutsourced}
           pending={pending}
           onChange={onStatusChange}
         />

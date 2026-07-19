@@ -12,6 +12,7 @@ import type { OrderStatus } from "@/types/database.types";
 const ALL_STATUSES: OrderStatus[] = [
   "new",
   "in_progress",
+  "ready_internal_pickup",
   "waiting_materials",
   "ready_pickup",
   "ready_delivery",
@@ -81,7 +82,7 @@ describe("Status Engine", () => {
   it("getNextStatuses returns exactly the declared targets for a status", () => {
     expect(getNextStatuses("new")).toEqual(["in_progress"]);
     expect(getNextStatuses("in_progress").sort()).toEqual(
-      ["waiting_materials", "ready_pickup", "ready_delivery"].sort()
+      ["waiting_materials", "ready_pickup", "ready_delivery", "ready_internal_pickup"].sort()
     );
   });
 

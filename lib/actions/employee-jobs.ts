@@ -11,7 +11,12 @@ import { getDemoMyJobs } from "@/lib/demo/data";
 import { materialRequestSchema, orderNoteSchema } from "@/lib/validation/material-request";
 import { assertValidTransition } from "@/lib/status/engine";
 import { recordAuditLog } from "@/lib/audit/log";
-import { notifyOrderMovedBackToProduction, notifyOrderStatusChanged } from "@/lib/notifications/service";
+import {
+  notifyEmployeeInternalPickupReady,
+  notifyEmployeeOutForDeliveryStaff,
+  notifyOrderMovedBackToProduction,
+  notifyOrderStatusChanged,
+} from "@/lib/notifications/service";
 import { EMPLOYEE_ACTIVE_STATUSES, EMPLOYEE_ALLOWED_TARGET_STATUSES, PRIORITY_SORT_WEIGHT } from "@/types/domain";
 import type { MaterialType, OrderFulfillmentType, OrderPriority, OrderStatus } from "@/types/database.types";
 
@@ -46,6 +51,8 @@ export interface MyJobsResult {
   active: EmployeeJobItem[];
   queue: EmployeeJobItem[];
   completedToday: number;
+  /** Whether the *acting* employee (not each job) is an outsourced worker — drives which "done" action their job cards show. */
+  isOutsourced: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -58,15 +65,16 @@ export async function getMyJobs(): Promise<MyJobsResult> {
 
   const supabase = createServiceClient();
 
-  const { data: assignments } = await supabase
-    .from("order_assignments")
-    .select("order_id, assigned_at")
-    .eq("employee_id", session.employeeId);
+  const [{ data: assignments }, { data: employeeRow }] = await Promise.all([
+    supabase.from("order_assignments").select("order_id, assigned_at").eq("employee_id", session.employeeId),
+    supabase.from("employees").select("is_outsourced").eq("id", session.employeeId).maybeSingle(),
+  ]);
   const orderIds = (assignments ?? []).map((a) => a.order_id);
+  const isOutsourced = employeeRow?.is_outsourced ?? false;
 
   const completedToday = await countCompletedToday(supabase, session.employeeId);
 
-  if (orderIds.length === 0) return { active: [], queue: [], completedToday };
+  if (orderIds.length === 0) return { active: [], queue: [], completedToday, isOutsourced };
 
   const assignedAtByOrder = new Map((assignments ?? []).map((a) => [a.order_id, a.assigned_at]));
 
@@ -79,7 +87,7 @@ export async function getMyJobs(): Promise<MyJobsResult> {
     .eq("archived", false)
     .not("status", "in", "(collected,delivered,completed)");
   if (error) throw new Error(error.message);
-  if (!orders || orders.length === 0) return { active: [], queue: [], completedToday };
+  if (!orders || orders.length === 0) return { active: [], queue: [], completedToday, isOutsourced };
 
   const jobOrderIds = orders.map((o) => o.id);
   const [{ data: fileRows }, { data: materialRows }] = await Promise.all([
@@ -151,7 +159,7 @@ export async function getMyJobs(): Promise<MyJobsResult> {
     .filter((j) => j.status === "new")
     .sort((a, b) => byPriorityThenDelivery(a, b) || a.assignedAt.localeCompare(b.assignedAt));
 
-  return { active, queue, completedToday };
+  return { active, queue, completedToday, isOutsourced };
 }
 
 function byPriorityThenDelivery(a: EmployeeJobItem, b: EmployeeJobItem): number {
@@ -188,6 +196,63 @@ async function signUrls(
 // ---------------------------------------------------------------------------
 
 const DEMO_WRITE_ERROR = "This is a read-only demo — writes are disabled.";
+
+/**
+ * Auto-assigns every active employee with the 'delivery' role (logistics
+ * staff -- e.g. Naresh) so the job appears on their dashboard, then sends
+ * each of them the given notification. Used for both "go collect it from
+ * the outsourced worker" (ready_internal_pickup) and "go deliver it to the
+ * customer" (ready_delivery). A no-op if no employee currently has that role.
+ */
+async function notifyDeliveryStaff(
+  supabase: ServiceClient,
+  orderId: string,
+  order: { order_number: string; product: string; delivery_date: string; delivery_time: string },
+  templateName: "internal_pickup_ready" | "order_out_for_delivery_staff",
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  const { data: staff } = await supabase.from("employees").select("id, phone").eq("role", "delivery").eq("active", true);
+  if (!staff || staff.length === 0) return;
+
+  const notify = templateName === "internal_pickup_ready" ? notifyEmployeeInternalPickupReady : notifyEmployeeOutForDeliveryStaff;
+
+  for (const handler of staff) {
+    const { data: existingAssignment } = await supabase
+      .from("order_assignments")
+      .select("id")
+      .eq("order_id", orderId)
+      .eq("employee_id", handler.id)
+      .maybeSingle();
+
+    if (!existingAssignment) {
+      await supabase.from("order_assignments").insert({ order_id: orderId, employee_id: handler.id });
+      await recordAuditLog({
+        actorId,
+        actorName,
+        action: "employee_assigned",
+        entityType: "order_assignment",
+        entityId: handler.id,
+        orderId,
+        newValue: { employeeId: handler.id, reason: templateName },
+      });
+    }
+
+    await notify(
+      {
+        employeeId: handler.id,
+        employeePhone: handler.phone,
+        orderId,
+        orderNumber: order.order_number,
+        product: order.product,
+        deliveryDate: order.delivery_date,
+        deliveryTime: order.delivery_time,
+      },
+      actorId,
+      actorName
+    );
+  }
+}
 
 export async function updateEmployeeJobStatus(orderId: string, status: OrderStatus): Promise<void> {
   const session = await requireEmployee();
@@ -255,7 +320,19 @@ export async function updateEmployeeJobStatus(orderId: string, status: OrderStat
   const isRevertToProduction =
     (current.status === "ready_pickup" || current.status === "ready_delivery") && status === "in_progress";
 
-  if (isRevertToProduction) {
+  if (status === "ready_internal_pickup") {
+    // Outsourced worker's "done" -- internal handoff only, no customer
+    // notification. Auto-assign the delivery-role staff so this job shows
+    // up on their dashboard, and let them know to go collect it.
+    await notifyDeliveryStaff(
+      supabase,
+      orderId,
+      current,
+      "internal_pickup_ready",
+      session.employeeId,
+      session.fullName
+    );
+  } else if (isRevertToProduction) {
     await notifyOrderMovedBackToProduction(notificationContext, session.employeeId, session.fullName);
   } else {
     await notifyOrderStatusChanged(
@@ -263,6 +340,19 @@ export async function updateEmployeeJobStatus(orderId: string, status: OrderStat
       session.employeeId,
       session.fullName
     );
+
+    if (status === "ready_delivery") {
+      // On top of the customer notification above: tell delivery-role
+      // staff (e.g. Naresh) to go deliver it, and put it on their dashboard.
+      await notifyDeliveryStaff(
+        supabase,
+        orderId,
+        current,
+        "order_out_for_delivery_staff",
+        session.employeeId,
+        session.fullName
+      );
+    }
   }
 
   await broadcast(CHANNELS.production, "order.updated", { orderId });

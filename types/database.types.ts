@@ -79,6 +79,7 @@ export type Database = {
           created_at: string
           full_name: string
           id: string
+          is_outsourced: boolean
           password_hash: string
           phone: string | null
           role: Database["public"]["Enums"]["employee_role"]
@@ -89,6 +90,8 @@ export type Database = {
           created_at?: string
           full_name: string
           id?: string
+          is_internal_pickup_contact?: boolean
+          is_outsourced?: boolean
           password_hash: string
           phone?: string | null
           role?: Database["public"]["Enums"]["employee_role"]
@@ -99,6 +102,8 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+          is_internal_pickup_contact?: boolean
+          is_outsourced?: boolean
           password_hash?: string
           phone?: string | null
           role?: Database["public"]["Enums"]["employee_role"]
@@ -572,6 +577,7 @@ export type Database = {
       order_status:
         | "new"
         | "in_progress"
+        | "ready_internal_pickup"
         | "waiting_materials"
         | "ready_pickup"
         | "ready_delivery"
@@ -747,6 +753,7 @@ export const Constants = {
       order_status: [
         "new",
         "in_progress",
+        "ready_internal_pickup",
         "waiting_materials",
         "ready_pickup",
         "ready_delivery",

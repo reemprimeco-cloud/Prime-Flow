@@ -11,12 +11,13 @@ const SUCCESS_TARGETS: OrderStatus[] = ["ready_pickup", "ready_delivery", "colle
 interface StatusActionsProps {
   status: OrderStatus;
   fulfillmentType: OrderFulfillmentType;
+  isOutsourced: boolean;
   pending: boolean;
   onChange: (status: OrderStatus) => void;
 }
 
-export function StatusActions({ status, fulfillmentType, pending, onChange }: StatusActionsProps) {
-  const actions = getEmployeeNextActions(status, fulfillmentType);
+export function StatusActions({ status, fulfillmentType, isOutsourced, pending, onChange }: StatusActionsProps) {
+  const actions = getEmployeeNextActions(status, fulfillmentType, isOutsourced);
   if (actions.length === 0) return null;
 
   return (

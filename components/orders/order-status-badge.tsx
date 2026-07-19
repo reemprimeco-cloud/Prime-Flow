@@ -6,6 +6,7 @@ import type { OrderStatus } from "@/types/database.types";
 const STATUS_STYLES: Record<OrderStatus, string> = {
   new: "bg-secondary/15 text-secondary border-secondary/30",
   in_progress: "bg-warning/15 text-warning border-warning/30",
+  ready_internal_pickup: "bg-secondary/15 text-secondary border-secondary/30",
   waiting_materials: "bg-destructive/15 text-destructive border-destructive/30",
   ready_pickup: "bg-success/15 text-success border-success/30",
   ready_delivery: "bg-success/15 text-success border-success/30",

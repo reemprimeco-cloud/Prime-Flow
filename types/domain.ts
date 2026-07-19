@@ -11,6 +11,7 @@ import type {
 export const ORDER_STATUSES: OrderStatus[] = [
   "new",
   "in_progress",
+  "ready_internal_pickup",
   "waiting_materials",
   "ready_pickup",
   "ready_delivery",
@@ -22,6 +23,7 @@ export const ORDER_STATUSES: OrderStatus[] = [
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   new: "New",
   in_progress: "In Progress",
+  ready_internal_pickup: "Ready for Internal Pickup",
   waiting_materials: "Waiting for Materials",
   ready_pickup: "Ready for Pickup",
   ready_delivery: "Ready for Delivery",
@@ -38,6 +40,7 @@ export const ACTIVE_ORDER_STATUSES: OrderStatus[] = ORDER_STATUSES.filter(
 export const DELAYABLE_STATUSES: OrderStatus[] = [
   "new",
   "in_progress",
+  "ready_internal_pickup",
   "waiting_materials",
   "ready_pickup",
   "ready_delivery",
@@ -97,12 +100,13 @@ export type CountdownColor = "green" | "yellow" | "orange" | "red";
  * Status action buttons shown on an employee's job card, keyed by the
  * order's *current* status — only the statuses that make sense from there.
  * `in_progress` is handled separately by `getEmployeeNextActions` below,
- * since its "done" action depends on the order's fulfillment type rather
- * than being a fixed target status.
+ * since its "done" action depends on the order's fulfillment type (and
+ * whether the acting employee is outsourced) rather than a fixed target.
  */
 export const EMPLOYEE_NEXT_ACTIONS: Partial<Record<OrderStatus, { status: OrderStatus; label: string }[]>> = {
   new: [{ status: "in_progress", label: "Start Production" }],
   in_progress: [{ status: "waiting_materials", label: "Waiting for Materials" }],
+  ready_internal_pickup: [{ status: "in_progress", label: "Picked Up — Back to Production" }],
   waiting_materials: [{ status: "in_progress", label: "Resume Production" }],
   ready_pickup: [
     { status: "collected", label: "Collected" },
@@ -115,18 +119,28 @@ export const EMPLOYEE_NEXT_ACTIONS: Partial<Record<OrderStatus, { status: OrderS
 };
 
 /**
- * Resolves the actual action list for a job card, including the
- * fulfillment-aware "done" action on `in_progress`: the employee picked
- * pickup vs. delivery at order-creation time, so marking a job done
- * routes automatically to the right status instead of the employee
- * choosing between "Ready for Pickup" and "Ready for Delivery" themselves.
+ * Resolves the actual action list for a job card.
+ *
+ * On `in_progress`, "done" depends on who's acting:
+ * - An outsourced employee never gets the customer-facing pickup/delivery
+ *   choice — their only "done" action is ready_internal_pickup, which
+ *   notifies the designated in-house contact to go collect it rather than
+ *   telling the customer anything.
+ * - Everyone else gets the fulfillment-aware action from before: the order
+ *   picked pickup vs. delivery at creation time, so marking done routes
+ *   automatically to the right status instead of the employee choosing.
  */
 export function getEmployeeNextActions(
   status: OrderStatus,
-  fulfillmentType: OrderFulfillmentType
+  fulfillmentType: OrderFulfillmentType,
+  isOutsourced: boolean
 ): { status: OrderStatus; label: string }[] {
   const actions = EMPLOYEE_NEXT_ACTIONS[status] ?? [];
   if (status !== "in_progress") return actions;
+
+  if (isOutsourced) {
+    return [...actions, { status: "ready_internal_pickup" as const, label: "Ready for Internal Pickup" }];
+  }
 
   const doneAction =
     fulfillmentType === "pickup"
@@ -140,6 +154,7 @@ export function getEmployeeNextActions(
 export const EMPLOYEE_ALLOWED_TARGET_STATUSES: OrderStatus[] = [
   "in_progress",
   "waiting_materials",
+  "ready_internal_pickup",
   "ready_pickup",
   "ready_delivery",
   "collected",
@@ -149,6 +164,7 @@ export const EMPLOYEE_ALLOWED_TARGET_STATUSES: OrderStatus[] = [
 /** Statuses that keep a job in "My Active Jobs" on the employee dashboard. */
 export const EMPLOYEE_ACTIVE_STATUSES: OrderStatus[] = [
   "in_progress",
+  "ready_internal_pickup",
   "waiting_materials",
   "ready_pickup",
   "ready_delivery",

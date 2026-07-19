@@ -44,12 +44,12 @@ import type { MaterialType, OrderFulfillmentType, OrderStatus } from "@/types/da
 // ---------------------------------------------------------------------------
 
 const DEMO_EMPLOYEES: EmployeeListItem[] = [
-  { id: "demo-admin", username: "admin", fullName: "Rana Al-Fadhli", role: "admin", phone: "+96550001111", active: true, createdAt: "2026-01-05T08:00:00Z" },
-  { id: "demo-emp-1", username: "hassan", fullName: "Hassan Youssef", role: "employee", phone: "+96550002222", active: true, createdAt: "2026-01-10T08:00:00Z" },
-  { id: "demo-emp-2", username: "mariam", fullName: "Mariam Khalid", role: "employee", phone: "+96550003333", active: true, createdAt: "2026-01-10T08:00:00Z" },
-  { id: "demo-emp-3", username: "youssef", fullName: "Youssef Ahmad", role: "employee", phone: "+96550004444", active: true, createdAt: "2026-02-01T08:00:00Z" },
-  { id: "demo-emp-4", username: "sara", fullName: "Sara Taqi", role: "employee", phone: "+96550005555", active: true, createdAt: "2026-02-14T08:00:00Z" },
-  { id: "demo-emp-5", username: "omar", fullName: "Omar Nasser", role: "employee", phone: "+96550006666", active: false, createdAt: "2026-03-01T08:00:00Z" },
+  { id: "demo-admin", username: "admin", fullName: "Rana Al-Fadhli", role: "admin", phone: "+96550001111", active: true, isOutsourced: false, createdAt: "2026-01-05T08:00:00Z" },
+  { id: "demo-emp-1", username: "hassan", fullName: "Hassan Youssef", role: "employee", phone: "+96550002222", active: true, isOutsourced: false, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "demo-emp-2", username: "mariam", fullName: "Mariam Khalid", role: "employee", phone: "+96550003333", active: true, isOutsourced: false, createdAt: "2026-01-10T08:00:00Z" },
+  { id: "demo-emp-3", username: "youssef", fullName: "Youssef Ahmad", role: "employee", phone: "+96550004444", active: true, isOutsourced: false, createdAt: "2026-02-01T08:00:00Z" },
+  { id: "demo-emp-4", username: "sara", fullName: "Sara Taqi", role: "employee", phone: "+96550005555", active: true, isOutsourced: false, createdAt: "2026-02-14T08:00:00Z" },
+  { id: "demo-emp-5", username: "omar", fullName: "Omar Nasser", role: "employee", phone: "+96550006666", active: false, isOutsourced: false, createdAt: "2026-03-01T08:00:00Z" },
 ];
 
 const EMPLOYEE_BY_ID = new Map(DEMO_EMPLOYEES.map((e) => [e.id, { id: e.id, fullName: e.fullName }]));
@@ -551,6 +551,7 @@ export function getDemoMyJobs(employeeId: string): {
   active: EmployeeJobItem[];
   queue: EmployeeJobItem[];
   completedToday: number;
+  isOutsourced: boolean;
 } {
   const now = new Date();
   const mySeeds = ORDER_SEEDS.filter((s) => s.assignedTo.includes(employeeId));
@@ -590,7 +591,7 @@ export function getDemoMyJobs(employeeId: string): {
 
   const completedToday = mySeeds.filter((s) => s.status === "collected" || s.status === "delivered").length;
 
-  return { active, queue, completedToday };
+  return { active, queue, completedToday, isOutsourced: false };
 }
 
 function byPriorityThenDelivery(a: EmployeeJobItem, b: EmployeeJobItem): number {

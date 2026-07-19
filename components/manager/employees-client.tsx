@@ -152,9 +152,12 @@ export function EmployeesClient({ initialEmployees }: { initialEmployees: Employ
                 <TableCell className="font-medium text-foreground">{employee.fullName}</TableCell>
                 <TableCell className="font-mono text-xs">{employee.username}</TableCell>
                 <TableCell>
-                  <Badge variant={employee.role === "admin" ? "default" : "muted"}>
-                    {EMPLOYEE_ROLE_LABELS[employee.role]}
-                  </Badge>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge variant={employee.role === "admin" ? "default" : "muted"}>
+                      {EMPLOYEE_ROLE_LABELS[employee.role]}
+                    </Badge>
+                    {employee.isOutsourced && <Badge variant="outline">Outsourced</Badge>}
+                  </div>
                 </TableCell>
                 <TableCell>{employee.phone || "—"}</TableCell>
                 <TableCell>

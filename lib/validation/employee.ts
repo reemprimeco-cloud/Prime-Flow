@@ -18,12 +18,14 @@ export const createEmployeeSchema = z.object({
   fullName: z.string().trim().min(1, "Full name is required").max(200),
   role: employeeRoleSchema,
   phone: z.string().trim().max(30).optional().or(z.literal("")),
+  isOutsourced: z.boolean().default(false),
 });
 
 export const updateEmployeeSchema = z.object({
   fullName: z.string().trim().min(1, "Full name is required").max(200),
   role: employeeRoleSchema,
   phone: z.string().trim().max(30).optional().or(z.literal("")),
+  isOutsourced: z.boolean().default(false),
 });
 
 export const resetPasswordSchema = z.object({

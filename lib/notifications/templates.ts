@@ -26,7 +26,10 @@ export type EmployeeTemplateName =
   | "job_reassigned"
   | "high_priority_job_assigned"
   | "material_request_approved"
-  | "job_cancelled";
+  | "job_cancelled"
+  | "internal_pickup_ready"
+  | "order_out_for_delivery_staff"
+  | "material_purchase_needed";
 
 export type TemplateName = CustomerTemplateName | EmployeeTemplateName;
 
@@ -97,6 +100,18 @@ const TEMPLATES: Record<TemplateName, Record<OrderLanguage, TemplateFn>> = {
   job_cancelled: {
     en: (v) => `Job ${v.orderNumber} (${v.productName}) has been cancelled and removed from your queue.`,
     ar: (v) => `تم إلغاء المهمة ${v.orderNumber} (${v.productName}) وإزالتها من قائمتك.`,
+  },
+  internal_pickup_ready: {
+    en: (v) => `Job ${v.orderNumber} (${v.productName}) is ready for pickup from the outsource worker. Please collect it.`,
+    ar: (v) => `المهمة ${v.orderNumber} (${v.productName}) جاهزة للاستلام من المورّد الخارجي. يرجى استلامها.`,
+  },
+  order_out_for_delivery_staff: {
+    en: (v) => `Order ${v.orderNumber} (${v.productName}) is ready — please deliver it to the customer, expected ${v.deliveryDate} ${v.deliveryTime}.`,
+    ar: (v) => `الطلب ${v.orderNumber} (${v.productName}) جاهز — يرجى تسليمه للعميل، الموعد المتوقع ${v.deliveryDate} ${v.deliveryTime}.`,
+  },
+  material_purchase_needed: {
+    en: (v) => `Material request approved for order ${v.orderNumber} (${v.productName}) — please go buy it.`,
+    ar: (v) => `تمت الموافقة على طلب المواد لطلب ${v.orderNumber} (${v.productName}) — يرجى شراؤه.`,
   },
 };
 

@@ -18,6 +18,9 @@ const EMPLOYEE_TEMPLATES: TemplateName[] = [
   "high_priority_job_assigned",
   "material_request_approved",
   "job_cancelled",
+  "internal_pickup_ready",
+  "order_out_for_delivery_staff",
+  "material_purchase_needed",
 ];
 
 const VARS: TemplateVariables = {
