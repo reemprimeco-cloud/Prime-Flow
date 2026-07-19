@@ -9,6 +9,11 @@ import { toDeliveryDate } from "@/lib/utils/countdown";
 import { DELAYABLE_STATUSES, EMPLOYEE_ACTIVE_STATUSES, TV_COLUMNS, type TvColumnKey } from "@/types/domain";
 import type { OrderPriority, OrderStatus } from "@/types/database.types";
 
+export interface TvOrderItemReadiness {
+  product: string;
+  isReady: boolean;
+}
+
 export interface TvOrderCardData {
   id: string;
   orderNumber: string;
@@ -20,6 +25,10 @@ export interface TvOrderCardData {
   priority: OrderPriority;
   status: OrderStatus;
   thumbnailUrl: string | null;
+  /** Item 1's (this order's own product) readiness — only meaningful/shown when additionalItems is non-empty. */
+  itemReady: boolean;
+  /** Items 2+ on the order — empty for a single-item order. */
+  additionalItems: TvOrderItemReadiness[];
 }
 
 export interface TvDaySummary {
@@ -60,7 +69,7 @@ export async function getTvBoard(): Promise<TvBoardData> {
 
   const { data: orders, error } = await supabase
     .from("orders")
-    .select("id, order_number, customer_name, product, status, priority, delivery_date, delivery_time")
+    .select("id, order_number, customer_name, product, status, priority, delivery_date, delivery_time, item_ready")
     .eq("archived", false);
   if (error) throw new Error(error.message);
 
@@ -68,7 +77,7 @@ export async function getTvBoard(): Promise<TvBoardData> {
   const activeRows = allOrders.filter((o) => o.status !== "completed");
   const orderIds = activeRows.map((o) => o.id);
 
-  const [{ data: assignmentRows }, { data: fileRows }] = await Promise.all([
+  const [{ data: assignmentRows }, { data: fileRows }, { data: itemRows }] = await Promise.all([
     orderIds.length > 0
       ? supabase.from("order_assignments").select("order_id, employee_id").in("order_id", orderIds)
       : Promise.resolve({ data: [] as { order_id: string; employee_id: string }[] }),
@@ -79,7 +88,17 @@ export async function getTvBoard(): Promise<TvBoardData> {
           .in("order_id", orderIds)
           .eq("file_type", "product_image")
       : Promise.resolve({ data: [] as { order_id: string; storage_path: string }[] }),
+    orderIds.length > 0
+      ? supabase.from("order_items").select("order_id, product, is_ready").in("order_id", orderIds).order("sort_order")
+      : Promise.resolve({ data: [] as { order_id: string; product: string; is_ready: boolean }[] }),
   ]);
+
+  const additionalItemsByOrder = new Map<string, TvOrderItemReadiness[]>();
+  for (const row of itemRows ?? []) {
+    const list = additionalItemsByOrder.get(row.order_id) ?? [];
+    list.push({ product: row.product, isReady: row.is_ready });
+    additionalItemsByOrder.set(row.order_id, list);
+  }
 
   const employeeIds = [...new Set((assignmentRows ?? []).map((a) => a.employee_id))];
   let employeeNameById = new Map<string, string>();
@@ -129,6 +148,8 @@ export async function getTvBoard(): Promise<TvBoardData> {
       priority: o.priority,
       status: o.status,
       thumbnailUrl: path ? signedUrlByPath.get(path) ?? null : null,
+      itemReady: o.item_ready,
+      additionalItems: additionalItemsByOrder.get(o.id) ?? [],
     };
   };
 

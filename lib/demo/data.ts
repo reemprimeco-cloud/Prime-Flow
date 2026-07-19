@@ -169,6 +169,8 @@ function getAllDemoOrders(now: Date = new Date()) {
   return ORDER_SEEDS.map((seed) => buildOrder(seed, now));
 }
 
+const SEED_BY_ID = new Map(ORDER_SEEDS.map((seed) => [seed.id, seed]));
+
 /** Mirrors DASHBOARD_COMPLETED_STATUSES in lib/actions/orders.ts. */
 const DASHBOARD_COMPLETED_STATUSES: OrderStatus[] = ["collected", "delivered", "completed"];
 
@@ -852,18 +854,23 @@ export function getDemoTvBoard(): TvBoardData {
     (o) => DELAYABLE_STATUSES.includes(o.status) && new Date(`${o.deliveryDate}T${o.deliveryTime}`) < now
   ).length;
 
-  const toCard = (o: OrderListItem): TvOrderCardData => ({
-    id: o.id,
-    orderNumber: o.orderNumber,
-    customerName: o.customerName,
-    product: o.product,
-    assignedEmployees: o.assignedEmployees.map((e) => e.fullName),
-    deliveryDate: o.deliveryDate,
-    deliveryTime: o.deliveryTime,
-    priority: o.priority,
-    status: o.status,
-    thumbnailUrl: null,
-  });
+  const toCard = (o: OrderListItem): TvOrderCardData => {
+    const seed = SEED_BY_ID.get(o.id);
+    return {
+      id: o.id,
+      orderNumber: o.orderNumber,
+      customerName: o.customerName,
+      product: o.product,
+      assignedEmployees: o.assignedEmployees.map((e) => e.fullName),
+      deliveryDate: o.deliveryDate,
+      deliveryTime: o.deliveryTime,
+      priority: o.priority,
+      status: o.status,
+      thumbnailUrl: null,
+      itemReady: seed?.itemReady ?? false,
+      additionalItems: (seed?.items ?? []).map((item) => ({ product: item.product, isReady: item.isReady })),
+    };
+  };
 
   const columns = Object.fromEntries(
     TV_COLUMN_KEYS.map((key) => [

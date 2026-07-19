@@ -3,7 +3,7 @@
 import { memo, useEffect, useState } from "react";
 import Image from "next/image";
 import { format, parseISO } from "date-fns";
-import { ImageIcon, Users } from "lucide-react";
+import { Check, ImageIcon, Users } from "lucide-react";
 
 import { formatCountdown, getCountdownColor, getMinutesRemaining, toDeliveryDate } from "@/lib/utils/countdown";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,12 @@ export const TvOrderCard = memo(function TvOrderCard({ order }: { order: TvOrder
     return () => clearInterval(interval);
   }, []);
 
+  const items = [
+    { label: "Item 1", isReady: order.itemReady },
+    ...order.additionalItems.map((item, index) => ({ label: `Item ${index + 2}`, isReady: item.isReady })),
+  ];
+  const hasMultipleItems = order.additionalItems.length > 0;
+
   const deliveryAt = toDeliveryDate(order.deliveryDate, order.deliveryTime);
   const minutesRemaining = now ? getMinutesRemaining(deliveryAt, now) : 0;
   const color = now ? getCountdownColor(minutesRemaining) : "green";
@@ -58,6 +64,22 @@ export const TvOrderCard = memo(function TvOrderCard({ order }: { order: TvOrder
           <Users className="size-3.5 shrink-0" />
           {order.assignedEmployees.length > 0 ? order.assignedEmployees.join(", ") : "Unassigned"}
         </div>
+        {hasMultipleItems && (
+          <div className="mb-1.5 flex flex-wrap gap-1">
+            {items.map((item) => (
+              <span
+                key={item.label}
+                className={cn(
+                  "flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-bold",
+                  item.isReady ? "bg-success text-white" : "bg-muted text-muted-foreground"
+                )}
+              >
+                {item.isReady && <Check className="size-3" />}
+                {item.label} {item.isReady ? "Ready" : "Pending"}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-bold text-muted-foreground">
             {format(parseISO(order.deliveryDate), "EEE, MMM d")} · {order.deliveryTime.slice(0, 5)}
