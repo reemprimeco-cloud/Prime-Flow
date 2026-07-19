@@ -581,6 +581,8 @@ export function getDemoMyJobs(employeeId: string): {
         designFiles: [],
         pendingMaterialTypes: order.pendingMaterialTypes,
         assignedAt: order.assignedAt.toISOString(),
+        canHandOff: false,
+        nextEmployeeName: null,
       };
     });
 

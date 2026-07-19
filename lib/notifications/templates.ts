@@ -29,7 +29,8 @@ export type EmployeeTemplateName =
   | "job_cancelled"
   | "internal_pickup_ready"
   | "order_out_for_delivery_staff"
-  | "material_purchase_needed";
+  | "material_purchase_needed"
+  | "job_ready_for_you";
 
 export type TemplateName = CustomerTemplateName | EmployeeTemplateName;
 
@@ -112,6 +113,10 @@ const TEMPLATES: Record<TemplateName, Record<OrderLanguage, TemplateFn>> = {
   material_purchase_needed: {
     en: (v) => `Material request approved for order ${v.orderNumber} (${v.productName}) — please go buy it.`,
     ar: (v) => `تمت الموافقة على طلب المواد لطلب ${v.orderNumber} (${v.productName}) — يرجى شراؤه.`,
+  },
+  job_ready_for_you: {
+    en: (v) => `Job ${v.orderNumber} (${v.productName}) is ready for your stage — the work before you is done.`,
+    ar: (v) => `المهمة ${v.orderNumber} (${v.productName}) جاهزة لمرحلتك — انتهى العمل الذي قبلك.`,
   },
 };
 

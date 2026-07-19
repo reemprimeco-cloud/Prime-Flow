@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { FileText, ImageIcon, NotebookPen, PackagePlus } from "lucide-react";
+import { ArrowRightCircle, FileText, ImageIcon, NotebookPen, PackagePlus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 import { Card } from "@/components/ui/card";
@@ -26,11 +26,12 @@ interface JobCardProps {
   isOutsourced: boolean;
   pending: boolean;
   onStatusChange: (status: OrderStatus) => void;
+  onHandOff: () => void;
   onAddNote: () => void;
   onRequestMaterial: () => void;
 }
 
-export function JobCard({ job, isOutsourced, pending, onStatusChange, onAddNote, onRequestMaterial }: JobCardProps) {
+export function JobCard({ job, isOutsourced, pending, onStatusChange, onHandOff, onAddNote, onRequestMaterial }: JobCardProps) {
   const countdownColor = useCountdownColor(job.deliveryDate, job.deliveryTime);
   const heroImage = job.productImages[0];
 
@@ -119,6 +120,12 @@ export function JobCard({ job, isOutsourced, pending, onStatusChange, onAddNote,
           pending={pending}
           onChange={onStatusChange}
         />
+        {job.canHandOff && (
+          <Button type="button" variant="primary" size="lg" disabled={pending} onClick={onHandOff} className="gap-2">
+            <ArrowRightCircle className="size-4" />
+            Ready for Next{job.nextEmployeeName ? ` (${job.nextEmployeeName})` : ""}
+          </Button>
+        )}
         <div className="ml-auto flex gap-2.5">
           <Button type="button" variant="outline" size="lg" onClick={onAddNote} className="gap-2">
             <NotebookPen className="size-4" />

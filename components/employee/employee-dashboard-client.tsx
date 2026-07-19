@@ -6,7 +6,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ClipboardList, ListChecks } from "lucide-react";
 
-import { getMyJobs, updateEmployeeJobStatus, type EmployeeJobItem, type MyJobsResult } from "@/lib/actions/employee-jobs";
+import {
+  getMyJobs,
+  handOffJob,
+  updateEmployeeJobStatus,
+  type EmployeeJobItem,
+  type MyJobsResult,
+} from "@/lib/actions/employee-jobs";
 import { useRealtimeChannel } from "@/lib/realtime/use-realtime-channel";
 import { CHANNELS } from "@/lib/realtime/constants";
 import { EmployeeTopBar } from "@/components/employee/employee-top-bar";
@@ -62,6 +68,17 @@ export function EmployeeDashboardClient({ initialJobs, fullName }: EmployeeDashb
       .finally(() => setActioningId(null));
   };
 
+  const handleHandOff = (job: EmployeeJobItem) => {
+    setActioningId(job.id);
+    handOffJob(job.id)
+      .then(() => {
+        toast.success(`${job.orderNumber} handed off${job.nextEmployeeName ? ` to ${job.nextEmployeeName}` : ""}`);
+        queryClient.invalidateQueries({ queryKey: ["my-jobs"] });
+      })
+      .catch((error) => toast.error(error instanceof Error ? error.message : "Failed to hand off job"))
+      .finally(() => setActioningId(null));
+  };
+
   return (
     <div className="flex flex-col gap-8">
       <EmployeeTopBar
@@ -92,6 +109,7 @@ export function EmployeeDashboardClient({ initialJobs, fullName }: EmployeeDashb
                 isOutsourced={data.isOutsourced}
                 pending={actioningId === job.id}
                 onStatusChange={(status) => handleStatusChange(job, status)}
+                onHandOff={() => handleHandOff(job)}
                 onAddNote={() => setNoteTarget(job)}
                 onRequestMaterial={() => setMaterialTarget(job)}
               />

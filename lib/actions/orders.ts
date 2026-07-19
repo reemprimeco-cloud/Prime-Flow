@@ -593,9 +593,13 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
   if (error || !order) throw new Error(error?.message ?? "Failed to create order");
 
   if (allEmployeeIds.length > 0) {
-    const { error: assignError } = await supabase
-      .from("order_assignments")
-      .insert(allEmployeeIds.map((employeeId) => ({ order_id: order.id, employee_id: employeeId })));
+    const { error: assignError } = await supabase.from("order_assignments").insert(
+      allEmployeeIds.map((employeeId) => ({
+        order_id: order.id,
+        employee_id: employeeId,
+        sequence: sequenceFor(employeeId, input.employeeIds),
+      }))
+    );
     if (assignError) throw new Error(assignError.message);
   }
 
@@ -814,6 +818,8 @@ export async function updateOrder(orderId: string, formData: FormData): Promise<
     }
   }
 
+  await syncAssignmentSequences(supabase, orderId, input.employeeIds, [...nextIds]);
+
   await uploadOrderFiles(supabase, orderId, session.employeeId, formData);
 
   await recordAuditLog({
@@ -841,7 +847,7 @@ export async function duplicateOrder(orderId: string): Promise<{ id: string }> {
   if (error || !original) throw new Error(error?.message ?? "Order not found");
 
   const [{ data: assignments }, { data: files }, { data: existingItems }] = await Promise.all([
-    supabase.from("order_assignments").select("employee_id").eq("order_id", orderId),
+    supabase.from("order_assignments").select("employee_id, sequence").eq("order_id", orderId),
     supabase.from("order_files").select("*").eq("order_id", orderId),
     supabase
       .from("order_items")
@@ -876,9 +882,11 @@ export async function duplicateOrder(orderId: string): Promise<{ id: string }> {
   if (insertError || !newOrder) throw new Error(insertError?.message ?? "Failed to duplicate order");
 
   if (assignments && assignments.length > 0) {
-    await supabase
-      .from("order_assignments")
-      .insert(assignments.map((a) => ({ order_id: newOrder.id, employee_id: a.employee_id })));
+    // Hand-off order carries over, but not progress — the duplicate starts
+    // the chain fresh (handed_off_at defaults to null on every new row).
+    await supabase.from("order_assignments").insert(
+      assignments.map((a) => ({ order_id: newOrder.id, employee_id: a.employee_id, sequence: a.sequence }))
+    );
   }
 
   if (existingItems && existingItems.length > 0) {
@@ -1118,6 +1126,34 @@ function parseOrderForm(formData: FormData) {
     throw new Error(parsed.error.issues[0]?.message ?? "Invalid order data");
   }
   return parsed.data;
+}
+
+/**
+ * The manager's ordered "Assign Employees" list defines the sequential
+ * hand-off chain (1-based position). Anyone assigned some other way — a
+ * per-item assignee, or an auto-assigned delivery-role employee — gets
+ * `null`, which means "not gated, always visible, never blocks anyone else"
+ * (see 0013_sequential_handoff.sql).
+ */
+function sequenceFor(employeeId: string, orderedEmployeeIds: string[]): number | null {
+  const index = orderedEmployeeIds.indexOf(employeeId);
+  return index === -1 ? null : index + 1;
+}
+
+/** Persists the manager's current hand-off order for every already-assigned employee (called after the add/remove diff in updateOrder, where sequence can't just be set at insert time like createOrder does). */
+async function syncAssignmentSequences(
+  supabase: ServiceClient,
+  orderId: string,
+  orderedEmployeeIds: string[],
+  allEmployeeIds: string[]
+): Promise<void> {
+  for (const employeeId of allEmployeeIds) {
+    await supabase
+      .from("order_assignments")
+      .update({ sequence: sequenceFor(employeeId, orderedEmployeeIds) })
+      .eq("order_id", orderId)
+      .eq("employee_id", employeeId);
+  }
 }
 
 async function fetchEmployeeNames(supabase: ServiceClient, ids: string[]): Promise<Map<string, string>> {

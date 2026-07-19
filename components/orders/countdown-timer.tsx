@@ -7,10 +7,10 @@ import { formatCountdown, getCountdownColor, getMinutesRemaining, toDeliveryDate
 import { cn } from "@/lib/utils";
 
 const COLOR_CLASSES = {
-  green: "bg-success/15 text-success border-success/30",
-  yellow: "bg-warning/15 text-warning border-warning/30",
-  orange: "bg-warning/25 text-warning border-warning/40",
-  red: "bg-destructive/15 text-destructive border-destructive/30",
+  green: "bg-success text-success-foreground border-success",
+  yellow: "bg-warning text-warning-foreground border-warning",
+  orange: "bg-warning text-warning-foreground border-warning",
+  red: "bg-destructive text-destructive-foreground border-destructive",
 } as const;
 
 const SIZE_CLASSES = {

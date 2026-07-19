@@ -2,6 +2,7 @@
 
 import { memo, useEffect, useState } from "react";
 import Image from "next/image";
+import { format, parseISO } from "date-fns";
 import { ImageIcon, Users } from "lucide-react";
 
 import { formatCountdown, getCountdownColor, getMinutesRemaining, toDeliveryDate } from "@/lib/utils/countdown";
@@ -58,7 +59,9 @@ export const TvOrderCard = memo(function TvOrderCard({ order }: { order: TvOrder
           {order.assignedEmployees.length > 0 ? order.assignedEmployees.join(", ") : "Unassigned"}
         </div>
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-bold text-muted-foreground">{order.deliveryTime.slice(0, 5)}</span>
+          <span className="text-sm font-bold text-muted-foreground">
+            {format(parseISO(order.deliveryDate), "EEE, MMM d")} · {order.deliveryTime.slice(0, 5)}
+          </span>
           {now && (
             <span className={cn("rounded-lg px-2.5 py-1 text-sm font-extrabold whitespace-nowrap", CHIP_STYLES[color])}>
               {formatCountdown(minutesRemaining)}

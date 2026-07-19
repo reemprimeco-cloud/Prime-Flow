@@ -21,6 +21,7 @@ const EMPLOYEE_TEMPLATES: TemplateName[] = [
   "internal_pickup_ready",
   "order_out_for_delivery_staff",
   "material_purchase_needed",
+  "job_ready_for_you",
 ];
 
 const VARS: TemplateVariables = {

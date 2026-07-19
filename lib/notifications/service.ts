@@ -268,6 +268,7 @@ type EmployeeTemplateNameLocal = Extract<
   | "internal_pickup_ready"
   | "order_out_for_delivery_staff"
   | "material_purchase_needed"
+  | "job_ready_for_you"
 >;
 
 export async function notifyEmployeeJobAssigned(
@@ -335,6 +336,15 @@ export async function notifyEmployeeMaterialPurchaseNeeded(
   actorName: string
 ): Promise<void> {
   await sendEmployeeNotification(employee, "material_purchase_needed", actorId, actorName);
+}
+
+/** Fires to the next employee in a sequential hand-off chain once the person before them clicks "Ready for Next". */
+export async function notifyEmployeeJobReadyForYou(
+  employee: EmployeeNotificationContext,
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  await sendEmployeeNotification(employee, "job_ready_for_you", actorId, actorName);
 }
 
 // ---------------------------------------------------------------------------

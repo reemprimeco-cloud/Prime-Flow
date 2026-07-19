@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Plus, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import type { z } from "zod";
 
@@ -137,6 +137,14 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
   });
 
   const employeeIds = watch("employeeIds") ?? [];
+
+  const moveEmployee = (from: number, to: number) => {
+    if (to < 0 || to >= employeeIds.length) return;
+    const reordered = [...employeeIds];
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+    setValue("employeeIds", reordered);
+  };
 
   const { fields: itemFields, append: appendItem, remove: removeItem } = useFieldArray({
     control,
@@ -625,6 +633,50 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                   );
                 })}
               </div>
+
+              {employeeIds.length > 1 && (
+                <div className="flex flex-col gap-2 rounded-xl border border-border p-3">
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    Hand-off order — each person only sees the job once the one before them clicks &ldquo;Ready
+                    for Next&rdquo;
+                  </span>
+                  <ol className="flex flex-col gap-1.5">
+                    {employeeIds.map((id, index) => {
+                      const employee = employees.find((e) => e.id === id);
+                      return (
+                        <li key={id} className="flex items-center gap-2 rounded-lg bg-muted/30 px-2.5 py-1.5">
+                          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-bold text-secondary-foreground">
+                            {index + 1}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate text-sm">{employee?.fullName ?? "Unknown"}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-6 text-muted-foreground"
+                            disabled={index === 0}
+                            onClick={() => moveEmployee(index, index - 1)}
+                            aria-label={`Move ${employee?.fullName ?? "employee"} earlier`}
+                          >
+                            <ChevronUp className="size-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-6 text-muted-foreground"
+                            disabled={index === employeeIds.length - 1}
+                            onClick={() => moveEmployee(index, index + 1)}
+                            aria-label={`Move ${employee?.fullName ?? "employee"} later`}
+                          >
+                            <ChevronDown className="size-3.5" />
+                          </Button>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </div>
+              )}
             </section>
           </SheetBody>
         </form>

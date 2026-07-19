@@ -281,20 +281,26 @@ export type Database = {
         Row: {
           assigned_at: string
           employee_id: string
+          handed_off_at: string | null
           id: string
           order_id: string
+          sequence: number | null
         }
         Insert: {
           assigned_at?: string
           employee_id: string
+          handed_off_at?: string | null
           id?: string
           order_id: string
+          sequence?: number | null
         }
         Update: {
           assigned_at?: string
           employee_id?: string
+          handed_off_at?: string | null
           id?: string
           order_id?: string
+          sequence?: number | null
         }
         Relationships: [
           {
