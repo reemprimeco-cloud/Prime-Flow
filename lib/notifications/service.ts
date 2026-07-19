@@ -7,6 +7,7 @@ import { renderTemplate, type TemplateName, type TemplateVariables } from "@/lib
 import { TwilioWhatsAppProvider } from "@/lib/notifications/providers/twilio-whatsapp";
 import { normalizeNotificationPreferences, type NotificationPreferences } from "@/lib/notifications/constants";
 import { buildGoogleMapsLink } from "@/lib/utils/maps";
+import { formatDeliveryTime } from "@/lib/utils/countdown";
 import type {
   NotificationChannel,
   NotificationReceiver,
@@ -123,7 +124,7 @@ async function sendCustomerNotification(
     orderNumber: order.orderNumber,
     productName: order.product,
     deliveryDate: order.deliveryDate,
-    deliveryTime: order.deliveryTime,
+    deliveryTime: formatDeliveryTime(order.deliveryTime),
   };
 
   await dispatch(
@@ -169,7 +170,7 @@ export async function notifyOrderMovedBackToProduction(
     orderNumber: order.orderNumber,
     productName: order.product,
     deliveryDate: order.deliveryDate,
-    deliveryTime: order.deliveryTime,
+    deliveryTime: formatDeliveryTime(order.deliveryTime),
   };
 
   await dispatch(
@@ -227,8 +228,10 @@ interface EmployeeNotificationContext {
   product: string;
   deliveryDate: string;
   deliveryTime: string;
-  /** Customer delivery address, if the manager entered one — rendered into a clickable Google Maps link for delivery-staff notifications (see lib/utils/maps.ts). Ignored by templates that don't reference it. */
+  /** Customer delivery address, if the manager entered one — geocoded into a clickable Google Maps link for delivery-staff notifications (see lib/utils/maps.ts) whenever deliveryMapLink isn't set. Ignored by templates that don't reference it. */
   deliveryAddress?: string | null;
+  /** Explicit Google Maps link the manager pasted in on the order form — takes priority over geocoding deliveryAddress, since it's exact rather than guessed. */
+  deliveryMapLink?: string | null;
   /** Which employee did the thing being reported — used by admin_order_note_added/admin_order_status_changed. */
   employeeName?: string;
   noteText?: string;
@@ -247,8 +250,8 @@ async function sendEmployeeNotification(
     orderNumber: employee.orderNumber,
     productName: employee.product,
     deliveryDate: employee.deliveryDate,
-    deliveryTime: employee.deliveryTime,
-    mapsLink: employee.deliveryAddress ? buildGoogleMapsLink(employee.deliveryAddress) : undefined,
+    deliveryTime: formatDeliveryTime(employee.deliveryTime),
+    mapsLink: employee.deliveryMapLink || (employee.deliveryAddress ? buildGoogleMapsLink(employee.deliveryAddress) : undefined),
     employeeName: employee.employeeName,
     noteText: employee.noteText,
     statusLabel: employee.statusLabel,

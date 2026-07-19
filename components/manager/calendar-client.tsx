@@ -23,6 +23,7 @@ import { AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { listCalendarOrders, type CalendarOrder } from "@/lib/actions/calendar";
 import { useRealtimeChannel } from "@/lib/realtime/use-realtime-channel";
 import { CHANNELS } from "@/lib/realtime/constants";
+import { formatDeliveryTime } from "@/lib/utils/countdown";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -198,7 +199,7 @@ export function CalendarClient({ initialOrders }: { initialOrders: CalendarOrder
               {(ordersByDay.get(format(selectedDay, "yyyy-MM-dd")) ?? []).map((o) => (
                 <li key={o.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5">
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-sm font-bold text-secondary">{o.deliveryTime.slice(0, 5)}</span>
+                    <span className="font-mono text-sm font-bold text-secondary">{formatDeliveryTime(o.deliveryTime)}</span>
                     <div>
                       <p className="text-sm font-medium text-foreground">
                         {o.orderNumber} · {o.customerName}
@@ -238,7 +239,7 @@ function OrderChip({ order }: { order: CalendarOrder }) {
       )}
       title={`${order.orderNumber} · ${order.customerName}`}
     >
-      {order.deliveryTime.slice(0, 5)} {order.orderNumber}
+      {formatDeliveryTime(order.deliveryTime)} {order.orderNumber}
     </div>
   );
 }

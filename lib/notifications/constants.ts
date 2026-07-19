@@ -14,12 +14,19 @@ export interface NotificationPreferences {
   delivered: boolean;
 }
 
+/**
+ * Every order now sends the customer all four production-stage updates —
+ * the order form no longer exposes per-type toggles, so this is applied
+ * unconditionally to every order rather than being a user-editable choice.
+ * `delivered` stays off deliberately: the customer already has the order in
+ * hand by then, so a confirmation text after out_for_delivery is redundant.
+ */
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   order_received: true,
-  order_in_production: false,
+  order_in_production: true,
   ready_for_pickup: true,
   out_for_delivery: true,
-  delivered: true,
+  delivered: false,
 };
 
 export const NOTIFICATION_PREFERENCE_LABELS: Record<keyof NotificationPreferences, string> = {

@@ -18,6 +18,7 @@ import {
 import { CountdownTimer } from "@/components/orders/countdown-timer";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { EmployeeChips } from "@/components/orders/employee-chips";
+import { formatDeliveryTime } from "@/lib/utils/countdown";
 import { MATERIAL_TYPE_LABELS } from "@/types/domain";
 import { DELAYABLE_STATUSES } from "@/types/domain";
 import type { OrderListItem } from "@/lib/actions/orders";
@@ -95,7 +96,7 @@ export const OrderListView = memo(function OrderListView({
                 <EmployeeChips employees={order.assignedEmployees} max={2} />
               </TableCell>
               <TableCell className="whitespace-nowrap font-semibold">
-                {format(parseISO(order.deliveryDate), "MMM d")} · {order.deliveryTime.slice(0, 5)}
+                {format(parseISO(order.deliveryDate), "MMM d")} · {formatDeliveryTime(order.deliveryTime)}
               </TableCell>
               <TableCell>{isInFlight && <CountdownTimer deliveryDate={order.deliveryDate} deliveryTime={order.deliveryTime} />}</TableCell>
               <TableCell>

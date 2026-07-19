@@ -19,6 +19,7 @@ import { CountdownTimer, useCountdownColor } from "@/components/orders/countdown
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { EmployeeChips } from "@/components/orders/employee-chips";
 import { MaterialRequestBadge } from "@/components/orders/material-request-badge";
+import { formatDeliveryTime } from "@/lib/utils/countdown";
 import { cn } from "@/lib/utils";
 import { DELAYABLE_STATUSES } from "@/types/domain";
 import type { OrderListItem } from "@/lib/actions/orders";
@@ -107,7 +108,7 @@ export const OrderCard = memo(function OrderCard({
         <div className="flex items-center gap-1.5 text-foreground">
           <CalendarClock className="size-3.5 shrink-0 text-muted-foreground" />
           <span className="text-xs font-bold">
-            {format(parseISO(order.deliveryDate), "EEE, MMM d")} · {order.deliveryTime.slice(0, 5)}
+            {format(parseISO(order.deliveryDate), "EEE, MMM d")} · {formatDeliveryTime(order.deliveryTime)}
           </span>
         </div>
         {isInFlight && (

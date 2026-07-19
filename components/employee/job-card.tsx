@@ -12,6 +12,7 @@ import { MaterialRequestBadge } from "@/components/orders/material-request-badge
 import { StatusActions } from "@/components/orders/status-actions";
 import { cn } from "@/lib/utils";
 import { buildGoogleMapsLink } from "@/lib/utils/maps";
+import { formatDeliveryTime } from "@/lib/utils/countdown";
 import type { EmployeeJobItem } from "@/lib/actions/employee-jobs";
 import type { OrderStatus } from "@/types/database.types";
 
@@ -93,7 +94,7 @@ export function JobCard({
                 Delivery
               </div>
               <div className="text-lg font-extrabold">
-                {format(parseISO(job.deliveryDate), "EEE, MMM d")} · {job.deliveryTime.slice(0, 5)}
+                {format(parseISO(job.deliveryDate), "EEE, MMM d")} · {formatDeliveryTime(job.deliveryTime)}
               </div>
             </div>
             <CountdownTimer deliveryDate={job.deliveryDate} deliveryTime={job.deliveryTime} size="lg" />
@@ -118,15 +119,15 @@ export function JobCard({
             </button>
           )}
 
-          {job.fulfillmentType === "delivery" && job.deliveryAddress && (
+          {job.fulfillmentType === "delivery" && (job.deliveryAddress || job.deliveryMapLink) && (
             <a
-              href={buildGoogleMapsLink(job.deliveryAddress)}
+              href={job.deliveryMapLink || buildGoogleMapsLink(job.deliveryAddress!)}
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-2 rounded-xl border border-secondary/30 bg-secondary/10 px-4 py-3 text-sm font-semibold text-secondary hover:bg-secondary/15"
             >
               <MapPin className="size-4 shrink-0" />
-              {job.deliveryAddress}
+              {job.deliveryAddress || "Open map location"}
             </a>
           )}
 

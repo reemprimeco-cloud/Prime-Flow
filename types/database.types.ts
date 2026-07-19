@@ -512,6 +512,7 @@ export type Database = {
           customer_name: string
           delivery_address: string | null
           delivery_date: string
+          delivery_map_link: string | null
           delivery_time: string
           finishing: string | null
           fulfillment_type: Database["public"]["Enums"]["order_fulfillment_type"]
@@ -540,6 +541,7 @@ export type Database = {
           customer_name: string
           delivery_address?: string | null
           delivery_date: string
+          delivery_map_link?: string | null
           delivery_time: string
           finishing?: string | null
           fulfillment_type?: Database["public"]["Enums"]["order_fulfillment_type"]
@@ -568,6 +570,7 @@ export type Database = {
           customer_name?: string
           delivery_address?: string | null
           delivery_date?: string
+          delivery_map_link?: string | null
           delivery_time?: string
           finishing?: string | null
           fulfillment_type?: Database["public"]["Enums"]["order_fulfillment_type"]

@@ -5,7 +5,7 @@ import Image from "next/image";
 import { format, parseISO } from "date-fns";
 import { Check, ImageIcon, Users } from "lucide-react";
 
-import { formatCountdown, getCountdownColor, getMinutesRemaining, toDeliveryDate } from "@/lib/utils/countdown";
+import { formatCountdown, formatDeliveryTime, getCountdownColor, getMinutesRemaining, toDeliveryDate } from "@/lib/utils/countdown";
 import { cn } from "@/lib/utils";
 import type { TvOrderCardData } from "@/lib/actions/tv";
 
@@ -82,7 +82,7 @@ export const TvOrderCard = memo(function TvOrderCard({ order }: { order: TvOrder
         )}
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-bold text-muted-foreground">
-            {format(parseISO(order.deliveryDate), "EEE, MMM d")} · {order.deliveryTime.slice(0, 5)}
+            {format(parseISO(order.deliveryDate), "EEE, MMM d")} · {formatDeliveryTime(order.deliveryTime)}
           </span>
           {now && (
             <span className={cn("rounded-lg px-2.5 py-1 text-sm font-extrabold whitespace-nowrap", CHIP_STYLES[color])}>

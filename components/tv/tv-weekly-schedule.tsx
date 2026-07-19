@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
+import { formatDeliveryTime } from "@/lib/utils/countdown";
 import { ORDER_STATUS_LABELS } from "@/types/domain";
 import type { TvDaySummary } from "@/lib/actions/tv";
 
@@ -63,7 +64,7 @@ export function TvWeeklySchedule({ week }: { week: TvDaySummary[] }) {
           <div className="flex flex-wrap gap-x-6 gap-y-1.5">
             {selectedDay.orders.slice(0, 6).map((order, i) => (
               <div key={i} className="flex items-center gap-2 text-sm">
-                <span className="font-mono font-bold text-secondary">{order.deliveryTime.slice(0, 5)}</span>
+                <span className="font-mono font-bold text-secondary">{formatDeliveryTime(order.deliveryTime)}</span>
                 <span className="font-semibold">{order.orderNumber}</span>
                 <span className="text-muted-foreground">{order.customerName}</span>
                 <span className="text-xs font-semibold text-muted-foreground">· {ORDER_STATUS_LABELS[order.status]}</span>

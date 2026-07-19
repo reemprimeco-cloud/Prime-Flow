@@ -18,6 +18,17 @@ export function getCountdownColor(minutesRemaining: number): CountdownColor {
   return "green";
 }
 
+/** Renders a `HH:mm` / `HH:mm:ss` delivery-time column value as `h:mm AM/PM`. */
+export function formatDeliveryTime(time: string): string {
+  const [hourStr, minuteStr] = time.split(":");
+  const hour = Number(hourStr);
+  const minute = Number(minuteStr);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return time;
+  const period = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${hour12}:${minute.toString().padStart(2, "0")} ${period}`;
+}
+
 export function formatCountdown(minutesRemaining: number): string {
   const isPast = minutesRemaining < 0;
   const abs = Math.abs(minutesRemaining);

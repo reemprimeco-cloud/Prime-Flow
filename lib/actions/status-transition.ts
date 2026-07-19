@@ -22,6 +22,7 @@ interface DeliveryStaffOrder {
   delivery_date: string;
   delivery_time: string;
   delivery_address?: string | null;
+  delivery_map_link?: string | null;
 }
 
 /**
@@ -75,6 +76,7 @@ export async function notifyDeliveryStaffForStatus(
         deliveryDate: order.delivery_date,
         deliveryTime: order.delivery_time,
         deliveryAddress: order.delivery_address ?? null,
+        deliveryMapLink: order.delivery_map_link ?? null,
       },
       actorId,
       actorName
@@ -103,7 +105,7 @@ export async function applyOrderStatusTransition(
   const { data: current, error: fetchError } = await supabase
     .from("orders")
     .select(
-      "status, order_number, customer_name, customer_mobile, product, delivery_date, delivery_time, delivery_address, whatsapp_enabled, preferred_channel, preferred_language, notification_preferences"
+      "status, order_number, customer_name, customer_mobile, product, delivery_date, delivery_time, delivery_address, delivery_map_link, whatsapp_enabled, preferred_channel, preferred_language, notification_preferences"
     )
     .eq("id", orderId)
     .single();

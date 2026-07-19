@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 import { getOrderDetail, updateOrderStatus } from "@/lib/actions/orders";
 import { buildGoogleMapsLink } from "@/lib/utils/maps";
+import { formatDeliveryTime } from "@/lib/utils/countdown";
 import { useRealtimeChannel } from "@/lib/realtime/use-realtime-channel";
 import { CHANNELS } from "@/lib/realtime/constants";
 import {
@@ -132,18 +133,32 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                 <DetailRow label="Finishing" value={order.finishing || "—"} />
                 <DetailRow
                   label="Delivery"
-                  value={`${format(parseISO(order.deliveryDate), "EEE, MMM d")} · ${order.deliveryTime.slice(0, 5)}`}
+                  value={`${format(parseISO(order.deliveryDate), "EEE, MMM d")} · ${formatDeliveryTime(order.deliveryTime)}`}
                 />
                 {order.fulfillmentType === "delivery" && order.deliveryAddress && (
                   <div className="flex items-center justify-between gap-4 text-sm">
                     <span className="text-muted-foreground">Address</span>
                     <a
-                      href={buildGoogleMapsLink(order.deliveryAddress)}
+                      href={order.deliveryMapLink || buildGoogleMapsLink(order.deliveryAddress)}
                       target="_blank"
                       rel="noreferrer"
                       className="flex items-center gap-1 text-right font-medium text-secondary hover:underline"
                     >
                       {order.deliveryAddress}
+                      <MapPin className="size-3.5 shrink-0" />
+                    </a>
+                  </div>
+                )}
+                {order.fulfillmentType === "delivery" && !order.deliveryAddress && order.deliveryMapLink && (
+                  <div className="flex items-center justify-between gap-4 text-sm">
+                    <span className="text-muted-foreground">Map Location</span>
+                    <a
+                      href={order.deliveryMapLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1 text-right font-medium text-secondary hover:underline"
+                    >
+                      Open in Maps
                       <MapPin className="size-3.5 shrink-0" />
                     </a>
                   </div>

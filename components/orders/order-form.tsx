@@ -30,16 +30,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileUpload } from "@/components/shared/file-upload";
 import { DESIGN_FILE_ACCEPT, MAX_TOTAL_UPLOAD_BYTES, PRODUCT_IMAGE_ACCEPT } from "@/lib/files/constants";
-import {
-  DEFAULT_NOTIFICATION_PREFERENCES,
-  NOTIFICATION_PREFERENCE_LABELS,
-  type NotificationPreferences,
-} from "@/lib/notifications/constants";
+import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/notifications/constants";
 import { ORDER_FULFILLMENT_TYPE_LABELS, ORDER_PRIORITY_LABELS } from "@/types/domain";
 
 interface OrderFormProps {
@@ -61,7 +56,7 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
     return {
       customerName: "",
       customerMobile: "",
-      preferredLanguage: "ar",
+      preferredLanguage: "en",
       whatsappEnabled: true,
       preferredChannel: "whatsapp",
       notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
@@ -75,6 +70,7 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
       deliveryDate: "",
       deliveryTime: "",
       deliveryAddress: "",
+      deliveryMapLink: "",
       notes: "",
       employeeIds: [],
       items: [],
@@ -83,10 +79,14 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
   return {
     customerName: order.customerName,
     customerMobile: order.customerMobile,
-    preferredLanguage: order.preferredLanguage,
-    whatsappEnabled: order.whatsappEnabled,
+    // Always English, always notify — see DEFAULT_NOTIFICATION_PREFERENCES;
+    // an order edited from here on out is normalized to these regardless of
+    // whatever it was created with, since the form no longer exposes a way
+    // to set them differently.
+    preferredLanguage: "en",
+    whatsappEnabled: true,
     preferredChannel: order.preferredChannel,
-    notificationPreferences: order.notificationPreferences,
+    notificationPreferences: DEFAULT_NOTIFICATION_PREFERENCES,
     product: order.product,
     paper: order.paper ?? "",
     paperSize: order.paperSize ?? "",
@@ -97,6 +97,7 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
     deliveryDate: order.deliveryDate,
     deliveryTime: order.deliveryTime.slice(0, 5),
     deliveryAddress: order.deliveryAddress ?? "",
+    deliveryMapLink: order.deliveryMapLink ?? "",
     notes: order.notes ?? "",
     employeeIds: order.assignedEmployees.map((e) => e.id),
     items: order.items.map((item) => ({
@@ -200,8 +201,6 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
   const handleSelectCustomer = (customer: CustomerSuggestion) => {
     setValue("customerName", customer.customerName, { shouldValidate: true });
     setValue("customerMobile", customer.customerMobile, { shouldValidate: true });
-    setValue("preferredLanguage", customer.preferredLanguage);
-    setValue("whatsappEnabled", customer.whatsappEnabled);
     setValue("preferredChannel", customer.preferredChannel);
     setShowCustomerSuggestions(false);
     setCustomerSuggestions([]);
@@ -252,6 +251,7 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
         formData.set("deliveryDate", values.deliveryDate);
         formData.set("deliveryTime", values.deliveryTime);
         formData.set("deliveryAddress", values.deliveryAddress ?? "");
+        formData.set("deliveryMapLink", values.deliveryMapLink ?? "");
         formData.set("notes", values.notes ?? "");
         formData.set("items", JSON.stringify(values.items));
         values.employeeIds.forEach((id) => formData.append("employeeIds", id));
@@ -293,7 +293,7 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
           <SheetBody className="flex flex-col gap-6">
             <section className="flex flex-col gap-4">
               <h3 className="text-sm font-bold text-muted-foreground">Customer</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Customer Name" error={errors.customerName?.message}>
                   <div className="relative">
                     <Controller
@@ -347,41 +347,12 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                 <Field label="Mobile Number" error={errors.customerMobile?.message}>
                   <Input {...register("customerMobile")} aria-invalid={!!errors.customerMobile} placeholder="+965 5000 1111" />
                 </Field>
-                <Field label="Preferred Language">
-                  <Controller
-                    control={control}
-                    name="preferredLanguage"
-                    render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="ar">Arabic</SelectItem>
-                          <SelectItem value="en">English</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </Field>
-                <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-4">
-                  <Label htmlFor="whatsappEnabled" className="text-sm">
-                    WhatsApp Notifications
-                  </Label>
-                  <Controller
-                    control={control}
-                    name="whatsappEnabled"
-                    render={({ field }) => (
-                      <Switch id="whatsappEnabled" checked={field.value} onCheckedChange={field.onChange} />
-                    )}
-                  />
-                </div>
               </div>
             </section>
 
             <section className="flex flex-col gap-4">
               <h3 className="text-sm font-bold text-muted-foreground">Notifications</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Preferred Channel">
                   <Controller
                     control={control}
@@ -405,41 +376,29 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                   />
                 </Field>
               </div>
-              <div className="flex flex-col gap-1 rounded-xl border border-border p-3">
-                <span className="mb-1 text-xs font-semibold text-muted-foreground">Send the customer a message when:</span>
-                {(Object.keys(NOTIFICATION_PREFERENCE_LABELS) as (keyof NotificationPreferences)[]).map((key) => (
-                  <Controller
-                    key={key}
-                    control={control}
-                    name={`notificationPreferences.${key}`}
-                    render={({ field }) => (
-                      <label className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-muted/40">
-                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                        <span className="text-sm">{NOTIFICATION_PREFERENCE_LABELS[key]}</span>
-                      </label>
-                    )}
-                  />
-                ))}
-              </div>
+              <p className="rounded-xl border border-border bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
+                The customer is messaged automatically at every stage — order received, in production, ready for
+                pickup, and out for delivery.
+              </p>
             </section>
 
             <section className="flex flex-col gap-4">
               <h3 className="text-sm font-bold text-muted-foreground">Specifications</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Product" error={errors.product?.message}>
                   <Input {...register("product")} aria-invalid={!!errors.product} placeholder="Business Cards" />
                 </Field>
                 <Field label="Quantity" error={errors.quantity?.message}>
                   <Input type="number" min={1} {...register("quantity")} aria-invalid={!!errors.quantity} />
                 </Field>
-                <Field label="Paper">
-                  <Input {...register("paper")} placeholder="300gsm Matte" />
+                <Field label="Paper (optional)">
+                  <Input {...register("paper")} placeholder="Optional" />
                 </Field>
-                <Field label="Paper Size">
-                  <Input {...register("paperSize")} placeholder="A6" />
+                <Field label="Paper Size (optional)">
+                  <Input {...register("paperSize")} placeholder="Optional" />
                 </Field>
-                <Field label="Finishing" className="col-span-2">
-                  <Input {...register("finishing")} placeholder="Lamination, rounded corners" />
+                <Field label="Finishing (optional)" className="col-span-2">
+                  <Input {...register("finishing")} placeholder="Optional" />
                 </Field>
               </div>
             </section>
@@ -549,7 +508,7 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                       <X className="size-3.5" />
                     </Button>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <Field label="Product" error={errors.items?.[index]?.product?.message}>
                       <Input
                         {...register(`items.${index}.product`)}
@@ -565,14 +524,14 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                         aria-invalid={!!errors.items?.[index]?.quantity}
                       />
                     </Field>
-                    <Field label="Paper">
-                      <Input {...register(`items.${index}.paper`)} placeholder="170gsm Gloss" />
+                    <Field label="Paper (optional)">
+                      <Input {...register(`items.${index}.paper`)} placeholder="Optional" />
                     </Field>
-                    <Field label="Paper Size">
-                      <Input {...register(`items.${index}.paperSize`)} placeholder="A6" />
+                    <Field label="Paper Size (optional)">
+                      <Input {...register(`items.${index}.paperSize`)} placeholder="Optional" />
                     </Field>
-                    <Field label="Finishing" className="col-span-2">
-                      <Input {...register(`items.${index}.finishing`)} placeholder="Lamination" />
+                    <Field label="Finishing (optional)" className="col-span-2">
+                      <Input {...register(`items.${index}.finishing`)} placeholder="Optional" />
                     </Field>
                     <Field label="Assign To" className="col-span-2">
                       <Controller
@@ -605,7 +564,7 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
 
             <section className="flex flex-col gap-4">
               <h3 className="text-sm font-bold text-muted-foreground">Delivery</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Delivery Date" error={errors.deliveryDate?.message}>
                   <Input type="date" {...register("deliveryDate")} aria-invalid={!!errors.deliveryDate} />
                 </Field>
@@ -653,12 +612,17 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                   />
                 </Field>
                 {fulfillmentType === "delivery" && (
-                  <Field label="Delivery Address" className="col-span-2">
-                    <Input
-                      {...register("deliveryAddress")}
-                      placeholder="Building, street, area — used to open Google Maps for the driver"
-                    />
-                  </Field>
+                  <>
+                    <Field label="Delivery Address" className="col-span-2">
+                      <Input {...register("deliveryAddress")} placeholder="Building, street, area" />
+                    </Field>
+                    <Field label="Map Location Link (optional)" className="col-span-2">
+                      <Input
+                        {...register("deliveryMapLink")}
+                        placeholder="Paste a Google Maps link — e.g. from Share > Copy Link on a pin"
+                      />
+                    </Field>
+                  </>
                 )}
               </div>
             </section>

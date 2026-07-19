@@ -55,6 +55,7 @@ export interface EmployeeJobItem {
   deliveryDate: string;
   deliveryTime: string;
   deliveryAddress: string | null;
+  deliveryMapLink: string | null;
   status: OrderStatus;
   fulfillmentType: OrderFulfillmentType;
   managerNotes: string | null;
@@ -114,7 +115,7 @@ export async function getMyJobs(): Promise<MyJobsResult> {
   const { data: orders, error } = await supabase
     .from("orders")
     .select(
-      "id, order_number, customer_name, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, delivery_address, status, fulfillment_type, notes, item_ready"
+      "id, order_number, customer_name, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, delivery_address, delivery_map_link, status, fulfillment_type, notes, item_ready"
     )
     .in("id", orderIds)
     .eq("archived", false)
@@ -235,6 +236,7 @@ export async function getMyJobs(): Promise<MyJobsResult> {
       deliveryDate: o.delivery_date,
       deliveryTime: o.delivery_time,
       deliveryAddress: o.delivery_address,
+      deliveryMapLink: o.delivery_map_link,
       status: o.status,
       fulfillmentType: o.fulfillment_type,
       managerNotes: o.notes,

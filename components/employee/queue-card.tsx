@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CountdownTimer } from "@/components/orders/countdown-timer";
+import { formatDeliveryTime } from "@/lib/utils/countdown";
 
 import type { EmployeeJobItem } from "@/lib/actions/employee-jobs";
 
@@ -43,7 +44,7 @@ export function QueueCard({ job, isNext, pending, onStart }: QueueCardProps) {
 
       <div className="flex flex-col items-end gap-1">
         <span className="text-sm font-bold">
-          {format(parseISO(job.deliveryDate), "MMM d")} · {job.deliveryTime.slice(0, 5)}
+          {format(parseISO(job.deliveryDate), "MMM d")} · {formatDeliveryTime(job.deliveryTime)}
         </span>
         <CountdownTimer deliveryDate={job.deliveryDate} deliveryTime={job.deliveryTime} />
       </div>

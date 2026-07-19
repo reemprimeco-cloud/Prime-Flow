@@ -33,11 +33,11 @@ describe("normalizeNotificationPreferences", () => {
     expect(normalizeNotificationPreferences(explicit)).toEqual(explicit);
   });
 
-  it("defaults order_in_production to false (opt-in) and the rest to true (opt-out)", () => {
-    expect(DEFAULT_NOTIFICATION_PREFERENCES.order_in_production).toBe(false);
+  it("defaults every production-stage update to true, and delivered to false", () => {
     expect(DEFAULT_NOTIFICATION_PREFERENCES.order_received).toBe(true);
+    expect(DEFAULT_NOTIFICATION_PREFERENCES.order_in_production).toBe(true);
     expect(DEFAULT_NOTIFICATION_PREFERENCES.ready_for_pickup).toBe(true);
     expect(DEFAULT_NOTIFICATION_PREFERENCES.out_for_delivery).toBe(true);
-    expect(DEFAULT_NOTIFICATION_PREFERENCES.delivered).toBe(true);
+    expect(DEFAULT_NOTIFICATION_PREFERENCES.delivered).toBe(false);
   });
 });
