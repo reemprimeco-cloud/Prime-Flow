@@ -106,15 +106,15 @@ export function JobCard({
               className={cn(
                 "flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-colors",
                 readyItemCount === totalItemCount
-                  ? "border-success/40 bg-success/10 hover:bg-success/15"
-                  : "border-secondary/30 bg-secondary/10 hover:bg-secondary/15"
+                  ? "border-success bg-success text-success-foreground hover:brightness-95"
+                  : "border-secondary bg-secondary text-secondary-foreground hover:brightness-110"
               )}
             >
-              <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <ListChecks className="size-4 shrink-0 text-secondary" />
+              <span className="flex items-center gap-2 text-sm font-semibold">
+                <ListChecks className="size-4 shrink-0" />
                 {totalItemCount} items — {readyItemCount}/{totalItemCount} ready
               </span>
-              <span className="text-xs font-bold uppercase tracking-wide text-secondary">Open</span>
+              <span className="text-xs font-bold uppercase tracking-wide">Open</span>
             </button>
           )}
 
