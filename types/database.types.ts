@@ -370,6 +370,7 @@ export type Database = {
           employee_id: string | null
           finishing: string | null
           id: string
+          is_ready: boolean
           order_id: string
           paper: string | null
           paper_size: string | null
@@ -382,6 +383,7 @@ export type Database = {
           employee_id?: string | null
           finishing?: string | null
           id?: string
+          is_ready?: boolean
           order_id: string
           paper?: string | null
           paper_size?: string | null
@@ -394,6 +396,7 @@ export type Database = {
           employee_id?: string | null
           finishing?: string | null
           id?: string
+          is_ready?: boolean
           order_id?: string
           paper?: string | null
           paper_size?: string | null
@@ -513,6 +516,7 @@ export type Database = {
           finishing: string | null
           fulfillment_type: Database["public"]["Enums"]["order_fulfillment_type"]
           id: string
+          item_ready: boolean
           notes: string | null
           notification_preferences: Json
           order_number: string
@@ -540,6 +544,7 @@ export type Database = {
           finishing?: string | null
           fulfillment_type?: Database["public"]["Enums"]["order_fulfillment_type"]
           id?: string
+          item_ready?: boolean
           notes?: string | null
           notification_preferences?: Json
           order_number?: string
@@ -567,6 +572,7 @@ export type Database = {
           finishing?: string | null
           fulfillment_type?: Database["public"]["Enums"]["order_fulfillment_type"]
           id?: string
+          item_ready?: boolean
           notes?: string | null
           notification_preferences?: Json
           order_number?: string

@@ -149,6 +149,16 @@ export async function applyOrderStatusTransition(
   const isRevertToProduction =
     (current.status === "ready_pickup" || current.status === "ready_delivery") && status === "in_progress";
 
+  if (isRevertToProduction) {
+    // The per-item readiness checklist (item_ready / order_items.is_ready)
+    // only means anything while the order is actively being reworked --
+    // reset it so the employee has to recheck every item before the order
+    // can auto-advance again, rather than silently jumping straight back to
+    // "ready" off stale checkmarks from before the correction.
+    await supabase.from("orders").update({ item_ready: false }).eq("id", orderId);
+    await supabase.from("order_items").update({ is_ready: false }).eq("order_id", orderId);
+  }
+
   if (status === "ready_internal_pickup") {
     // Outsourced worker's "done" -- internal handoff only, no customer
     // notification. Auto-assign the delivery-role staff so this job shows

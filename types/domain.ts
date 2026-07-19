@@ -150,6 +150,9 @@ export function getEmployeeNextActions(
   return [...actions, doneAction];
 }
 
+/** Pseudo-id for an order's own (first) item in toggleJobItemReady — it isn't a row in order_items, unlike items 2+. */
+export const PRIMARY_ITEM_ID = "primary";
+
 /** Every status an employee is allowed to set via updateEmployeeJobStatus. */
 export const EMPLOYEE_ALLOWED_TARGET_STATUSES: OrderStatus[] = [
   "in_progress",

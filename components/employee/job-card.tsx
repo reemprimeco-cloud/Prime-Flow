@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowRightCircle, FileText, ImageIcon, MapPin, NotebookPen, PackagePlus } from "lucide-react";
+import { ArrowRightCircle, Download, ImageIcon, ListChecks, MapPin, NotebookPen, PackagePlus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 import { Card } from "@/components/ui/card";
@@ -30,18 +30,35 @@ interface JobCardProps {
   onHandOff: () => void;
   onAddNote: () => void;
   onRequestMaterial: () => void;
+  onOpenItems: () => void;
 }
 
-export function JobCard({ job, isOutsourced, pending, onStatusChange, onHandOff, onAddNote, onRequestMaterial }: JobCardProps) {
+export function JobCard({
+  job,
+  isOutsourced,
+  pending,
+  onStatusChange,
+  onHandOff,
+  onAddNote,
+  onRequestMaterial,
+  onOpenItems,
+}: JobCardProps) {
   const countdownColor = useCountdownColor(job.deliveryDate, job.deliveryTime);
   const heroImage = job.productImages[0];
+  // A single-item order already shows everything on the card — the
+  // checklist only earns its keep once there's more than one item to track.
+  const hasMultipleItems = job.itemCount > 0;
+  const readyItemCount = (job.itemReady ? 1 : 0) + job.additionalItems.filter((i) => i.isReady).length;
+  const totalItemCount = job.itemCount + 1;
 
   return (
     <Card className={cn("flex flex-col gap-5 border-l-[6px] p-5 md:p-6", ACCENT_BORDER[countdownColor])}>
       <div className="flex flex-col gap-5 md:flex-row">
         <div className="relative h-56 w-full shrink-0 overflow-hidden rounded-2xl border border-border bg-muted/40 md:h-auto md:w-56">
           {heroImage?.url ? (
-            <Image src={heroImage.url} alt={job.product} fill sizes="(min-width: 768px) 224px, 100vw" className="object-cover" />
+            <a href={heroImage.url} target="_blank" rel="noreferrer" aria-label="Open full-size product image">
+              <Image src={heroImage.url} alt={job.product} fill sizes="(min-width: 768px) 224px, 100vw" className="object-cover" />
+            </a>
           ) : (
             <div className="flex size-full items-center justify-center text-muted-foreground">
               <ImageIcon className="size-10" />
@@ -82,6 +99,25 @@ export function JobCard({ job, isOutsourced, pending, onStatusChange, onHandOff,
             <CountdownTimer deliveryDate={job.deliveryDate} deliveryTime={job.deliveryTime} size="lg" />
           </div>
 
+          {hasMultipleItems && (
+            <button
+              type="button"
+              onClick={onOpenItems}
+              className={cn(
+                "flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-colors",
+                readyItemCount === totalItemCount
+                  ? "border-success/40 bg-success/10 hover:bg-success/15"
+                  : "border-secondary/30 bg-secondary/10 hover:bg-secondary/15"
+              )}
+            >
+              <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <ListChecks className="size-4 shrink-0 text-secondary" />
+                {totalItemCount} items — {readyItemCount}/{totalItemCount} ready
+              </span>
+              <span className="text-xs font-bold uppercase tracking-wide text-secondary">Open</span>
+            </button>
+          )}
+
           {job.fulfillmentType === "delivery" && job.deliveryAddress && (
             <a
               href={buildGoogleMapsLink(job.deliveryAddress)}
@@ -107,19 +143,25 @@ export function JobCard({ job, isOutsourced, pending, onStatusChange, onHandOff,
           <MaterialRequestBadge types={job.pendingMaterialTypes} />
 
           {job.designFiles.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {job.designFiles.map((file) => (
-                <a
-                  key={file.id}
-                  href={file.url ?? undefined}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/20 px-3 py-1.5 text-xs font-medium hover:border-secondary"
-                >
-                  <FileText className="size-3.5 text-muted-foreground" />
-                  {file.fileName}
-                </a>
-              ))}
+            <div className="flex flex-col gap-1.5">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Design Files
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {job.designFiles.map((file) => (
+                  <a
+                    key={file.id}
+                    href={file.url ?? undefined}
+                    download={file.fileName}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 rounded-lg border border-secondary/30 bg-secondary/10 px-3 py-1.5 text-xs font-semibold text-secondary hover:bg-secondary/15"
+                  >
+                    <Download className="size-3.5 shrink-0" />
+                    {file.fileName}
+                  </a>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -132,6 +174,7 @@ export function JobCard({ job, isOutsourced, pending, onStatusChange, onHandOff,
           isOutsourced={isOutsourced}
           pending={pending}
           onChange={onStatusChange}
+          suppressDoneAction={hasMultipleItems}
         />
         {job.canHandOff && (
           <Button type="button" variant="primary" size="lg" disabled={pending} onClick={onHandOff} className="gap-2">

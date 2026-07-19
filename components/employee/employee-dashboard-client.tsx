@@ -27,6 +27,10 @@ const RequestMaterialDialog = dynamic(
   () => import("@/components/employee/request-material-dialog").then((m) => m.RequestMaterialDialog),
   { ssr: false }
 );
+const ItemReadinessDialog = dynamic(
+  () => import("@/components/employee/item-readiness-dialog").then((m) => m.ItemReadinessDialog),
+  { ssr: false }
+);
 import { ORDER_STATUS_LABELS } from "@/types/domain";
 import type { OrderStatus } from "@/types/database.types";
 
@@ -54,8 +58,16 @@ export function EmployeeDashboardClient({ initialJobs, fullName }: EmployeeDashb
   const [actioningId, setActioningId] = useState<string | null>(null);
   const [noteTarget, setNoteTarget] = useState<EmployeeJobItem | null>(null);
   const [materialTarget, setMaterialTarget] = useState<EmployeeJobItem | null>(null);
+  const [itemsTarget, setItemsTarget] = useState<EmployeeJobItem | null>(null);
 
   const data = jobsQuery.data ?? initialJobs;
+
+  // itemsTarget is a snapshot taken when the dialog opened — re-resolve it
+  // against the live list on every render so checkbox state reflects the
+  // latest toggle/refetch instead of the stale object captured at open time.
+  const liveItemsTarget = itemsTarget
+    ? [...data.active, ...data.queue].find((j) => j.id === itemsTarget.id) ?? itemsTarget
+    : null;
 
   const handleStatusChange = (job: EmployeeJobItem, status: OrderStatus) => {
     setActioningId(job.id);
@@ -112,6 +124,7 @@ export function EmployeeDashboardClient({ initialJobs, fullName }: EmployeeDashb
                 onHandOff={() => handleHandOff(job)}
                 onAddNote={() => setNoteTarget(job)}
                 onRequestMaterial={() => setMaterialTarget(job)}
+                onOpenItems={() => setItemsTarget(job)}
               />
             ))}
           </div>
@@ -155,6 +168,11 @@ export function EmployeeDashboardClient({ initialJobs, fullName }: EmployeeDashb
         onOpenChange={(open) => !open && setMaterialTarget(null)}
         orderId={materialTarget?.id ?? null}
         orderNumber={materialTarget?.orderNumber}
+      />
+      <ItemReadinessDialog
+        open={!!itemsTarget}
+        onOpenChange={(open) => !open && setItemsTarget(null)}
+        job={liveItemsTarget}
       />
     </div>
   );

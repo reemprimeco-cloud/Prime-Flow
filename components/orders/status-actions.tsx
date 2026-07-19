@@ -14,10 +14,25 @@ interface StatusActionsProps {
   isOutsourced: boolean;
   pending: boolean;
   onChange: (status: OrderStatus) => void;
+  /**
+   * Hides the "done" action (Ready for Pickup/Delivery/Internal Pickup) from
+   * `in_progress` — used for multi-item orders, where that transition is
+   * gated behind every item's readiness checkbox and fires automatically
+   * (see toggleJobItemReady) rather than through a manual click here.
+   */
+  suppressDoneAction?: boolean;
 }
 
-export function StatusActions({ status, fulfillmentType, isOutsourced, pending, onChange }: StatusActionsProps) {
-  const actions = getEmployeeNextActions(status, fulfillmentType, isOutsourced);
+export function StatusActions({
+  status,
+  fulfillmentType,
+  isOutsourced,
+  pending,
+  onChange,
+  suppressDoneAction,
+}: StatusActionsProps) {
+  let actions = getEmployeeNextActions(status, fulfillmentType, isOutsourced);
+  if (suppressDoneAction && status === "in_progress") actions = actions.slice(0, -1);
   if (actions.length === 0) return null;
 
   return (
