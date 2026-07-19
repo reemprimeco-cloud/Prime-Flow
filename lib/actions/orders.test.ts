@@ -42,23 +42,28 @@ vi.mock("@/lib/notifications/service", () => ({
 type Response = { data: unknown; error: unknown };
 let tableResponses: Record<string, Response[]> = {};
 let tableCallCounts: Record<string, number> = {};
+// Records every chained call made on the FIRST builder handed out for the
+// "orders" table in a test — enough to assert getOrders/getCompletedOrders
+// built the right filter without modeling a real query engine.
+let recordedOrdersCalls: { method: string; args: unknown[] }[] = [];
 
 function resetSupabaseMock(responses: Record<string, Response[]>) {
   tableResponses = responses;
   tableCallCounts = {};
+  recordedOrdersCalls = [];
 }
 
-function makeBuilder(result: Response) {
-  const builder: Record<string, unknown> = {
-    select: () => builder,
-    update: () => builder,
-    insert: () => builder,
-    eq: () => builder,
-    in: () => builder,
-    single: () => builder,
-    then: (resolve: (v: Response) => unknown, reject?: (e: unknown) => unknown) =>
-      Promise.resolve(result).then(resolve, reject),
-  };
+function makeBuilder(result: Response, record?: boolean) {
+  const builder: Record<string, unknown> = {};
+  for (const method of ["select", "update", "insert", "eq", "in", "not", "or", "order", "range"]) {
+    builder[method] = (...args: unknown[]) => {
+      if (record) recordedOrdersCalls.push({ method, args });
+      return builder;
+    };
+  }
+  builder.single = () => builder;
+  builder.then = (resolve: (v: Response) => unknown, reject?: (e: unknown) => unknown) =>
+    Promise.resolve(result).then(resolve, reject);
   return builder;
 }
 
@@ -68,12 +73,12 @@ vi.mock("@/lib/supabase/server", () => ({
       const queue = tableResponses[table] ?? [];
       const idx = tableCallCounts[table] ?? 0;
       tableCallCounts[table] = idx + 1;
-      return makeBuilder(queue[idx] ?? { data: null, error: null });
+      return makeBuilder(queue[idx] ?? { data: null, error: null }, table === "orders" && idx === 0);
     },
   }),
 }));
 
-import { createOrder, updateOrderStatus } from "@/lib/actions/orders";
+import { createOrder, getCompletedOrders, getOrders, updateOrderStatus } from "@/lib/actions/orders";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/notifications/constants";
 
 const ADMIN_SESSION = { employeeId: "admin-1", username: "admin", fullName: "Rana Al-Fadhli", role: "admin" as const };
@@ -209,5 +214,38 @@ describe("Manager quick status action — updateOrderStatus", () => {
   it("requires admin auth", async () => {
     mockRequireAdmin.mockRejectedValueOnce(new Error("REDIRECT:/login"));
     await expect(updateOrderStatus("order-1", "in_progress")).rejects.toThrow("REDIRECT:/login");
+  });
+});
+
+describe("Completed Orders — dashboard board vs. Reports tab", () => {
+  it("getOrders excludes collected/delivered/completed from the default (unfiltered) board", async () => {
+    resetSupabaseMock({ orders: [{ data: [], error: null }] });
+
+    await getOrders();
+
+    expect(recordedOrdersCalls).toContainEqual({
+      method: "not",
+      args: ["status", "in", "(collected,delivered,completed)"],
+    });
+  });
+
+  it("getOrders skips the exclusion when an explicit status filter is set", async () => {
+    resetSupabaseMock({ orders: [{ data: [], error: null }] });
+
+    await getOrders({ status: "collected" });
+
+    expect(recordedOrdersCalls.some((c) => c.method === "not")).toBe(false);
+    expect(recordedOrdersCalls).toContainEqual({ method: "eq", args: ["status", "collected"] });
+  });
+
+  it("getCompletedOrders queries only finished-job statuses", async () => {
+    resetSupabaseMock({ orders: [{ data: [], error: null }] });
+
+    await getCompletedOrders();
+
+    expect(recordedOrdersCalls).toContainEqual({
+      method: "in",
+      args: ["status", ["collected", "delivered", "completed"]],
+    });
   });
 });

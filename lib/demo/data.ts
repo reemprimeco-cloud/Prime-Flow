@@ -12,6 +12,7 @@ import {
 } from "date-fns";
 
 import type {
+  CompletedOrderFilters,
   CustomerSuggestion,
   DashboardStats,
   OrderDetail,
@@ -152,12 +153,19 @@ function getAllDemoOrders(now: Date = new Date()) {
   return ORDER_SEEDS.map((seed) => buildOrder(seed, now));
 }
 
+/** Mirrors DASHBOARD_COMPLETED_STATUSES in lib/actions/orders.ts. */
+const DASHBOARD_COMPLETED_STATUSES: OrderStatus[] = ["collected", "delivered", "completed"];
+
 export function getDemoOrders(filters: OrderFilters = {}): OrderListResult {
   const now = new Date();
-  let orders = getAllDemoOrders(now).filter((o) => o.status !== "completed" || (o.completedAt && isCurrentMonth(o.completedAt, now)));
+  let orders = getAllDemoOrders(now);
 
   if (filters.status && filters.status !== "all") {
     orders = orders.filter((o) => o.status === filters.status);
+  } else {
+    // Default board view — finished jobs live under Reports > Completed
+    // Orders instead (see getDemoCompletedOrders below).
+    orders = orders.filter((o) => !DASHBOARD_COMPLETED_STATUSES.includes(o.status));
   }
   if (filters.priority && filters.priority !== "all") {
     orders = orders.filter((o) => o.priority === filters.priority);
@@ -181,6 +189,37 @@ export function getDemoOrders(filters: OrderFilters = {}): OrderListResult {
 
   const sorted = orders
     .sort((a, b) => `${a.deliveryDate}${a.deliveryTime}`.localeCompare(`${b.deliveryDate}${b.deliveryTime}`))
+    .map((order) => {
+      const { completedAt, assignedAt, ...listItem } = order;
+      void completedAt;
+      void assignedAt;
+      return listItem;
+    });
+
+  const page = Math.max(1, Math.floor(filters.page ?? 1));
+  const pageSize = Math.min(Math.max(1, Math.floor(filters.pageSize ?? DEFAULT_ORDERS_PAGE_SIZE)), 100);
+  const from = (page - 1) * pageSize;
+
+  return { items: sorted.slice(from, from + pageSize), totalCount: sorted.length, page, pageSize };
+}
+
+export function getDemoCompletedOrders(filters: CompletedOrderFilters = {}): OrderListResult {
+  const now = new Date();
+  let orders = getAllDemoOrders(now).filter((o) => DASHBOARD_COMPLETED_STATUSES.includes(o.status));
+
+  if (filters.search?.trim()) {
+    const term = filters.search.trim().toLowerCase();
+    orders = orders.filter(
+      (o) =>
+        o.orderNumber.toLowerCase().includes(term) ||
+        o.customerName.toLowerCase().includes(term) ||
+        o.customerMobile.toLowerCase().includes(term) ||
+        o.product.toLowerCase().includes(term)
+    );
+  }
+
+  const sorted = orders
+    .sort((a, b) => `${b.deliveryDate}${b.deliveryTime}`.localeCompare(`${a.deliveryDate}${a.deliveryTime}`))
     .map((order) => {
       const { completedAt, assignedAt, ...listItem } = order;
       void completedAt;

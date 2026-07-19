@@ -22,12 +22,11 @@ export function QuickActions({ onNewOrder }: { onNewOrder: () => void }) {
           Material Requests
         </Link>
       </Button>
-      <Button size="lg" variant="outline" className="gap-2 opacity-60" disabled title="Coming in a later phase">
-        <BarChart3 className="size-4" />
-        Monthly Reports
-        <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-          Soon
-        </span>
+      <Button asChild size="lg" variant="outline" className="gap-2">
+        <Link href="/reports">
+          <BarChart3 className="size-4" />
+          Monthly Reports
+        </Link>
       </Button>
     </div>
   );

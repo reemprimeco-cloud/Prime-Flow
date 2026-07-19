@@ -67,6 +67,8 @@ When a manager assigns more than one employee to an order, the order form's "Ass
 
 `/reports` (`lib/actions/reports.ts`, `components/manager/reports-client.tsx`) charts that history with recharts, plus CSV export. `/archive` lists everything the cron has archived, with search and a month filter.
 
+`getOrders()` excludes `collected`/`delivered`/`completed` from the default (unfiltered) dashboard board — finished jobs would otherwise sit on the live board indefinitely, since nothing moves them to `archived` until the month-end cron runs. They still show up if the manager explicitly filters by one of those statuses. The counterpart, `getCompletedOrders()`, powers a "Completed Orders" tab on `/reports` (`components/manager/completed-orders-panel.tsx`) — the same order cards, search, and pagination as the dashboard board, scoped to `archived = false` orders in those three statuses, so a manager can find a recently-finished order without paging through `/archive`. Both `getOrders` and `getCompletedOrders` share the row-enrichment logic (`buildOrderListItems` in `lib/actions/orders.ts`) so assignment/thumbnail/material-request lookups can't drift between the two views.
+
 ## Operations Control Center
 
 Built on top of the Production Core infrastructure (Realtime, Audit Log, Status Engine) without new tracking tables — the Live Production Timeline and Activity Feed are both just filtered/formatted reads of `audit_logs`, and Manager Override is the sole deliberate exception that bypasses the Status Engine (with a required reason and an audit trail flagging it as such). Full module-by-module detail — Employee Workload, Production Calendar, the Operations Dashboard KPIs, Global Search, Bulk Actions, and the Diagnostics health check — is in `OPERATIONS.md`.

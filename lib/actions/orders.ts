@@ -12,7 +12,13 @@ import { toDeliveryDate } from "@/lib/utils/countdown";
 import { DEFAULT_ORDERS_PAGE_SIZE } from "@/lib/orders/constants";
 import { DELAYABLE_STATUSES } from "@/types/domain";
 import { isDemoMode } from "@/lib/demo/mode";
-import { getDemoCustomerSuggestions, getDemoDashboardStats, getDemoOrderDetail, getDemoOrders } from "@/lib/demo/data";
+import {
+  getDemoCompletedOrders,
+  getDemoCustomerSuggestions,
+  getDemoDashboardStats,
+  getDemoOrderDetail,
+  getDemoOrders,
+} from "@/lib/demo/data";
 import { recordAuditLog } from "@/lib/audit/log";
 import { applyOrderStatusTransition } from "@/lib/actions/status-transition";
 import {
@@ -159,9 +165,46 @@ export interface CustomerSuggestion {
   preferredChannel: NotificationChannel;
 }
 
+export interface CompletedOrderFilters {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
 // ---------------------------------------------------------------------------
 // Reads
 // ---------------------------------------------------------------------------
+
+/**
+ * Statuses that represent a finished job. These stay off the default
+ * (unfiltered) dashboard board — see getOrders below — and instead surface
+ * under Reports > Completed Orders (getCompletedOrders), until month-end
+ * archival moves them to /archive.
+ */
+const DASHBOARD_COMPLETED_STATUSES: OrderStatus[] = ["collected", "delivered", "completed"];
+
+const ORDER_LIST_SELECT =
+  "id, order_number, customer_name, customer_mobile, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, status, fulfillment_type, notes, whatsapp_enabled, preferred_language";
+
+interface OrderListRow {
+  id: string;
+  order_number: string;
+  customer_name: string;
+  customer_mobile: string;
+  product: string;
+  paper: string | null;
+  paper_size: string | null;
+  quantity: number;
+  finishing: string | null;
+  priority: OrderPriority;
+  delivery_date: string;
+  delivery_time: string;
+  status: OrderStatus;
+  fulfillment_type: OrderFulfillmentType;
+  notes: string | null;
+  whatsapp_enabled: boolean;
+  preferred_language: OrderLanguage;
+}
 
 /**
  * Paginated by design — an earlier version fetched every non-archived order
@@ -197,16 +240,19 @@ export async function getOrders(filters: OrderFilters = {}): Promise<OrderListRe
 
   let query = supabase
     .from("orders")
-    .select(
-      "id, order_number, customer_name, customer_mobile, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, status, fulfillment_type, notes, whatsapp_enabled, preferred_language",
-      { count: "exact" }
-    )
+    .select(ORDER_LIST_SELECT, { count: "exact" })
     .eq("archived", false)
     .order("delivery_date", { ascending: true })
     .order("delivery_time", { ascending: true });
 
   if (filters.status && filters.status !== "all") {
     query = query.eq("status", filters.status);
+  } else {
+    // Default (unfiltered) board view — finished jobs move to the
+    // Completed Orders tab (getCompletedOrders) instead of sitting here
+    // indefinitely. An explicit status filter (e.g. "Collected") still
+    // works via the branch above.
+    query = query.not("status", "in", `(${DASHBOARD_COMPLETED_STATUSES.join(",")})`);
   }
   if (filters.priority && filters.priority !== "all") {
     query = query.eq("priority", filters.priority);
@@ -230,6 +276,51 @@ export async function getOrders(filters: OrderFilters = {}): Promise<OrderListRe
   const totalCount = count ?? 0;
   if (!orders || orders.length === 0) return { items: [], totalCount, page, pageSize };
 
+  const items = await buildOrderListItems(supabase, orders);
+  return { items, totalCount, page, pageSize };
+}
+
+/**
+ * Powers Reports > Completed Orders — the counterpart to getOrders' default
+ * exclusion of finished jobs. Shows collected/delivered/completed orders
+ * that haven't been archived yet (post month-end, they move to /archive
+ * instead), so a manager can find a recently-finished order without paging
+ * through the active board.
+ */
+export async function getCompletedOrders(filters: CompletedOrderFilters = {}): Promise<OrderListResult> {
+  await requireAdmin();
+  if (isDemoMode()) return getDemoCompletedOrders(filters);
+  const supabase = createServiceClient();
+
+  const page = Math.max(1, Math.floor(filters.page ?? 1));
+  const pageSize = Math.min(Math.max(1, Math.floor(filters.pageSize ?? DEFAULT_ORDERS_PAGE_SIZE)), 100);
+
+  let query = supabase
+    .from("orders")
+    .select(ORDER_LIST_SELECT, { count: "exact" })
+    .eq("archived", false)
+    .in("status", DASHBOARD_COMPLETED_STATUSES)
+    .order("delivery_date", { ascending: false })
+    .order("delivery_time", { ascending: false });
+
+  if (filters.search?.trim()) {
+    const term = `%${filters.search.trim().replace(/[%,]/g, "")}%`;
+    query = query.or(
+      `order_number.ilike.${term},customer_name.ilike.${term},customer_mobile.ilike.${term},product.ilike.${term}`
+    );
+  }
+
+  const from = (page - 1) * pageSize;
+  const { data: orders, error, count } = await query.range(from, from + pageSize - 1);
+  if (error) throw new Error(error.message);
+  const totalCount = count ?? 0;
+  if (!orders || orders.length === 0) return { items: [], totalCount, page, pageSize };
+
+  const items = await buildOrderListItems(supabase, orders);
+  return { items, totalCount, page, pageSize };
+}
+
+async function buildOrderListItems(supabase: ServiceClient, orders: OrderListRow[]): Promise<OrderListItem[]> {
   const orderIds = orders.map((o) => o.id);
 
   const [{ data: assignmentRows }, { data: fileRows }, { data: materialRows }, { data: itemRows }] = await Promise.all([
@@ -287,7 +378,7 @@ export async function getOrders(filters: OrderFilters = {}): Promise<OrderListRe
     }
   }
 
-  const items: OrderListItem[] = orders.map((o) => {
+  return orders.map((o) => {
     const thumbnailPath = thumbnailPathByOrder.get(o.id);
     return {
       id: o.id,
@@ -313,8 +404,6 @@ export async function getOrders(filters: OrderFilters = {}): Promise<OrderListRe
       itemCount: itemCountByOrder.get(o.id) ?? 0,
     };
   });
-
-  return { items, totalCount, page, pageSize };
 }
 
 /**

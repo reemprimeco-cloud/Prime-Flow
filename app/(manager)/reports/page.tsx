@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { requireAdmin } from "@/lib/auth/guards";
 import { getCurrentMonthStats, listMonthlyStatistics } from "@/lib/actions/reports";
+import { listEmployees } from "@/lib/actions/employees";
 import { ReportsClient } from "@/components/manager/reports-client";
 
 export const metadata: Metadata = {
@@ -12,7 +13,11 @@ export const dynamic = "force-dynamic";
 
 export default async function ReportsPage() {
   await requireAdmin();
-  const [monthlyStats, currentMonth] = await Promise.all([listMonthlyStatistics(), getCurrentMonthStats()]);
+  const [monthlyStats, currentMonth, employees] = await Promise.all([
+    listMonthlyStatistics(),
+    getCurrentMonthStats(),
+    listEmployees(),
+  ]);
 
-  return <ReportsClient initialStats={monthlyStats} initialCurrentMonth={currentMonth} />;
+  return <ReportsClient initialStats={monthlyStats} initialCurrentMonth={currentMonth} employees={employees} />;
 }
