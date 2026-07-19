@@ -34,7 +34,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileUpload } from "@/components/shared/file-upload";
-import { DESIGN_FILE_ACCEPT, PRODUCT_IMAGE_ACCEPT } from "@/lib/files/constants";
+import { DESIGN_FILE_ACCEPT, MAX_TOTAL_UPLOAD_BYTES, PRODUCT_IMAGE_ACCEPT } from "@/lib/files/constants";
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   NOTIFICATION_PREFERENCE_LABELS,
@@ -199,6 +199,13 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
   const onSubmit = (values: OrderFormInput) => {
     startTransition(async () => {
       try {
+        const totalBytes = [...productImages, ...designFiles].reduce((sum, file) => sum + file.size, 0);
+        if (totalBytes > MAX_TOTAL_UPLOAD_BYTES) {
+          const maxMb = (MAX_TOTAL_UPLOAD_BYTES / (1024 * 1024)).toFixed(0);
+          toast.error(`Attached files are too large together — max ${maxMb}MB combined. Remove or shrink a file.`);
+          return;
+        }
+
         const formData = new FormData();
         formData.set("customerName", values.customerName);
         formData.set("customerMobile", values.customerMobile);

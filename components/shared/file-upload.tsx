@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Archive, FileText, ImageIcon, Loader2, PenTool, Upload, X } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { getFileKind, type FileKind } from "@/lib/files/constants";
+import { getFileKind, MAX_FILE_SIZE_BYTES, type FileKind } from "@/lib/files/constants";
 
 interface ExistingFile {
   id: string;
@@ -38,8 +39,21 @@ export function FileUpload({
 
   const handlePick = (fileList: FileList | null) => {
     if (!fileList) return;
-    const next = multiple ? [...files, ...Array.from(fileList)] : Array.from(fileList).slice(0, 1);
-    onChange(next);
+    const picked = multiple ? Array.from(fileList) : Array.from(fileList).slice(0, 1);
+
+    const tooLarge = picked.filter((f) => f.size > MAX_FILE_SIZE_BYTES);
+    const accepted = picked.filter((f) => f.size <= MAX_FILE_SIZE_BYTES);
+    if (tooLarge.length > 0) {
+      const maxMb = (MAX_FILE_SIZE_BYTES / (1024 * 1024)).toFixed(0);
+      toast.error(
+        tooLarge.length === 1
+          ? `"${tooLarge[0].name}" is too large — max ${maxMb}MB per file.`
+          : `${tooLarge.length} files are too large — max ${maxMb}MB per file.`
+      );
+    }
+    if (accepted.length === 0) return;
+
+    onChange(multiple ? [...files, ...accepted] : accepted);
   };
 
   const removeNew = (index: number) => {

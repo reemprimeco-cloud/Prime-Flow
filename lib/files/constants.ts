@@ -9,7 +9,22 @@
  * .cdr and .psd, so MIME is only a secondary check.
  */
 
-export const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25MB
+/**
+ * Order creation/edit submits every attached file in one multipart
+ * Server Action request, which on this deployment runs as a Netlify
+ * Function (AWS Lambda under the hood). Synchronous Lambda invocations
+ * have a hard, non-configurable 6MB request payload limit -- and Netlify
+ * base64-encodes binary bodies internally, which adds ~30% overhead and
+ * drops the *effective* limit for actual file bytes to ~4.5MB. That's a
+ * platform-level rejection before the app's own code ever runs, which is
+ * why a real production submission with a normal phone photo attached
+ * failed with a generic "unexpected response" error rather than a useful
+ * message. These limits keep every real submission safely under that
+ * ceiling; both the size and the count of files matter since they all
+ * share one request.
+ */
+export const MAX_FILE_SIZE_BYTES = 3 * 1024 * 1024; // 3MB per file
+export const MAX_TOTAL_UPLOAD_BYTES = 4 * 1024 * 1024; // 4MB combined across all files in one submission
 
 export const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"];
 const IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"];
