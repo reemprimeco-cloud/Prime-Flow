@@ -397,7 +397,7 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                 <Field label="Paper Size (optional)">
                   <Input {...register("paperSize")} placeholder="Optional" />
                 </Field>
-                <Field label="Finishing (optional)" className="col-span-2">
+                <Field label="Finishing (optional)" className="sm:col-span-2">
                   <Input {...register("finishing")} placeholder="Optional" />
                 </Field>
               </div>
@@ -530,10 +530,10 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                     <Field label="Paper Size (optional)">
                       <Input {...register(`items.${index}.paperSize`)} placeholder="Optional" />
                     </Field>
-                    <Field label="Finishing (optional)" className="col-span-2">
+                    <Field label="Finishing (optional)" className="sm:col-span-2">
                       <Input {...register(`items.${index}.finishing`)} placeholder="Optional" />
                     </Field>
-                    <Field label="Assign To" className="col-span-2">
+                    <Field label="Assign To" className="sm:col-span-2">
                       <Controller
                         control={control}
                         name={`items.${index}.employeeId`}
@@ -613,10 +613,10 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                 </Field>
                 {fulfillmentType === "delivery" && (
                   <>
-                    <Field label="Delivery Address" className="col-span-2">
+                    <Field label="Delivery Address" className="sm:col-span-2">
                       <Input {...register("deliveryAddress")} placeholder="Building, street, area" />
                     </Field>
-                    <Field label="Map Location Link (optional)" className="col-span-2">
+                    <Field label="Map Location Link (optional)" className="sm:col-span-2">
                       <Input
                         {...register("deliveryMapLink")}
                         placeholder="Paste a Google Maps link — e.g. from Share > Copy Link on a pin"
