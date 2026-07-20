@@ -31,11 +31,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileUpload } from "@/components/shared/file-upload";
 import { DESIGN_FILE_ACCEPT, MAX_TOTAL_UPLOAD_BYTES, PRODUCT_IMAGE_ACCEPT } from "@/lib/files/constants";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/notifications/constants";
 import { ORDER_FULFILLMENT_TYPE_LABELS, ORDER_PRIORITY_LABELS } from "@/types/domain";
+import { cn } from "@/lib/utils";
 
 interface OrderFormProps {
   open: boolean;
@@ -67,6 +69,7 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
       finishing: "",
       fulfillmentType: "pickup",
       priority: "normal",
+      approved: false,
       deliveryDate: "",
       deliveryTime: "",
       deliveryAddress: "",
@@ -94,6 +97,7 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
     finishing: order.finishing ?? "",
     fulfillmentType: order.fulfillmentType,
     priority: order.priority,
+    approved: order.approved,
     deliveryDate: order.deliveryDate,
     deliveryTime: order.deliveryTime.slice(0, 5),
     deliveryAddress: order.deliveryAddress ?? "",
@@ -248,6 +252,7 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
         formData.set("finishing", values.finishing ?? "");
         formData.set("fulfillmentType", values.fulfillmentType);
         formData.set("priority", values.priority);
+        formData.set("approved", String(values.approved));
         formData.set("deliveryDate", values.deliveryDate);
         formData.set("deliveryTime", values.deliveryTime);
         formData.set("deliveryAddress", values.deliveryAddress ?? "");
@@ -625,6 +630,34 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                   </>
                 )}
               </div>
+            </section>
+
+            <section className="flex flex-col gap-4">
+              <h3 className="text-sm font-bold text-muted-foreground">Production Approval</h3>
+              <Controller
+                control={control}
+                name="approved"
+                render={({ field }) => (
+                  <label
+                    className={cn(
+                      "flex cursor-pointer items-center justify-between gap-4 rounded-xl border px-4 py-3.5 transition-colors",
+                      field.value ? "border-success/40 bg-success/10" : "border-warning/40 bg-warning/10"
+                    )}
+                  >
+                    <div>
+                      <div className="text-sm font-bold text-foreground">
+                        {field.value ? "Approved for production" : "Not yet approved"}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {field.value
+                          ? "The assigned employee can start production."
+                          : "The assigned employee will see “Wait for Admin Approval” until this is switched on."}
+                      </p>
+                    </div>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </label>
+                )}
+              />
             </section>
 
             <section className="flex flex-col gap-2">

@@ -83,6 +83,7 @@ export interface OrderListItem {
   notes: string | null;
   whatsappEnabled: boolean;
   preferredLanguage: OrderLanguage;
+  approved: boolean;
   assignedEmployees: { id: string; fullName: string }[];
   thumbnailUrl: string | null;
   pendingMaterialTypes: MaterialType[];
@@ -122,6 +123,7 @@ export interface OrderDetail {
   notes: string | null;
   status: OrderStatus;
   fulfillmentType: OrderFulfillmentType;
+  approved: boolean;
   createdAt: string;
   updatedAt: string;
   assignedEmployees: { id: string; fullName: string }[];
@@ -185,7 +187,7 @@ export interface CompletedOrderFilters {
 const DASHBOARD_COMPLETED_STATUSES: OrderStatus[] = ["collected", "delivered", "completed"];
 
 const ORDER_LIST_SELECT =
-  "id, order_number, customer_name, customer_mobile, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, status, fulfillment_type, notes, whatsapp_enabled, preferred_language";
+  "id, order_number, customer_name, customer_mobile, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, status, fulfillment_type, notes, whatsapp_enabled, preferred_language, approved";
 
 interface OrderListRow {
   id: string;
@@ -205,6 +207,7 @@ interface OrderListRow {
   notes: string | null;
   whatsapp_enabled: boolean;
   preferred_language: OrderLanguage;
+  approved: boolean;
 }
 
 /**
@@ -399,6 +402,7 @@ async function buildOrderListItems(supabase: ServiceClient, orders: OrderListRow
       notes: o.notes,
       whatsappEnabled: o.whatsapp_enabled,
       preferredLanguage: o.preferred_language,
+      approved: o.approved,
       assignedEmployees: assignmentsByOrder.get(o.id) ?? [],
       thumbnailUrl: thumbnailPath ? signedUrlByPath.get(thumbnailPath) ?? null : null,
       pendingMaterialTypes: pendingTypesByOrder.get(o.id) ?? [],
@@ -531,6 +535,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
     notes: order.notes,
     status: order.status,
     fulfillmentType: order.fulfillment_type,
+    approved: order.approved,
     createdAt: order.created_at,
     updatedAt: order.updated_at,
     assignedEmployees: (assignmentRows ?? []).map((r) => ({
@@ -681,6 +686,7 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
       delivery_address: input.deliveryAddress || null,
       delivery_map_link: input.deliveryMapLink || null,
       notes: input.notes || null,
+      approved: input.approved,
       created_by: session.employeeId,
     })
     .select("id, order_number")
@@ -818,6 +824,7 @@ export async function updateOrder(orderId: string, formData: FormData): Promise<
       delivery_address: input.deliveryAddress || null,
       delivery_map_link: input.deliveryMapLink || null,
       notes: input.notes || null,
+      approved: input.approved,
     })
     .eq("id", orderId);
   if (error) throw new Error(error.message);
@@ -975,6 +982,10 @@ export async function duplicateOrder(orderId: string): Promise<{ id: string }> {
       delivery_map_link: original.delivery_map_link,
       notes: original.notes,
       status: "new",
+      // A duplicate is a fresh production job, not a resumption of the
+      // original — it goes through approval again regardless of whether the
+      // original had already been approved.
+      approved: false,
       created_by: session.employeeId,
     })
     .select("id")
@@ -1232,6 +1243,7 @@ function parseOrderForm(formData: FormData) {
     finishing: formData.get("finishing") || undefined,
     fulfillmentType: formData.get("fulfillmentType"),
     priority: formData.get("priority"),
+    approved: formData.get("approved") === "true",
     deliveryDate: formData.get("deliveryDate"),
     deliveryTime: formData.get("deliveryTime"),
     deliveryAddress: formData.get("deliveryAddress") || undefined,

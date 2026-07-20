@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, ShieldAlert, Sparkles } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 import { Card } from "@/components/ui/card";
@@ -48,10 +48,17 @@ export function QueueCard({ job, isNext, pending, onStart }: QueueCardProps) {
         <CountdownTimer deliveryDate={job.deliveryDate} deliveryTime={job.deliveryTime} />
       </div>
 
-      <Button type="button" size="default" variant="primary" disabled={pending} onClick={onStart} className="w-full sm:w-auto sm:self-end">
-        {pending && <Loader2 className="animate-spin" />}
-        Start Production
-      </Button>
+      {job.approved ? (
+        <Button type="button" size="default" variant="primary" disabled={pending} onClick={onStart} className="w-full sm:w-auto sm:self-end">
+          {pending && <Loader2 className="animate-spin" />}
+          Start Production
+        </Button>
+      ) : (
+        <div className="flex items-center gap-2 rounded-xl border border-warning/40 bg-warning/15 px-3.5 py-2.5 text-sm font-bold text-warning-foreground">
+          <ShieldAlert className="size-4 shrink-0" />
+          Wait for Admin Approval
+        </div>
+      )}
     </Card>
   );
 }

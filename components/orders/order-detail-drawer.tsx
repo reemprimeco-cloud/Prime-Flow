@@ -110,6 +110,12 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                 <Badge variant="outline">{order.fulfillmentType === "delivery" ? "Delivery" : "Pickup"}</Badge>
                 <Badge variant="muted">{order.preferredLanguage === "ar" ? "Arabic" : "English"}</Badge>
                 <Badge variant="muted">WhatsApp {order.whatsappEnabled ? "on" : "off"}</Badge>
+                {order.status === "new" && !order.approved && (
+                  <Badge variant="warning" className="gap-1">
+                    <ShieldAlert className="size-3" />
+                    Pending Approval
+                  </Badge>
+                )}
               </section>
 
               <StatusActions

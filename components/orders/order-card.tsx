@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import Image from "next/image";
-import { ImageIcon, MoreVertical, Copy, Pencil, Trash2, Eye, CalendarClock, Store, Truck } from "lucide-react";
+import { ImageIcon, MoreVertical, Copy, Pencil, Trash2, Eye, CalendarClock, Store, Truck, ShieldAlert } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 import { Card } from "@/components/ui/card";
@@ -144,6 +144,12 @@ export const OrderCard = memo(function OrderCard({
           )}
           {order.fulfillmentType === "delivery" ? "Delivery" : "Pickup"}
         </Badge>
+        {order.status === "new" && !order.approved && (
+          <Badge variant="warning" className="gap-1">
+            <ShieldAlert className="size-3" />
+            Pending Approval
+          </Badge>
+        )}
       </div>
     </Card>
   );

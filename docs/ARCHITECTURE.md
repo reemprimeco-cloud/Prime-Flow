@@ -113,6 +113,14 @@ This first pass is intentionally UI-only — submitting shows a "Request receive
 
 The Manager Notes block on `JobCard` switched from `bg-secondary/10`/`text-secondary` (the same dark blue used for order numbers, map links, and most other accents on the card) to `bg-warning/15`/`text-warning-foreground` (amber) — it was blending into every other blue element on the card rather than standing out as a note worth reading.
 
+## Production Approval Gate
+
+Every order now carries `orders.approved` (`0017_order_approval.sql`, `boolean not null default true`), toggled by a "Production Approval" switch on the order form (default **off** for a brand-new order — the admin has to deliberately flip it on, either at creation or later via Edit). The column defaults to `true` so it doesn't retroactively lock any order that existed before this migration; the form is what actually makes new orders start unapproved.
+
+The gate applies to exactly one transition: an employee's "Start Production" tap (`new` → `in_progress`) on `QueueCard`. `updateEmployeeJobStatus` (`lib/actions/employee-jobs.ts`) checks `orders.approved` server-side right before calling `applyOrderStatusTransition` whenever the target is `in_progress` — the authoritative check, independent of what the UI shows. `QueueCard` mirrors it client-side: an unapproved job shows a "Wait for Admin Approval" banner instead of the Start Production button, so there's nothing to tap in the first place. Once an order is past `new`, later transitions (`waiting_materials` → `in_progress`, etc.) are never re-checked — the admin already implicitly signed off by letting it progress.
+
+The admin's own "Start Production" click (`updateOrderStatus`, used from the order detail drawer) is deliberately **not** gated — an admin setting the approval flag has no reason to block themselves from acting on the same order. `duplicateOrder` always resets the copy to unapproved regardless of the original's state, since a duplicate is a fresh production job that should go through approval again. A `Pending Approval` badge (amber, `ShieldAlert` icon) surfaces on `OrderCard`, `order-list-view`, and the order detail drawer header whenever `status === "new" && !approved`, so a manager can spot what's still waiting without opening every order.
+
 ## What's deferred
 
 Email and SMS notification providers — only WhatsApp (via Twilio) is implemented, behind the same provider abstraction the other two will use (see `NOTIFICATIONS.md`). The **Notification Service**, **Audit Log**, and **Status Engine** built in the infrastructure phase are designed so both land as pure additions — no dashboard code changes required.

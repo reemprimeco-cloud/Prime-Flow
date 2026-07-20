@@ -159,4 +159,16 @@ describe("Order Creation — orderFormSchema", () => {
     const result = orderFormSchema.safeParse(validOrder());
     expect(result.success).toBe(true);
   });
+
+  it("defaults approved to false when omitted", () => {
+    const result = orderFormSchema.safeParse(validOrder());
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.approved).toBe(false);
+  });
+
+  it("accepts an explicit approved value", () => {
+    const result = orderFormSchema.safeParse(validOrder({ approved: true }));
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.approved).toBe(true);
+  });
 });

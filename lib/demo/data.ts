@@ -105,6 +105,8 @@ interface DemoOrderSeed {
   /** Item 1 (this seed's own product/paper/etc.) readiness — defaults false. Items 2+ live in `items`. */
   itemReady?: boolean;
   items?: DemoOrderItemSeed[];
+  /** Admin approval gate — defaults true (see 0017_order_approval.sql); set false to demo the "Wait for Admin Approval" state. */
+  approved?: boolean;
 }
 
 /** Demo seeds don't carry an explicit fulfillment type — infer a plausible
@@ -131,7 +133,7 @@ const ORDER_SEEDS: DemoOrderSeed[] = [
   { id: "demo-order-11", orderNumber: "#1031", customerName: "Bayt Al-Ward Flowers", customerMobile: "+96555020202", product: "Gift Tags", paper: "270gsm Pearl", paperSize: "6x9cm", quantity: 600, finishing: "Ribbon hole", priority: "normal", status: "completed", offsetMinutes: -6000, assignedTo: ["demo-emp-2", "demo-emp-4"], assignedHoursAgo: 170, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "ar", notes: "", completedDaysAgo: 7 },
   { id: "demo-order-12", orderNumber: "#0998", customerName: "Kuwait Sports Club", customerMobile: "+96555030303", product: "Event Banners", paper: "Vinyl 13oz", paperSize: "300x100cm", quantity: 3, finishing: "Grommets", priority: "urgent", status: "completed", offsetMinutes: -9000, assignedTo: ["demo-emp-1"], assignedHoursAgo: 840, pendingMaterials: [], whatsappEnabled: false, preferredLanguage: "en", notes: "", completedDaysAgo: 35 },
   { id: "demo-order-13", orderNumber: "#1051", customerName: "Al-Noor School", customerMobile: "+96555040404", product: "Certificates", paper: "300gsm Card", paperSize: "A4", quantity: 100, finishing: "Gold foil", priority: "urgent", status: "new", offsetMinutes: 5 * 60, assignedTo: ["demo-emp-1"], assignedHoursAgo: 2, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "ar", notes: "Please double check the spelling list before printing." },
-  { id: "demo-order-14", orderNumber: "#1052", customerName: "Fitness First Gym", customerMobile: "+96555050505", product: "Membership Cards", paper: "300gsm PVC-look Card", paperSize: "8.5x5.5cm", quantity: 500, finishing: "Lamination", priority: "normal", status: "new", offsetMinutes: 2 * 60, assignedTo: ["demo-emp-1"], assignedHoursAgo: 5, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "en", notes: "" },
+  { id: "demo-order-14", orderNumber: "#1052", customerName: "Fitness First Gym", customerMobile: "+96555050505", product: "Membership Cards", paper: "300gsm PVC-look Card", paperSize: "8.5x5.5cm", quantity: 500, finishing: "Lamination", priority: "normal", status: "new", offsetMinutes: 2 * 60, assignedTo: ["demo-emp-1"], assignedHoursAgo: 5, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "en", notes: "", approved: false },
 ];
 
 function buildOrder(seed: DemoOrderSeed, now: Date): OrderListItem & { completedAt: Date | null; assignedAt: Date } {
@@ -156,6 +158,7 @@ function buildOrder(seed: DemoOrderSeed, now: Date): OrderListItem & { completed
     notes: seed.notes || null,
     whatsappEnabled: seed.whatsappEnabled,
     preferredLanguage: seed.preferredLanguage,
+    approved: seed.approved ?? true,
     assignedEmployees: emp(...seed.assignedTo),
     thumbnailUrl: null,
     pendingMaterialTypes: seed.pendingMaterials,
@@ -374,6 +377,7 @@ export function getDemoOrderDetail(orderId: string): OrderDetail {
     deliveryMapLink: null,
     notes: order.notes,
     status: order.status,
+    approved: order.approved,
     fulfillmentType: order.fulfillmentType,
     createdAt,
     updatedAt: new Date().toISOString(),
@@ -637,6 +641,7 @@ export function getDemoMyJobs(employeeId: string): {
         deliveryMapLink: null,
         status: order.status,
         fulfillmentType: order.fulfillmentType,
+        approved: order.approved,
         managerNotes: order.notes,
         productImages: [],
         designFiles: [],

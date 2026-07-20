@@ -33,6 +33,7 @@ export const orderFormSchema = z.object({
   finishing: z.string().trim().max(300).optional().or(z.literal("")),
   fulfillmentType: z.enum(["pickup", "delivery"]),
   priority: z.enum(["normal", "urgent"]),
+  approved: z.boolean().default(false),
   deliveryDate: z.string().min(1, "Delivery date is required"),
   deliveryTime: z.string().min(1, "Delivery time is required"),
   deliveryAddress: z.string().trim().max(500).optional().or(z.literal("")),

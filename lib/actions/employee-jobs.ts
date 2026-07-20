@@ -58,6 +58,8 @@ export interface EmployeeJobItem {
   deliveryMapLink: string | null;
   status: OrderStatus;
   fulfillmentType: OrderFulfillmentType;
+  /** Whether the admin has cleared this order to start production — gates the "new" -> "in_progress" transition. */
+  approved: boolean;
   managerNotes: string | null;
   productImages: { id: string; fileName: string; url: string | null }[];
   designFiles: { id: string; fileName: string; url: string | null }[];
@@ -115,7 +117,7 @@ export async function getMyJobs(): Promise<MyJobsResult> {
   const { data: orders, error } = await supabase
     .from("orders")
     .select(
-      "id, order_number, customer_name, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, delivery_address, delivery_map_link, status, fulfillment_type, notes, item_ready"
+      "id, order_number, customer_name, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, delivery_address, delivery_map_link, status, fulfillment_type, notes, item_ready, approved"
     )
     .in("id", orderIds)
     .eq("archived", false)
@@ -239,6 +241,7 @@ export async function getMyJobs(): Promise<MyJobsResult> {
       deliveryMapLink: o.delivery_map_link,
       status: o.status,
       fulfillmentType: o.fulfillment_type,
+      approved: o.approved,
       managerNotes: o.notes,
       productImages: (productImagesByOrder.get(o.id) ?? []).map((f) => ({
         id: f.id,
@@ -407,6 +410,16 @@ export async function updateEmployeeJobStatus(orderId: string, status: OrderStat
     .eq("employee_id", session.employeeId)
     .maybeSingle();
   if (!assignment) throw new Error("You're not assigned to this order.");
+
+  // The approval gate only blocks the very first "Start Production" step —
+  // once an order is already past "new", the admin has implicitly signed
+  // off on it by letting it progress, so later transitions aren't re-checked.
+  if (status === "in_progress") {
+    const { data: orderRow } = await supabase.from("orders").select("status, approved").eq("id", orderId).maybeSingle();
+    if (orderRow?.status === "new" && !orderRow.approved) {
+      throw new Error("Wait for Admin Approval");
+    }
+  }
 
   const current = await applyOrderStatusTransition(supabase, orderId, status, session.employeeId, session.fullName);
 

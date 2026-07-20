@@ -70,7 +70,7 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-import { toggleJobItemReady } from "@/lib/actions/employee-jobs";
+import { toggleJobItemReady, updateEmployeeJobStatus } from "@/lib/actions/employee-jobs";
 import { PRIMARY_ITEM_ID } from "@/types/domain";
 
 const EMPLOYEE_SESSION = { employeeId: "emp-1", username: "hassan", fullName: "Hassan Youssef", role: "employee" as const };
@@ -184,5 +184,59 @@ describe("Item Readiness — toggleJobItemReady", () => {
   it("blocks writes in demo mode without touching the database", async () => {
     mockIsDemoMode.mockReturnValue(true);
     await expect(toggleJobItemReady("order-1", "item-2", true)).rejects.toThrow("read-only demo");
+  });
+});
+
+describe("Production Approval — updateEmployeeJobStatus", () => {
+  it("blocks Start Production when the order is new and not yet approved", async () => {
+    resetSupabaseMock({
+      order_assignments: [{ data: { id: "assignment-1" }, error: null }],
+      orders: [{ data: { status: "new", approved: false }, error: null }], // approval pre-check
+    });
+
+    await expect(updateEmployeeJobStatus("order-1", "in_progress")).rejects.toThrow("Wait for Admin Approval");
+    expect(mockNotifyOrderStatusChanged).not.toHaveBeenCalled();
+  });
+
+  it("allows Start Production once the order is approved", async () => {
+    resetSupabaseMock({
+      order_assignments: [{ data: { id: "assignment-1" }, error: null }],
+      orders: [
+        { data: { status: "new", approved: true }, error: null }, // approval pre-check
+        { data: currentOrderRow("new"), error: null }, // applyOrderStatusTransition fetch
+        { data: null, error: null }, // status update
+      ],
+      order_status_history: [{ data: null, error: null }],
+      employees: [{ data: [], error: null }], // notifyAdmins — no admins, no-op
+    });
+
+    await updateEmployeeJobStatus("order-1", "in_progress");
+
+    expect(mockNotifyOrderStatusChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ orderNumber: "#1050", toStatus: "in_progress" }),
+      "emp-1",
+      "Hassan Youssef"
+    );
+  });
+
+  it("doesn't re-check approval for transitions that aren't the initial Start Production", async () => {
+    resetSupabaseMock({
+      order_assignments: [{ data: { id: "assignment-1" }, error: null }],
+      orders: [
+        { data: { status: "waiting_materials", approved: false }, error: null }, // approval pre-check — not "new", so ignored
+        { data: currentOrderRow("waiting_materials"), error: null }, // applyOrderStatusTransition fetch
+        { data: null, error: null }, // status update
+      ],
+      order_status_history: [{ data: null, error: null }],
+      employees: [{ data: [], error: null }],
+    });
+
+    await updateEmployeeJobStatus("order-1", "in_progress");
+
+    expect(mockNotifyOrderStatusChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ toStatus: "in_progress" }),
+      "emp-1",
+      "Hassan Youssef"
+    );
   });
 });

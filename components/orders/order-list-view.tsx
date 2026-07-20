@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import Image from "next/image";
-import { ImageIcon, MoreVertical, Copy, Pencil, Trash2, Eye } from "lucide-react";
+import { ImageIcon, MoreVertical, Copy, Pencil, Trash2, Eye, ShieldAlert } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -100,7 +100,15 @@ export const OrderListView = memo(function OrderListView({
               </TableCell>
               <TableCell>{isInFlight && <CountdownTimer deliveryDate={order.deliveryDate} deliveryTime={order.deliveryTime} />}</TableCell>
               <TableCell>
-                <OrderStatusBadge status={order.status} />
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <OrderStatusBadge status={order.status} />
+                  {order.status === "new" && !order.approved && (
+                    <Badge variant="warning" className="gap-1">
+                      <ShieldAlert className="size-3" />
+                      Pending
+                    </Badge>
+                  )}
+                </div>
               </TableCell>
               <TableCell>
                 {order.pendingMaterialTypes.length > 0 && (

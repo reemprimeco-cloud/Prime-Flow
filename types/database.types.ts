@@ -504,6 +504,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          approved: boolean
           archived: boolean
           completed_at: string | null
           created_at: string
@@ -533,6 +534,7 @@ export type Database = {
           whatsapp_enabled: boolean
         }
         Insert: {
+          approved?: boolean
           archived?: boolean
           completed_at?: string | null
           created_at?: string
@@ -562,6 +564,7 @@ export type Database = {
           whatsapp_enabled?: boolean
         }
         Update: {
+          approved?: boolean
           archived?: boolean
           completed_at?: string | null
           created_at?: string
