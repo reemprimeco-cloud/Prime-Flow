@@ -9,12 +9,14 @@ import { broadcast, CHANNELS } from "@/lib/realtime/channels";
 import { orderFormSchema } from "@/lib/validation/order";
 import { isAllowedUpload, MAX_FILE_SIZE_BYTES } from "@/lib/files/constants";
 import { toDeliveryDate } from "@/lib/utils/countdown";
+import { getTodayBoundsInKuwait } from "@/lib/utils/date";
 import { DEFAULT_ORDERS_PAGE_SIZE } from "@/lib/orders/constants";
 import { DELAYABLE_STATUSES } from "@/types/domain";
 import { isDemoMode } from "@/lib/demo/mode";
 import {
   getDemoCompletedOrders,
   getDemoCustomerSuggestions,
+  getDemoDashboardBoard,
   getDemoDashboardStats,
   getDemoOrderDetail,
   getDemoOrders,
@@ -322,6 +324,152 @@ export async function getCompletedOrders(filters: CompletedOrderFilters = {}): P
 
   const items = await buildOrderListItems(supabase, orders);
   return { items, totalCount, page, pageSize };
+}
+
+/** The board's "in flight" sections — everything that still needs floor attention. */
+const BOARD_ACTIVE_STATUSES: OrderStatus[] = [
+  "new",
+  "in_progress",
+  "ready_internal_pickup",
+  "waiting_materials",
+  "ready_pickup",
+  "ready_delivery",
+];
+
+/**
+ * `ready_internal_pickup` (an outsourced worker's stage) folds into
+ * "In Progress" on the board — it's still work-in-progress from the
+ * manager's perspective, and doesn't earn its own section for what's a
+ * rare workflow.
+ */
+const BOARD_IN_PROGRESS_STATUSES: OrderStatus[] = ["in_progress", "ready_internal_pickup"];
+
+export interface DashboardBoardResult {
+  new: OrderListItem[];
+  inProgress: OrderListItem[];
+  waitingMaterials: OrderListItem[];
+  readyPickup: OrderListItem[];
+  readyDelivery: OrderListItem[];
+  /** Collected/delivered orders whose completing transition happened today (Kuwait time) — clears itself the next day, no cron involved. */
+  deliveredToday: OrderListItem[];
+}
+
+/**
+ * TV-style status board for the manager dashboard — every in-flight order
+ * grouped by stage, plus a same-day "Delivered" section for what just
+ * finished. Not paginated like getOrders: this is meant to show the whole
+ * live floor at a glance, capped at 200 active orders as a safety limit
+ * (see getDashboardStats for the same tradeoff elsewhere) rather than
+ * true pagination, since a board split across pages defeats the point.
+ *
+ * The Delivered section isn't a separate status — it's collected/delivered
+ * orders (already excluded from the active board, same as getOrders)
+ * filtered to today's Kuwait calendar day via order_status_history. There's
+ * no cron or write involved in it "clearing" at midnight: it's just a
+ * narrower read each time this is called, so the order quietly stops
+ * qualifying once the clock rolls over. The order's real record (visible
+ * any time via Completed Orders / Archive) never moves or changes because
+ * of this.
+ */
+export async function getDashboardBoard(
+  filters: Pick<OrderFilters, "search" | "employeeId" | "priority" | "deliveryDate"> = {}
+): Promise<DashboardBoardResult> {
+  await requireAdmin();
+  if (isDemoMode()) return getDemoDashboardBoard(filters);
+  const supabase = createServiceClient();
+
+  const empty: DashboardBoardResult = {
+    new: [],
+    inProgress: [],
+    waitingMaterials: [],
+    readyPickup: [],
+    readyDelivery: [],
+    deliveredToday: [],
+  };
+
+  let employeeOrderIds: string[] | null = null;
+  if (filters.employeeId && filters.employeeId !== "all") {
+    const { data: assignments, error: assignError } = await supabase
+      .from("order_assignments")
+      .select("order_id")
+      .eq("employee_id", filters.employeeId);
+    if (assignError) throw new Error(assignError.message);
+    employeeOrderIds = [...new Set((assignments ?? []).map((a) => a.order_id))];
+    if (employeeOrderIds.length === 0) return empty;
+  }
+
+  const searchTerm = filters.search?.trim() ? `%${filters.search.trim().replace(/[%,]/g, "")}%` : null;
+  const searchClause = searchTerm
+    ? `order_number.ilike.${searchTerm},customer_name.ilike.${searchTerm},customer_mobile.ilike.${searchTerm},product.ilike.${searchTerm}`
+    : null;
+
+  let activeQuery = supabase
+    .from("orders")
+    .select(ORDER_LIST_SELECT)
+    .eq("archived", false)
+    .in("status", BOARD_ACTIVE_STATUSES)
+    .order("delivery_date", { ascending: true })
+    .order("delivery_time", { ascending: true })
+    .limit(200);
+  if (filters.deliveryDate) activeQuery = activeQuery.eq("delivery_date", filters.deliveryDate);
+  if (filters.priority && filters.priority !== "all") activeQuery = activeQuery.eq("priority", filters.priority);
+  if (employeeOrderIds) activeQuery = activeQuery.in("id", employeeOrderIds);
+  if (searchClause) activeQuery = activeQuery.or(searchClause);
+
+  const { start, end } = getTodayBoundsInKuwait();
+  const historyQuery = supabase
+    .from("order_status_history")
+    .select("order_id")
+    .in("to_status", ["delivered", "collected"])
+    .gte("changed_at", start.toISOString())
+    .lt("changed_at", end.toISOString());
+
+  const [{ data: activeOrders, error: activeError }, { data: historyRows, error: historyError }] = await Promise.all([
+    activeQuery,
+    historyQuery,
+  ]);
+  if (activeError) throw new Error(activeError.message);
+  if (historyError) throw new Error(historyError.message);
+
+  let deliveredTodayIds = [...new Set((historyRows ?? []).map((r) => r.order_id))];
+  if (employeeOrderIds) {
+    const employeeOrderIdSet = new Set(employeeOrderIds);
+    deliveredTodayIds = deliveredTodayIds.filter((id) => employeeOrderIdSet.has(id));
+  }
+  let deliveredTodayRows: OrderListRow[] = [];
+  if (deliveredTodayIds.length > 0) {
+    let deliveredQuery = supabase
+      .from("orders")
+      .select(ORDER_LIST_SELECT)
+      .eq("archived", false)
+      .in("id", deliveredTodayIds)
+      .order("delivery_date", { ascending: false });
+    if (filters.priority && filters.priority !== "all") deliveredQuery = deliveredQuery.eq("priority", filters.priority);
+    if (searchClause) deliveredQuery = deliveredQuery.or(searchClause);
+    const { data, error } = await deliveredQuery;
+    if (error) throw new Error(error.message);
+    deliveredTodayRows = data ?? [];
+  }
+
+  const allRows = [...(activeOrders ?? []), ...deliveredTodayRows];
+  if (allRows.length === 0) return empty;
+
+  const items = await buildOrderListItems(supabase, allRows);
+  const itemsById = new Map(items.map((i) => [i.id, i]));
+  const byStatus = (statuses: OrderStatus[]) =>
+    (activeOrders ?? [])
+      .filter((o) => statuses.includes(o.status))
+      .map((o) => itemsById.get(o.id))
+      .filter((i): i is OrderListItem => !!i);
+
+  return {
+    new: byStatus(["new"]),
+    inProgress: byStatus(BOARD_IN_PROGRESS_STATUSES),
+    waitingMaterials: byStatus(["waiting_materials"]),
+    readyPickup: byStatus(["ready_pickup"]),
+    readyDelivery: byStatus(["ready_delivery"]),
+    deliveredToday: deliveredTodayRows.map((o) => itemsById.get(o.id)).filter((i): i is OrderListItem => !!i),
+  };
 }
 
 async function buildOrderListItems(supabase: ServiceClient, orders: OrderListRow[]): Promise<OrderListItem[]> {

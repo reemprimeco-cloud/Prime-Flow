@@ -19,10 +19,12 @@ import { CountdownTimer, useCountdownColor } from "@/components/orders/countdown
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { EmployeeChips } from "@/components/orders/employee-chips";
 import { MaterialRequestBadge } from "@/components/orders/material-request-badge";
+import { StatusActions } from "@/components/orders/status-actions";
 import { formatDeliveryTime } from "@/lib/utils/countdown";
 import { cn } from "@/lib/utils";
 import { DELAYABLE_STATUSES } from "@/types/domain";
 import type { OrderListItem } from "@/lib/actions/orders";
+import type { OrderStatus } from "@/types/database.types";
 
 const ACCENT_BORDER = {
   green: "before:bg-success",
@@ -39,6 +41,14 @@ interface OrderCardProps {
   onDelete: (order: OrderListItem) => void;
   selected?: boolean;
   onToggleSelect?: (id: string) => void;
+  /**
+   * Compact "mark done" quick action (Picked Up / Delivered) shown directly
+   * on the card for ready_pickup/ready_delivery orders, so a manager doesn't
+   * have to open the full detail drawer just to close out an order. Omit to
+   * hide it entirely (e.g. read-only contexts).
+   */
+  onQuickStatusChange?: (order: OrderListItem, status: OrderStatus) => void;
+  quickActionPending?: boolean;
 }
 
 export const OrderCard = memo(function OrderCard({
@@ -49,6 +59,8 @@ export const OrderCard = memo(function OrderCard({
   onDelete,
   selected,
   onToggleSelect,
+  onQuickStatusChange,
+  quickActionPending,
 }: OrderCardProps) {
   const isInFlight = DELAYABLE_STATUSES.includes(order.status);
   const countdownColor = useCountdownColor(order.deliveryDate, order.deliveryTime);
@@ -151,6 +163,18 @@ export const OrderCard = memo(function OrderCard({
           </Badge>
         )}
       </div>
+
+      {onQuickStatusChange && (order.status === "ready_pickup" || order.status === "ready_delivery") && (
+        <StatusActions
+          status={order.status}
+          fulfillmentType={order.fulfillmentType}
+          isOutsourced={false}
+          pending={!!quickActionPending}
+          onChange={(status) => onQuickStatusChange(order, status)}
+          only={["collected", "delivered"]}
+          size="sm"
+        />
+      )}
     </Card>
   );
 });

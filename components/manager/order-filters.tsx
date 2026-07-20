@@ -11,9 +11,11 @@ import type { EmployeeListItem } from "@/lib/actions/employees";
 
 interface OrderFiltersProps {
   employees: Pick<EmployeeListItem, "id" | "fullName">[];
+  /** Board view already splits orders by status — the status filter would just fight with that, so it's hidden there. */
+  hideStatus?: boolean;
 }
 
-export function OrderFilters({ employees }: OrderFiltersProps) {
+export function OrderFilters({ employees, hideStatus }: OrderFiltersProps) {
   const [search, setSearch] = useQueryState("q", { defaultValue: "", clearOnDefault: true });
   const [status, setStatus] = useQueryState("status", { defaultValue: "all", clearOnDefault: true });
   const [employeeId, setEmployeeId] = useQueryState("employee", { defaultValue: "all", clearOnDefault: true });
@@ -43,19 +45,21 @@ export function OrderFilters({ employees }: OrderFiltersProps) {
         />
       </div>
 
-      <Select value={status} onValueChange={(v) => setStatus(v === "all" ? null : v)}>
-        <SelectTrigger className="w-[170px]">
-          <SelectValue placeholder="Status" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All Statuses</SelectItem>
-          {ORDER_STATUSES.filter((s) => s !== "completed").map((s) => (
-            <SelectItem key={s} value={s}>
-              {ORDER_STATUS_LABELS[s]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {!hideStatus && (
+        <Select value={status} onValueChange={(v) => setStatus(v === "all" ? null : v)}>
+          <SelectTrigger className="w-[170px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            {ORDER_STATUSES.filter((s) => s !== "completed").map((s) => (
+              <SelectItem key={s} value={s}>
+                {ORDER_STATUS_LABELS[s]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
       <Select value={employeeId} onValueChange={(v) => setEmployeeId(v === "all" ? null : v)}>
         <SelectTrigger className="w-[170px]">

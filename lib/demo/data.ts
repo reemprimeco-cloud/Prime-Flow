@@ -14,6 +14,7 @@ import {
 import type {
   CompletedOrderFilters,
   CustomerSuggestion,
+  DashboardBoardResult,
   DashboardStats,
   OrderDetail,
   OrderFilters,
@@ -253,6 +254,60 @@ export function getDemoCompletedOrders(filters: CompletedOrderFilters = {}): Ord
   const from = (page - 1) * pageSize;
 
   return { items: sorted.slice(from, from + pageSize), totalCount: sorted.length, page, pageSize };
+}
+
+/**
+ * Demo counterpart to getDashboardBoard. Groups the same seed data by
+ * status instead of paginating it. "Delivered today" has no real
+ * order_status_history to check against in demo mode, so it's just every
+ * collected/delivered seed, shown unconditionally rather than gated on the
+ * actual calendar day — this is a fixed snapshot, not a live clock.
+ */
+export function getDemoDashboardBoard(
+  filters: Pick<OrderFilters, "search" | "employeeId" | "priority" | "deliveryDate"> = {}
+): DashboardBoardResult {
+  const now = new Date();
+  let orders = getAllDemoOrders(now);
+
+  if (filters.priority && filters.priority !== "all") {
+    orders = orders.filter((o) => o.priority === filters.priority);
+  }
+  if (filters.deliveryDate) {
+    orders = orders.filter((o) => o.deliveryDate === filters.deliveryDate);
+  }
+  if (filters.employeeId && filters.employeeId !== "all") {
+    orders = orders.filter((o) => o.assignedEmployees.some((e) => e.id === filters.employeeId));
+  }
+  if (filters.search?.trim()) {
+    const term = filters.search.trim().toLowerCase();
+    orders = orders.filter(
+      (o) =>
+        o.orderNumber.toLowerCase().includes(term) ||
+        o.customerName.toLowerCase().includes(term) ||
+        o.customerMobile.toLowerCase().includes(term) ||
+        o.product.toLowerCase().includes(term)
+    );
+  }
+
+  const toListItems = (statuses: OrderStatus[]) =>
+    orders
+      .filter((o) => statuses.includes(o.status))
+      .sort((a, b) => `${a.deliveryDate}${a.deliveryTime}`.localeCompare(`${b.deliveryDate}${b.deliveryTime}`))
+      .map((order) => {
+        const { completedAt, assignedAt, ...listItem } = order;
+        void completedAt;
+        void assignedAt;
+        return listItem;
+      });
+
+  return {
+    new: toListItems(["new"]),
+    inProgress: toListItems(["in_progress", "ready_internal_pickup"]),
+    waitingMaterials: toListItems(["waiting_materials"]),
+    readyPickup: toListItems(["ready_pickup"]),
+    readyDelivery: toListItems(["ready_delivery"]),
+    deliveredToday: toListItems(["collected", "delivered"]),
+  };
 }
 
 export function getDemoCustomerSuggestions(term: string): CustomerSuggestion[] {

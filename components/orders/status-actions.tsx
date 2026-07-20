@@ -31,8 +31,10 @@ interface StatusActionsProps {
    * (see toggleJobItemReady) rather than through a manual click here.
    */
   suppressDoneAction?: boolean;
-  /** Defaults to "lg" (manager desktop view); employee cards pass "default" to stay compact on mobile. */
-  size?: "default" | "lg";
+  /** Defaults to "lg" (manager desktop view); employee cards pass "default" to stay compact on mobile, "sm" for a single-action quick button on a dense card. */
+  size?: "sm" | "default" | "lg";
+  /** Renders only the given target statuses, if any match — e.g. `["collected", "delivered"]` for a compact "mark done" quick action without the full action list. */
+  only?: OrderStatus[];
 }
 
 export function StatusActions({
@@ -43,11 +45,13 @@ export function StatusActions({
   onChange,
   suppressDoneAction,
   size = "lg",
+  only,
 }: StatusActionsProps) {
   const [confirmTarget, setConfirmTarget] = useState<{ status: OrderStatus; label: string } | null>(null);
 
   let actions = getEmployeeNextActions(status, fulfillmentType, isOutsourced);
   if (suppressDoneAction && status === "in_progress") actions = actions.slice(0, -1);
+  if (only) actions = actions.filter((a) => only.includes(a.status));
   if (actions.length === 0) return null;
 
   return (
@@ -63,7 +67,10 @@ export function StatusActions({
             onClick={() =>
               CONFIRM_REQUIRED.includes(action.status) ? setConfirmTarget(action) : onChange(action.status)
             }
-            className={cn(size === "lg" ? "min-w-[168px]" : "min-w-[140px]", "flex-1 sm:flex-none")}
+            className={cn(
+              size === "lg" ? "min-w-[168px]" : size === "default" ? "min-w-[140px]" : "min-w-0",
+              "flex-1 sm:flex-none"
+            )}
           >
             {pending && <Loader2 className="animate-spin" />}
             {action.label}

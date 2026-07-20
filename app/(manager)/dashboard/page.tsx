@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { requireAdmin } from "@/lib/auth/guards";
-import { getDashboardStats, getOrders } from "@/lib/actions/orders";
+import { getDashboardBoard, getDashboardStats, getOrders } from "@/lib/actions/orders";
 import { listEmployees } from "@/lib/actions/employees";
 import { DashboardClient } from "@/components/manager/dashboard-client";
 
@@ -22,9 +22,10 @@ export default async function DashboardPage() {
   const session = await requireAdmin();
   const now = new Date();
 
-  const [stats, ordersResult, employees] = await Promise.all([
+  const [stats, ordersResult, board, employees] = await Promise.all([
     getDashboardStats(),
     getOrders(),
+    getDashboardBoard(),
     listEmployees(),
   ]);
 
@@ -45,7 +46,12 @@ export default async function DashboardPage() {
       </div>
 
       <Suspense fallback={null}>
-        <DashboardClient initialStats={stats} initialOrdersResult={ordersResult} employees={employees} />
+        <DashboardClient
+          initialStats={stats}
+          initialOrdersResult={ordersResult}
+          initialBoard={board}
+          employees={employees}
+        />
       </Suspense>
     </div>
   );

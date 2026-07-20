@@ -10,9 +10,12 @@ import { ChevronLeft, ChevronRight, PackageOpen } from "lucide-react";
 import {
   deleteOrder,
   duplicateOrder,
+  getDashboardBoard,
   getDashboardStats,
   getOrderDetail,
   getOrders,
+  updateOrderStatus,
+  type DashboardBoardResult,
   type DashboardStats,
   type OrderDetail,
   type OrderFilters,
@@ -29,10 +32,12 @@ import { OrderFilters as OrderFiltersBar } from "@/components/manager/order-filt
 import { ViewToggle, type OrderView } from "@/components/manager/view-toggle";
 import { OrderCard } from "@/components/orders/order-card";
 import { OrderListView } from "@/components/orders/order-list-view";
+import { DashboardBoard } from "@/components/manager/dashboard-board";
 import { BulkActionsBar } from "@/components/manager/bulk-actions-bar";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import type { OrderStatus } from "@/types/database.types";
 
 // Both dialogs carry real weight (RHF + Zod + file upload UI) and stay
 // hidden until the user opens them — no reason to ship that JS on first paint.
@@ -45,10 +50,16 @@ const OrderDetailDrawer = dynamic(
 interface DashboardClientProps {
   initialStats: DashboardStats;
   initialOrdersResult: OrderListResult;
+  initialBoard: DashboardBoardResult;
   employees: EmployeeListItem[];
 }
 
-export function DashboardClient({ initialStats, initialOrdersResult, employees }: DashboardClientProps) {
+export function DashboardClient({
+  initialStats,
+  initialOrdersResult,
+  initialBoard,
+  employees,
+}: DashboardClientProps) {
   const queryClient = useQueryClient();
 
   const [search] = useQueryState("q", { defaultValue: "" });
@@ -56,9 +67,9 @@ export function DashboardClient({ initialStats, initialOrdersResult, employees }
   const [employeeId] = useQueryState("employee", { defaultValue: "all" });
   const [priority] = useQueryState("priority", { defaultValue: "all" });
   const [deliveryDate] = useQueryState("date", { defaultValue: "" });
-  const [viewParam, setViewParam] = useQueryState("view", { defaultValue: "card" });
-  const view: OrderView = viewParam === "list" ? "list" : "card";
-  const setView = (next: OrderView) => setViewParam(next === "card" ? null : next);
+  const [viewParam, setViewParam] = useQueryState("view", { defaultValue: "board" });
+  const view: OrderView = viewParam === "list" ? "list" : viewParam === "card" ? "card" : "board";
+  const setView = (next: OrderView) => setViewParam(next === "board" ? null : next);
   const [orderParam, setOrderParam] = useQueryState("order");
   const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
 
@@ -90,6 +101,19 @@ export function DashboardClient({ initialStats, initialOrdersResult, employees }
     queryKey: ["orders", filters],
     queryFn: () => getOrders(filters),
     initialData: isDefaultFilters && page === 1 ? initialOrdersResult : undefined,
+    enabled: view !== "board",
+  });
+
+  // Board view groups by status itself, so it ignores the `status` filter
+  // (there's no single status to filter to) and isn't paginated — it's
+  // meant to show the whole live floor at once. See getDashboardBoard.
+  const boardFilters = { search, employeeId, priority: priority as OrderFilters["priority"], deliveryDate };
+  const isDefaultBoardFilters = !search && employeeId === "all" && priority === "all" && !deliveryDate;
+  const boardQuery = useQuery({
+    queryKey: ["board", boardFilters],
+    queryFn: () => getDashboardBoard(boardFilters),
+    initialData: isDefaultBoardFilters ? initialBoard : undefined,
+    enabled: view === "board",
   });
 
   const statsQuery = useQuery({
@@ -100,6 +124,7 @@ export function DashboardClient({ initialStats, initialOrdersResult, employees }
 
   useRealtimeChannel(CHANNELS.production, () => {
     queryClient.invalidateQueries({ queryKey: ["orders"] });
+    queryClient.invalidateQueries({ queryKey: ["board"] });
     queryClient.invalidateQueries({ queryKey: ["stats"] });
     queryClient.invalidateQueries({ queryKey: ["order"] });
   });
@@ -116,6 +141,7 @@ export function DashboardClient({ initialStats, initialOrdersResult, employees }
   const [isDeleting, startDeleteTransition] = useTransition();
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [quickActionPendingId, setQuickActionPendingId] = useState<string | null>(null);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -138,6 +164,7 @@ export function DashboardClient({ initialStats, initialOrdersResult, employees }
 
   const refreshLists = () => {
     queryClient.invalidateQueries({ queryKey: ["orders"] });
+    queryClient.invalidateQueries({ queryKey: ["board"] });
     queryClient.invalidateQueries({ queryKey: ["stats"] });
   };
 
@@ -145,6 +172,26 @@ export function DashboardClient({ initialStats, initialOrdersResult, employees }
     setDetailOrderId(order.id);
     setDetailOpen(true);
   }, []);
+
+  // "Picked Up" / "Delivered" quick action directly on a card, for
+  // ready_pickup/ready_delivery orders — closes the order out without
+  // opening the full detail drawer. Admin-only path (updateOrderStatus),
+  // not gated the way the employee's equivalent action is.
+  const handleQuickStatusChange = useCallback(
+    (order: OrderListItem, status: OrderStatus) => {
+      setQuickActionPendingId(order.id);
+      updateOrderStatus(order.id, status)
+        .then(() => {
+          toast.success(`${order.orderNumber} marked ${status === "delivered" ? "Delivered" : "Collected"}`);
+          refreshLists();
+        })
+        .catch((error) => toast.error(error instanceof Error ? error.message : "Failed to update order"))
+        .finally(() => setQuickActionPendingId(null));
+    },
+    // refreshLists closes over queryClient, which is stable — safe to omit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
 
   const handleNewOrder = () => {
     setEditingOrder(null);
@@ -205,6 +252,10 @@ export function DashboardClient({ initialStats, initialOrdersResult, employees }
   const orders = ordersResult.items;
   const totalPages = Math.max(1, Math.ceil(ordersResult.totalCount / ordersResult.pageSize));
 
+  const board: DashboardBoardResult =
+    boardQuery.data ?? { new: [], inProgress: [], waitingMaterials: [], readyPickup: [], readyDelivery: [], deliveredToday: [] };
+  const boardIsEmpty = Object.values(board).every((section) => section.length === 0);
+
   return (
     <div className="flex flex-col gap-6">
       <StatsGrid stats={statsQuery.data} isLoading={statsQuery.isFetching && !statsQuery.data} />
@@ -212,7 +263,7 @@ export function DashboardClient({ initialStats, initialOrdersResult, employees }
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex-1">
-          <OrderFiltersBar employees={employees} />
+          <OrderFiltersBar employees={employees} hideStatus={view === "board"} />
         </div>
         <ViewToggle view={view} onChange={setView} />
       </div>
@@ -227,7 +278,25 @@ export function DashboardClient({ initialStats, initialOrdersResult, employees }
         }}
       />
 
-      {ordersQuery.isLoading ? (
+      {view === "board" ? (
+        boardQuery.isLoading ? (
+          <SkeletonGrid />
+        ) : boardIsEmpty ? (
+          <EmptyState hasFilters={!isDefaultBoardFilters} onNewOrder={handleNewOrder} />
+        ) : (
+          <DashboardBoard
+            board={board}
+            onOpen={handleOpen}
+            onEdit={handleEditFromCard}
+            onDuplicate={handleDuplicate}
+            onDelete={setDeleteTarget}
+            onQuickStatusChange={handleQuickStatusChange}
+            quickActionPendingId={quickActionPendingId}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+          />
+        )
+      ) : ordersQuery.isLoading ? (
         <SkeletonGrid />
       ) : orders.length === 0 ? (
         <EmptyState hasFilters={!isDefaultFilters} onNewOrder={handleNewOrder} />
@@ -253,12 +322,14 @@ export function DashboardClient({ initialStats, initialOrdersResult, employees }
               onDelete={setDeleteTarget}
               selected={selectedIds.has(order.id)}
               onToggleSelect={toggleSelect}
+              onQuickStatusChange={handleQuickStatusChange}
+              quickActionPending={quickActionPendingId === order.id}
             />
           ))}
         </div>
       )}
 
-      {orders.length > 0 && (
+      {view !== "board" && orders.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
             {(page - 1) * ordersResult.pageSize + 1}–{(page - 1) * ordersResult.pageSize + orders.length} of{" "}
