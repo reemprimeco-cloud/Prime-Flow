@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CountdownTimer, useCountdownColor } from "@/components/orders/countdown-timer";
 import { MaterialRequestBadge } from "@/components/orders/material-request-badge";
+import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { StatusActions } from "@/components/orders/status-actions";
 import { cn } from "@/lib/utils";
 import { buildGoogleMapsLink } from "@/lib/utils/maps";
@@ -83,7 +84,10 @@ export function JobCard({
               <div className="truncate text-base font-bold text-foreground">{job.customerName}</div>
               <div className="truncate text-sm text-muted-foreground">{job.product}</div>
             </div>
-            {job.priority === "urgent" && <Badge variant="destructive">Urgent</Badge>}
+            <div className="flex shrink-0 items-center gap-1.5">
+              {job.priority === "urgent" && <Badge variant="destructive">Urgent</Badge>}
+              <OrderStatusBadge status={job.status} />
+            </div>
           </div>
         </div>
       </div>

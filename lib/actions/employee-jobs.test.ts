@@ -162,6 +162,34 @@ describe("Item Readiness — toggleJobItemReady", () => {
     );
   });
 
+  it("auto-advances a delivery order to ready_delivery, never straight to delivered", async () => {
+    resetSupabaseMock({
+      order_assignments: [{ data: { id: "assignment-1" }, error: null }],
+      order_items: [
+        { data: null, error: null }, // update is_ready
+        { data: [{ is_ready: true }], error: null }, // every item now ready
+      ],
+      orders: [
+        { data: { status: "in_progress", item_ready: true, fulfillment_type: "delivery" }, error: null },
+        { data: currentOrderRow("in_progress"), error: null }, // applyOrderStatusTransition fetch
+        { data: null, error: null }, // status update
+      ],
+      employees: [
+        { data: { is_outsourced: false }, error: null }, // isOutsourced lookup
+        { data: [], error: null }, // notifyAdmins — no admins, no-op
+      ],
+      order_status_history: [{ data: null, error: null }],
+    });
+
+    await toggleJobItemReady("order-1", "item-2", true);
+
+    expect(mockNotifyOrderStatusChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ orderNumber: "#1050", toStatus: "ready_delivery" }),
+      "emp-1",
+      "Hassan Youssef"
+    );
+  });
+
   it("never auto-advances when unchecking an item", async () => {
     resetSupabaseMock({
       order_assignments: [{ data: { id: "assignment-1" }, error: null }],
