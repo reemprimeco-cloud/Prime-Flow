@@ -92,7 +92,7 @@ export function EmployeeDashboardClient({ initialJobs, fullName }: EmployeeDashb
   };
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <EmployeeTopBar
         fullName={fullName}
         assignedCount={data.active.length + data.queue.length}

@@ -11,7 +11,7 @@ export default async function EmployeeLayout({ children }: { children: React.Rea
   return (
     <div className="flex min-h-screen flex-col">
       {isDemoMode() && <DemoModeBanner />}
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card/80 px-6 py-4 backdrop-blur">
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card/80 px-4 py-3 backdrop-blur sm:px-6 sm:py-4">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg border border-border">
             <Image src="/logo.jpg" alt="Prime Printing Co." width={36} height={36} className="size-full object-cover" priority />
@@ -24,7 +24,7 @@ export default async function EmployeeLayout({ children }: { children: React.Rea
         <LogoutButton />
       </header>
 
-      <main className="flex-1 p-6">{children}</main>
+      <main className="flex-1 p-4 sm:p-6">{children}</main>
     </div>
   );
 }

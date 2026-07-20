@@ -107,6 +107,12 @@ Built on top of the Production Core infrastructure (Realtime, Audit Log, Status 
 
 This first pass is intentionally UI-only — submitting shows a "Request received" confirmation, but nothing is written to the database and no order is created (`lib/validation/order-request.ts` validates client-side only). Turning a request into a real order is a deliberate follow-up (e.g. a manager-side review/approve queue), not built here, since accepting arbitrary public submissions straight into the live order board has trust/spam implications worth designing deliberately rather than wiring in as a byproduct of the form UI. A native in-chat WhatsApp Flow (rather than a web page reached via a WhatsApp-sent link) is also deferred.
 
+## Employee Dashboard — compact card style, mobile-first
+
+`JobCard` and `QueueCard` (`components/employee/`) were rebuilt to match the density of the manager dashboard's `OrderCard` — a small thumbnail next to the order number/customer/product instead of a large hero image, a compact `bg-muted/40` delivery chip, and a `text-[11px]` label / `text-sm` value spec grid, all using the same font scale as the manager side rather than the previous oversized `text-xl`/`text-lg` mix. `StatusActions` takes an optional `size` prop (`"lg"` by default for the manager's order detail drawer, `"default"` from `JobCard`) so the employee action row — status buttons, hand-off, Add Note, Request Material — stays compact instead of overflowing a phone-width card. `EmployeeTopBar`'s stats moved from an inline row that wrapped unpredictably at narrow widths to a `grid-cols-3` block, and `app/employee/layout.tsx` drops its padding from `p-6` to `p-4` below the `sm` breakpoint so cards get more usable width on a phone.
+
+The Manager Notes block on `JobCard` switched from `bg-secondary/10`/`text-secondary` (the same dark blue used for order numbers, map links, and most other accents on the card) to `bg-warning/15`/`text-warning-foreground` (amber) — it was blending into every other blue element on the card rather than standing out as a note worth reading.
+
 ## What's deferred
 
 Email and SMS notification providers — only WhatsApp (via Twilio) is implemented, behind the same provider abstraction the other two will use (see `NOTIFICATIONS.md`). The **Notification Service**, **Audit Log**, and **Status Engine** built in the infrastructure phase are designed so both land as pure additions — no dashboard code changes required.
