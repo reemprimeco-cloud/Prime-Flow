@@ -121,6 +121,10 @@ The gate applies to exactly one transition: an employee's "Start Production" tap
 
 The admin's own "Start Production" click (`updateOrderStatus`, used from the order detail drawer) is deliberately **not** gated — an admin setting the approval flag has no reason to block themselves from acting on the same order. `duplicateOrder` always resets the copy to unapproved regardless of the original's state, since a duplicate is a fresh production job that should go through approval again. A `Pending Approval` badge (amber, `ShieldAlert` icon) surfaces on `OrderCard`, `order-list-view`, and the order detail drawer header whenever `status === "new" && !approved`, so a manager can spot what's still waiting without opening every order.
 
+## Delivery Confirmation
+
+Marking an order **Delivered** now requires an explicit confirm step in `StatusActions` (`components/orders/status-actions.tsx`) — clicking "Delivered" opens a dialog ("Confirm delivery… Only confirm once it's actually in the customer's hands") rather than firing the transition on the first tap. Every other status action is unchanged and still fires immediately; only `delivered` (`CONFIRM_REQUIRED`) is gated this way, since it's the one irreversible-from-here action a delivery driver could otherwise trigger by mistake. `StatusActions` is shared by both the employee job card and the manager's order detail drawer, so the confirm step applies everywhere the button appears. The Google Maps link on the delivery card (`job-card.tsx`, `order-detail-drawer.tsx`) was already a plain `<a target="_blank" rel="noreferrer">` with no shared click handler — opening it has never affected order status; nothing there needed to change.
+
 ## What's deferred
 
 Email and SMS notification providers — only WhatsApp (via Twilio) is implemented, behind the same provider abstraction the other two will use (see `NOTIFICATIONS.md`). The **Notification Service**, **Audit Log**, and **Status Engine** built in the infrastructure phase are designed so both land as pure additions — no dashboard code changes required.

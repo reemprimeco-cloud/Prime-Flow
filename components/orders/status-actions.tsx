@@ -1,13 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { getEmployeeNextActions } from "@/types/domain";
 import type { OrderFulfillmentType, OrderStatus } from "@/types/database.types";
 
 const SUCCESS_TARGETS: OrderStatus[] = ["ready_pickup", "ready_delivery", "collected", "delivered"];
+
+/**
+ * Marking an order Delivered is final and easy to fat-finger on a phone —
+ * unlike every other action here, it goes through an explicit confirm step
+ * rather than firing on the first tap.
+ */
+const CONFIRM_REQUIRED: OrderStatus[] = ["delivered"];
 
 interface StatusActionsProps {
   status: OrderStatus;
@@ -35,26 +44,61 @@ export function StatusActions({
   suppressDoneAction,
   size = "lg",
 }: StatusActionsProps) {
+  const [confirmTarget, setConfirmTarget] = useState<{ status: OrderStatus; label: string } | null>(null);
+
   let actions = getEmployeeNextActions(status, fulfillmentType, isOutsourced);
   if (suppressDoneAction && status === "in_progress") actions = actions.slice(0, -1);
   if (actions.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap gap-2">
-      {actions.map((action) => (
-        <Button
-          key={action.status}
-          type="button"
-          size={size}
-          variant={SUCCESS_TARGETS.includes(action.status) ? "success" : "primary"}
-          disabled={pending}
-          onClick={() => onChange(action.status)}
-          className={cn(size === "lg" ? "min-w-[168px]" : "min-w-[140px]", "flex-1 sm:flex-none")}
-        >
-          {pending && <Loader2 className="animate-spin" />}
-          {action.label}
-        </Button>
-      ))}
-    </div>
+    <>
+      <div className="flex flex-wrap gap-2">
+        {actions.map((action) => (
+          <Button
+            key={action.status}
+            type="button"
+            size={size}
+            variant={SUCCESS_TARGETS.includes(action.status) ? "success" : "primary"}
+            disabled={pending}
+            onClick={() =>
+              CONFIRM_REQUIRED.includes(action.status) ? setConfirmTarget(action) : onChange(action.status)
+            }
+            className={cn(size === "lg" ? "min-w-[168px]" : "min-w-[140px]", "flex-1 sm:flex-none")}
+          >
+            {pending && <Loader2 className="animate-spin" />}
+            {action.label}
+          </Button>
+        ))}
+      </div>
+
+      <Dialog open={!!confirmTarget} onOpenChange={(open) => !open && setConfirmTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm delivery</DialogTitle>
+            <DialogDescription>
+              Mark this order as {confirmTarget?.label.toLowerCase()}? Only confirm once it&rsquo;s actually in the
+              customer&rsquo;s hands.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setConfirmTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="success"
+              disabled={pending}
+              onClick={() => {
+                if (confirmTarget) onChange(confirmTarget.status);
+                setConfirmTarget(null);
+              }}
+            >
+              {pending && <Loader2 className="animate-spin" />}
+              Confirm {confirmTarget?.label}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
