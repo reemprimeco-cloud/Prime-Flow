@@ -39,6 +39,8 @@ export interface NotificationResult {
   status: NotificationStatus;
   error?: string;
   providerResponse?: unknown;
+  /** Twilio's MessageSid (or the equivalent for a future provider) — stored on the log row so the status-callback webhook (app/api/twilio/whatsapp/status) can find it later. */
+  providerMessageId?: string;
 }
 
 export interface NotificationProvider {
@@ -71,6 +73,7 @@ async function dispatch(payload: NotificationPayload, actorId: string | null, ac
     status: result.status,
     error: result.error ?? null,
     provider_response: (result.providerResponse as never) ?? null,
+    provider_message_id: result.providerMessageId ?? null,
     sent_at: result.status === "sent" || result.status === "delivered" ? new Date().toISOString() : null,
     last_attempted_at: new Date().toISOString(),
   });
@@ -419,6 +422,14 @@ export async function resendNotification(logId: string, actorId: string | null, 
       status: result.status,
       error: result.error ?? null,
       provider_response: (result.providerResponse as never) ?? null,
+      // A resend is a brand-new outbound message with its own SID — the
+      // status-callback webhook needs this updated to route future delivery
+      // events to this row, and the previous attempt's delivered/read/failed
+      // state no longer describes the message that's actually in flight now.
+      provider_message_id: result.providerMessageId ?? null,
+      delivered_at: null,
+      read_at: null,
+      failed_reason: null,
       retry_count: log.retry_count + 1,
       sent_at: result.status === "sent" || result.status === "delivered" ? new Date().toISOString() : log.sent_at,
       last_attempted_at: new Date().toISOString(),

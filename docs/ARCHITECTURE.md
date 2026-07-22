@@ -137,6 +137,10 @@ Marking an order **Delivered** now requires an explicit confirm step in `StatusA
 
 **Quick status actions on the card itself**: `OrderCard` now accepts an optional `onQuickStatusChange` — when set, a ready_pickup/ready_delivery order shows a single compact "Collected"/"Delivered" button (via `StatusActions` with a new `only` filter prop, restricted to just those two terminal targets, and a new `"sm"` size) without opening the full detail drawer. This reuses the same confirm-dialog gating for Delivered as everywhere else `StatusActions` appears (see Delivery Confirmation above). Wired via `updateOrderStatus` — the same ungated admin path the detail drawer's status buttons already use — on both the board and the flat card grid.
 
+## Twilio WhatsApp Delivery Status Tracking
+
+`app/api/twilio/whatsapp/status/route.ts` — a webhook Twilio calls back on whenever a sent WhatsApp message's status changes (queued/accepted/sent/delivered/read/failed/undelivered), closing the loop `NOTIFICATIONS.md` previously documented as out of scope. Signature-verified against `TWILIO_AUTH_TOKEN` (rejects with 403 if invalid — the only real failure case; every other edge case, from a missing field to an unmatched `MessageSid`, is logged and still answered 200 so Twilio doesn't retry-storm over something a retry can't fix), it updates the originating `notification_logs` row — found via `provider_message_id`, the Twilio SID captured when the message was first sent — with the new `status` plus whichever of `delivered_at`/`read_at`/`failed_reason` applies. Full detail, including the exact production callback URL and how to configure it, is in `NOTIFICATIONS.md`'s "Delivery status callback" section.
+
 ## What's deferred
 
 Email and SMS notification providers — only WhatsApp (via Twilio) is implemented, behind the same provider abstraction the other two will use (see `NOTIFICATIONS.md`). The **Notification Service**, **Audit Log**, and **Status Engine** built in the infrastructure phase are designed so both land as pure additions — no dashboard code changes required.

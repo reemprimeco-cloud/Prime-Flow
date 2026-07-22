@@ -23,7 +23,28 @@ const PROVIDERS: Partial<Record<NotificationChannel, NotificationProvider>> = {
 
 Stub-safe by the same convention as the rest of this project (Supabase MCP-only sandbox access, Demo Mode, etc.): with no `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_WHATSAPP_NUMBER` configured, `send()` returns `{ status: "skipped", error: "Twilio credentials not configured" }` instead of throwing, so the rest of the pipeline (logging, audit trail, Notification Center) stays fully exercisable without live credentials. This is also why sending could not be runtime-verified inside this sandbox — see the Testing section.
 
-Twilio's REST API accepts a message and returns a SID; final delivery status (delivered/read/failed) arrives later via a status-callback webhook, which is out of scope for this phase. What's recorded today reflects "Twilio accepted the send," not confirmed delivery — `provider_response` stores the SID and Twilio's own `status` field for whatever visibility that gives.
+Twilio's REST API accepts a message and returns a SID (`message.sid`, stored as `notification_logs.provider_message_id`); final delivery status (delivered/read/failed) arrives later via a status-callback webhook — see "Delivery status callback" below for how that's wired up. `send()` passes `statusCallback: TWILIO_STATUS_CALLBACK_URL` on every message when that env var is set, so Twilio knows where to report back; unset, messages still send, they just never get a delivery update past "sent."
+
+## Delivery status callback
+
+`app/api/twilio/whatsapp/status/route.ts` — the receiving end of the SID above. Twilio POSTs here every time a message's status changes (`queued → accepted → sent → delivered → read`, or `failed`/`undelivered`), and this route updates the matching `notification_logs` row by `provider_message_id`.
+
+**Configure in the Twilio console** (Messaging Service, or the WhatsApp Sender's own settings → Status Callback URL) — or set `TWILIO_STATUS_CALLBACK_URL` and the app sets it per-message itself, which also works without touching the console at all:
+
+```
+https://primeflowboard.netlify.app/api/twilio/whatsapp/status
+```
+
+Request handling, in order:
+1. **Signature verification** — `twilio.validateRequest(TWILIO_AUTH_TOKEN, signature, url, params)` against the `X-Twilio-Signature` header. Fails closed: no `TWILIO_AUTH_TOKEN`, no/invalid signature → `403`, nothing is written. This is the actual security boundary on this route (there's no other auth — it can't require a login, Twilio is the caller), so unlike everything below it, a signature failure is a real rejection, not a "log and 200" case.
+2. **Field extraction** — `MessageSid`, `MessageStatus`, `ErrorCode`, `ErrorMessage`, `To`, `From` from the `application/x-www-form-urlencoded` body.
+3. **Everything past this point is "log and return 200 anyway,"** deliberately — Twilio retries a webhook that doesn't answer 2xx, and none of these get better on a retry: a missing `MessageSid`/`MessageStatus`, a `MessageStatus` outside the 7 recognized values, or a SID with no matching row (expected for any send made before `TWILIO_STATUS_CALLBACK_URL` was configured).
+4. **The update itself** sets `status` to the mapped value, always overwrites `provider_response` with the callback's payload (superseding the original "accepted" response from send time — the terminal delivery state matters more than the initial acceptance receipt), and conditionally sets exactly one more field: `delivered_at` (status `delivered`), `read_at` (status `read`), or `failed_reason` (status `failed`/`undelivered`, preferring Twilio's `ErrorMessage`, falling back to `` `Twilio error ${ErrorCode}` ``).
+5. Broadcasts `notification.status_updated` on the `notifications` Realtime channel on a successful match, so the Notification Center updates live — same channel the resend button and initial sends already broadcast on indirectly (via the query invalidation it's already subscribed to).
+
+Runs on the Node.js runtime (Route Handlers default to it, pinned explicitly in the file) since `twilio.validateRequest` needs Node's `crypto` module — this is not Edge-compatible, and `@netlify/plugin-nextjs` deploys it as a standard Netlify Function accordingly.
+
+A resend (manual, from the Notification Center, or the automatic retry cron) creates a brand-new Twilio message with its own SID — `resendNotification()` overwrites `provider_message_id` with it and clears `delivered_at`/`read_at`/`failed_reason`, since those described the previous attempt, not the one now in flight.
 
 ## Message templates
 
@@ -58,13 +79,13 @@ These are **per-order**, not per-customer — this project has no persistent cus
 
 ## What gets written
 
-Every dispatch attempt writes one `notification_logs` row: `status`, `template_name`, `channel`, `body` (the fully-rendered message — stored so a later resend doesn't need to reconstruct template variables), `phone`, `receiver_type`, `language`, `error`, `provider_response`, `last_attempted_at`. On success it also writes one `audit_logs` row with action `notification_sent` (see `AUDIT_LOG.md`).
+Every dispatch attempt writes one `notification_logs` row: `status`, `template_name`, `channel`, `body` (the fully-rendered message — stored so a later resend doesn't need to reconstruct template variables), `phone`, `receiver_type`, `language`, `error`, `provider_response`, `provider_message_id`, `last_attempted_at`. On success it also writes one `audit_logs` row with action `notification_sent` (see `AUDIT_LOG.md`). The delivery-status callback (above) later updates `status`/`provider_response` again on the same row, plus `delivered_at`/`read_at`/`failed_reason` depending on what Twilio reports.
 
 ## Retry (exponential backoff)
 
 `app/api/cron/retry-notifications/route.ts` — GET, protected by `Authorization: Bearer $CRON_SECRET` (fails closed if the secret isn't set). Intended to run on a schedule (e.g. Vercel Cron, hourly); not meant to be called by a person.
 
-Each sweep selects `notification_logs` rows with `status = 'failed'` and `retry_count < 5`, keeps the ones where `now() >= last_attempted_at + min(2^retry_count, 1440) minutes`, and calls `resendNotification()` on each — same function the manager's one-click "Resend" button calls (`manualResendNotification` in `lib/actions/notifications.ts`, `requireAdmin`-guarded). Every attempt, automatic or manual, updates the *same* `notification_logs` row: `retry_count` increments, `status`/`error`/`provider_response`/`last_attempted_at` update. `skipped` rows (e.g. logged before Twilio was configured) are resendable through the manual button but aren't picked up by the automatic sweep, which only targets `failed`.
+Each sweep selects `notification_logs` rows with `status` in `('failed', 'undelivered')` and `retry_count < 5`, keeps the ones where `now() >= last_attempted_at + min(2^retry_count, 1440) minutes`, and calls `resendNotification()` on each — same function the manager's one-click "Resend" button calls (`manualResendNotification` in `lib/actions/notifications.ts`, `requireAdmin`-guarded). Every attempt, automatic or manual, updates the *same* `notification_logs` row: `retry_count` increments, `status`/`error`/`provider_response`/`provider_message_id`/`last_attempted_at` update (and `delivered_at`/`read_at`/`failed_reason` clear — they described the attempt being replaced, not this new one). `skipped` rows (e.g. logged before Twilio was configured) are resendable through the manual button but aren't picked up by the automatic sweep, which only targets failed/undelivered.
 
 ## Notification Center
 
@@ -76,6 +97,7 @@ Each sweep selects `notification_logs` rows with `status = 'failed'` and `retry_
 TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
 TWILIO_WHATSAPP_NUMBER=      # e.g. +14155238886 — the WhatsApp-enabled Twilio number
+TWILIO_STATUS_CALLBACK_URL=  # this app's own URL for app/api/twilio/whatsapp/status — see above
 CRON_SECRET=                 # shared secret for /api/cron/* routes
 COMPANY_NAME=                # optional, defaults to "Prime Printing Co."
 PICKUP_LOCATION=             # optional, defaults to a placeholder address
@@ -86,6 +108,8 @@ Get `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN` from the Twilio Console dashboard. 
 ## Testing boundary
 
 This sandbox's network policy allows Supabase access only via MCP tools, not direct app-level HTTPS to third-party APIs — so live Twilio sending was **not** runtime-verified here, the same limitation documented for Supabase itself in `ARCHITECTURE.md`. Verified by static analysis (typecheck/lint/build) and in a real browser via Demo Mode: the unconfigured-credentials path (`skipped` status), the full pipeline end-to-end (trigger → log → audit trail → Notification Center display → resend button), and the Order Form's preference UI. Actually sending a WhatsApp message through Twilio needs verification on a real deployment with real credentials.
+
+The status-callback route (`app/api/twilio/whatsapp/status`) doesn't have that limitation for its core logic, since signature verification is pure crypto with no network call — `route.test.ts` computes real signatures with Twilio's own signing algorithm (`getExpectedTwilioSignature`, exported by the `twilio` package) and drives the handler through valid/invalid signatures, all 7 recognized statuses, missing fields, unrecognized statuses, and no-matching-row, against a mocked Supabase client. What that suite can't cover is Twilio's real infrastructure actually reaching the deployed URL — confirming that end-to-end needs a live send with `TWILIO_STATUS_CALLBACK_URL` configured and the console pointed at the same URL, then checking `notification_logs` for the row updating.
 
 ## Adding Email or SMS
 

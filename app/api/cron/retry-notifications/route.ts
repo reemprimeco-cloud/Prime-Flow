@@ -35,7 +35,7 @@ export async function GET(request: Request) {
   const { data: failedLogs, error } = await supabase
     .from("notification_logs")
     .select("id, retry_count, last_attempted_at")
-    .eq("status", "failed")
+    .in("status", ["failed", "undelivered"])
     .lt("retry_count", MAX_RETRIES);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

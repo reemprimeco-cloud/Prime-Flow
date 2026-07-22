@@ -26,11 +26,20 @@ const MAX_AUTO_RETRIES = 5;
 
 type TabKey = "all" | "sent" | "pending" | "failed" | "retry-queue";
 
+/** "Sent" covers every status a delivery-status callback can only improve on from here. */
+const SENT_LIKE_STATUSES: NotificationStatus[] = ["sent", "delivered", "read"];
+/** "Failed" covers both of Twilio's terminal failure statuses. */
+const FAILED_LIKE_STATUSES: NotificationStatus[] = ["failed", "undelivered"];
+
 const STATUS_BADGE_VARIANT: Record<NotificationStatus, "success" | "warning" | "destructive" | "muted"> = {
   sent: "success",
   delivered: "success",
+  read: "success",
   pending: "warning",
+  queued: "warning",
+  accepted: "warning",
   failed: "destructive",
+  undelivered: "destructive",
   skipped: "muted",
 };
 
@@ -59,20 +68,22 @@ export function NotificationCenterClient({ initialLogs }: { initialLogs: Notific
   const tabCounts = useMemo(
     () => ({
       all: logs.length,
-      sent: logs.filter((l) => l.status === "sent" || l.status === "delivered").length,
+      sent: logs.filter((l) => SENT_LIKE_STATUSES.includes(l.status)).length,
       pending: logs.filter((l) => l.status === "pending").length,
-      failed: logs.filter((l) => l.status === "failed").length,
-      "retry-queue": logs.filter((l) => l.status === "failed" && l.retryCount < MAX_AUTO_RETRIES).length,
+      failed: logs.filter((l) => FAILED_LIKE_STATUSES.includes(l.status)).length,
+      "retry-queue": logs.filter((l) => FAILED_LIKE_STATUSES.includes(l.status) && l.retryCount < MAX_AUTO_RETRIES)
+        .length,
     }),
     [logs]
   );
 
   const filtered = useMemo(() => {
     return logs.filter((log) => {
-      if (tab === "sent" && log.status !== "sent" && log.status !== "delivered") return false;
+      if (tab === "sent" && !SENT_LIKE_STATUSES.includes(log.status)) return false;
       if (tab === "pending" && log.status !== "pending") return false;
-      if (tab === "failed" && log.status !== "failed") return false;
-      if (tab === "retry-queue" && !(log.status === "failed" && log.retryCount < MAX_AUTO_RETRIES)) return false;
+      if (tab === "failed" && !FAILED_LIKE_STATUSES.includes(log.status)) return false;
+      if (tab === "retry-queue" && !(FAILED_LIKE_STATUSES.includes(log.status) && log.retryCount < MAX_AUTO_RETRIES))
+        return false;
 
       if (receiverFilter !== "all" && log.receiverType !== receiverFilter) return false;
       if (channelFilter !== "all" && log.channel !== channelFilter) return false;
@@ -200,7 +211,7 @@ export function NotificationCenterClient({ initialLogs }: { initialLogs: Notific
                 </TableCell>
                 <TableCell>{log.retryCount}</TableCell>
                 <TableCell>
-                  {(log.status === "failed" || log.status === "skipped") && (
+                  {(FAILED_LIKE_STATUSES.includes(log.status) || log.status === "skipped") && (
                     <Button
                       type="button"
                       variant="outline"

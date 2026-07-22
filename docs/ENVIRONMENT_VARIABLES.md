@@ -17,10 +17,11 @@ Every variable below lives in `.env.local` for local development (see `.env.loca
 | Variable | Where it's used | Notes |
 |---|---|---|
 | `TWILIO_ACCOUNT_SID` | Server only | See `NOTIFICATIONS.md` for full Twilio setup (including the free WhatsApp Sandbox for development). |
-| `TWILIO_AUTH_TOKEN` | Server only | Never logged, never returned in any Server Action response. |
+| `TWILIO_AUTH_TOKEN` | Server only | Never logged, never returned in any Server Action response. Also the secret the status-callback webhook uses to verify Twilio's request signature — see below. |
 | `TWILIO_WHATSAPP_NUMBER` | Server only | Your Twilio WhatsApp-enabled sender number, e.g. `whatsapp:+14155238886`. |
+| `TWILIO_STATUS_CALLBACK_URL` | Server only | This app's own production URL for `app/api/twilio/whatsapp/status` — e.g. `https://primeflowboard.netlify.app/api/twilio/whatsapp/status`. Passed as `statusCallback` on every outbound message *and* used by the webhook itself as the exact URL it validates Twilio's signature against, so it must be this app's real, exact URL — not just any value. Leave blank to send WhatsApp messages without delivery-status tracking (they stay at `sent` and never update further); nothing errors either way. |
 
-Leaving any of the three blank makes every WhatsApp send resolve to `status: "skipped"` (logged in `notification_logs`, visible in the Notification Center) instead of erroring — the app runs fully otherwise. The Diagnostics page (`/diagnostics`) shows "Twilio Status: Not configured (stub-safe)" in this state, which is expected, not a fault.
+Leaving `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`/`TWILIO_WHATSAPP_NUMBER` blank makes every WhatsApp send resolve to `status: "skipped"` (logged in `notification_logs`, visible in the Notification Center) instead of erroring — the app runs fully otherwise. The Diagnostics page (`/diagnostics`) shows "Twilio Status: Not configured (stub-safe)" in this state, which is expected, not a fault.
 
 | Variable | Where it's used | Default if unset |
 |---|---|---|

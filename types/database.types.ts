@@ -220,13 +220,17 @@ export type Database = {
           body: string | null
           channel: Database["public"]["Enums"]["notification_channel"]
           created_at: string
+          delivered_at: string | null
           error: string | null
+          failed_reason: string | null
           id: string
           language: Database["public"]["Enums"]["order_language"]
           last_attempted_at: string
           order_id: string | null
           phone: string
+          provider_message_id: string | null
           provider_response: Json | null
+          read_at: string | null
           receiver_type: Database["public"]["Enums"]["notification_receiver"]
           retry_count: number
           sent_at: string | null
@@ -237,13 +241,17 @@ export type Database = {
           body?: string | null
           channel?: Database["public"]["Enums"]["notification_channel"]
           created_at?: string
+          delivered_at?: string | null
           error?: string | null
+          failed_reason?: string | null
           id?: string
           language: Database["public"]["Enums"]["order_language"]
           last_attempted_at?: string
           order_id?: string | null
           phone: string
+          provider_message_id?: string | null
           provider_response?: Json | null
+          read_at?: string | null
           receiver_type: Database["public"]["Enums"]["notification_receiver"]
           retry_count?: number
           sent_at?: string | null
@@ -254,13 +262,17 @@ export type Database = {
           body?: string | null
           channel?: Database["public"]["Enums"]["notification_channel"]
           created_at?: string
+          delivered_at?: string | null
           error?: string | null
+          failed_reason?: string | null
           id?: string
           language?: Database["public"]["Enums"]["order_language"]
           last_attempted_at?: string
           order_id?: string | null
           phone?: string
+          provider_message_id?: string | null
           provider_response?: Json | null
+          read_at?: string | null
           receiver_type?: Database["public"]["Enums"]["notification_receiver"]
           retry_count?: number
           sent_at?: string | null
@@ -643,6 +655,10 @@ export type Database = {
         | "failed"
         | "skipped"
         | "delivered"
+        | "queued"
+        | "accepted"
+        | "read"
+        | "undelivered"
       order_file_type: "product_image" | "design_file"
       order_fulfillment_type: "pickup" | "delivery"
       order_language: "ar" | "en"
@@ -818,6 +834,10 @@ export const Constants = {
         "failed",
         "skipped",
         "delivered",
+        "queued",
+        "accepted",
+        "read",
+        "undelivered",
       ],
       order_file_type: ["product_image", "design_file"],
       order_fulfillment_type: ["pickup", "delivery"],

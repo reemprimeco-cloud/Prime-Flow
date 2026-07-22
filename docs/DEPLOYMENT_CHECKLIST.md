@@ -17,6 +17,7 @@ Prime Production Board has never been deployed to a live production environment 
 - [ ] `DEMO_MODE` and `NEXT_PUBLIC_DEMO_MODE` are **both unset or `false`**. Double-check both — a mismatch (e.g. only one flipped) puts the app in an inconsistent state.
 - [ ] `SESSION_SECRET` and `CRON_SECRET` are freshly generated for this environment, not copied from `.env.local.example` or a dev project.
 - [ ] Twilio variables are set if WhatsApp sending should be live; otherwise confirmed intentionally blank (stub-safe mode — see `NOTIFICATIONS.md`).
+- [ ] If Twilio is live: `TWILIO_STATUS_CALLBACK_URL` is set to this deployment's real URL (e.g. `https://primeflowboard.netlify.app/api/twilio/whatsapp/status`), and the same URL is entered in the Twilio console (Messaging Service or WhatsApp Sender → Status Callback URL) — either alone is enough to receive delivery-status updates, but they must match exactly if both are set. See `NOTIFICATIONS.md`'s "Delivery status callback" section.
 
 ## 3. Scheduling
 

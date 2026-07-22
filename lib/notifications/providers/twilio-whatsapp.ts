@@ -31,20 +31,28 @@ export class TwilioWhatsAppProvider implements NotificationProvider {
 
     try {
       const client = twilio(accountSid, authToken);
+      // Set to receive delivered/read/failed updates asynchronously at
+      // app/api/twilio/whatsapp/status — see docs/NOTIFICATIONS.md. Left
+      // unset (no statusCallback param sent) if not configured, same
+      // stub-safe pattern as the credentials above: the message still
+      // sends, it just won't get delivery-status updates after acceptance.
+      const statusCallback = process.env.TWILIO_STATUS_CALLBACK_URL || undefined;
       const message = await client.messages.create({
         from: toWhatsAppAddress(fromNumber),
         to: toWhatsAppAddress(payload.phone),
         body: payload.body,
+        ...(statusCallback ? { statusCallback } : {}),
       });
 
       // Twilio accepts the message for delivery here; final delivery status
-      // (delivered/read/failed) arrives later via webhook — out of scope
-      // for this phase, see docs/NOTIFICATIONS.md.
+      // (delivered/read/failed) arrives later via the status-callback
+      // webhook above, which updates this same row by providerMessageId.
       const status = message.status === "failed" || message.status === "undelivered" ? "failed" : "sent";
 
       return {
         status,
         providerResponse: { sid: message.sid, status: message.status, errorCode: message.errorCode },
+        providerMessageId: message.sid,
       };
     } catch (error) {
       const twilioError = error as { message?: string; code?: number; moreInfo?: string };
