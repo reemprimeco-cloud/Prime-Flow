@@ -47,7 +47,9 @@ export async function getDiagnosticsSnapshot(): Promise<DiagnosticsSnapshot> {
     notificationQueuePending: pendingCount ?? 0,
     notificationQueueFailed: failedCount ?? 0,
     twilioConfigured: Boolean(
-      process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_WHATSAPP_NUMBER
+      process.env.TWILIO_ACCOUNT_SID &&
+        process.env.TWILIO_AUTH_TOKEN &&
+        (process.env.TWILIO_MESSAGING_SERVICE_SID || process.env.TWILIO_WHATSAPP_NUMBER)
     ),
     activeUsersApprox,
     timestamp: new Date().toISOString(),

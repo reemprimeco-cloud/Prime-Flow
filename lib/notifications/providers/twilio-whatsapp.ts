@@ -24,8 +24,14 @@ export class TwilioWhatsAppProvider implements NotificationProvider {
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
     const fromNumber = process.env.TWILIO_WHATSAPP_NUMBER;
+    const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
 
-    if (!accountSid || !authToken || !fromNumber) {
+    // A Messaging Service (its Sender Pool holds the actual WhatsApp
+    // number) is preferred when configured — Twilio picks the sender and
+    // handles scaling/failover, so `from` is omitted entirely in that case
+    // per Twilio's own guidance. Falls back to a single direct number for
+    // setups that haven't moved to a Messaging Service.
+    if (!accountSid || !authToken || (!messagingServiceSid && !fromNumber)) {
       return { status: "skipped", error: "Twilio credentials not configured" };
     }
 
@@ -36,9 +42,13 @@ export class TwilioWhatsAppProvider implements NotificationProvider {
       // unset (no statusCallback param sent) if not configured, same
       // stub-safe pattern as the credentials above: the message still
       // sends, it just won't get delivery-status updates after acceptance.
+      // Redundant (and harmless) if the Messaging Service already has its
+      // own Status Callback URL set in the Twilio console.
       const statusCallback = process.env.TWILIO_STATUS_CALLBACK_URL || undefined;
       const message = await client.messages.create({
-        from: toWhatsAppAddress(fromNumber),
+        ...(messagingServiceSid
+          ? { messagingServiceSid }
+          : { from: toWhatsAppAddress(fromNumber!) }),
         to: toWhatsAppAddress(payload.phone),
         body: payload.body,
         ...(statusCallback ? { statusCallback } : {}),

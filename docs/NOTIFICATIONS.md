@@ -21,7 +21,9 @@ const PROVIDERS: Partial<Record<NotificationChannel, NotificationProvider>> = {
 
 `lib/notifications/providers/twilio-whatsapp.ts` is the **only** file in this project that imports the `twilio` package or reads `TWILIO_*` env vars — both `import "server-only"`-guarded, so credentials can never reach client code even by accident. See "Environment variables" below for setup.
 
-Stub-safe by the same convention as the rest of this project (Supabase MCP-only sandbox access, Demo Mode, etc.): with no `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_WHATSAPP_NUMBER` configured, `send()` returns `{ status: "skipped", error: "Twilio credentials not configured" }` instead of throwing, so the rest of the pipeline (logging, audit trail, Notification Center) stays fully exercisable without live credentials. This is also why sending could not be runtime-verified inside this sandbox — see the Testing section.
+Stub-safe by the same convention as the rest of this project (Supabase MCP-only sandbox access, Demo Mode, etc.): with no `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN`, or with neither `TWILIO_MESSAGING_SERVICE_SID` nor `TWILIO_WHATSAPP_NUMBER`, configured, `send()` returns `{ status: "skipped", error: "Twilio credentials not configured" }` instead of throwing, so the rest of the pipeline (logging, audit trail, Notification Center) stays fully exercisable without live credentials. This is also why sending could not be runtime-verified inside this sandbox — see the Testing section.
+
+**Two ways to send**, picked at send time — `messagingServiceSid` if `TWILIO_MESSAGING_SERVICE_SID` is set (Twilio picks the sender from that service's own Sender Pool; `from` is omitted entirely per Twilio's guidance), otherwise `from: TWILIO_WHATSAPP_NUMBER` directly. The Messaging Service path is preferred and wins if both are set. **A Messaging Service's Sender Pool needs an actual WhatsApp-capable sender added** (Console → Messaging → Services → your service → Senders) — an SMS-only Long Code number sitting in that pool does not make the service WhatsApp-capable, it'll just fail/skip WhatsApp sends. Add either the WhatsApp Sandbox number (dev) or an approved WhatsApp Business Sender (production) as a Sender on the service.
 
 Twilio's REST API accepts a message and returns a SID (`message.sid`, stored as `notification_logs.provider_message_id`); final delivery status (delivered/read/failed) arrives later via a status-callback webhook — see "Delivery status callback" below for how that's wired up. `send()` passes `statusCallback: TWILIO_STATUS_CALLBACK_URL` on every message when that env var is set, so Twilio knows where to report back; unset, messages still send, they just never get a delivery update past "sent."
 
@@ -96,14 +98,15 @@ Each sweep selects `notification_logs` rows with `status` in `('failed', 'undeli
 ```
 TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
-TWILIO_WHATSAPP_NUMBER=      # e.g. +14155238886 — the WhatsApp-enabled Twilio number
-TWILIO_STATUS_CALLBACK_URL=  # this app's own URL for app/api/twilio/whatsapp/status — see above
-CRON_SECRET=                 # shared secret for /api/cron/* routes
-COMPANY_NAME=                # optional, defaults to "Prime Printing Co."
-PICKUP_LOCATION=             # optional, defaults to a placeholder address
+TWILIO_MESSAGING_SERVICE_SID= # preferred — MG... SID; needs a WhatsApp sender in its Sender Pool
+TWILIO_WHATSAPP_NUMBER=       # alternative to the above — e.g. +14155238886, ignored if the SID is set
+TWILIO_STATUS_CALLBACK_URL=   # this app's own URL for app/api/twilio/whatsapp/status — see above
+CRON_SECRET=                  # shared secret for /api/cron/* routes
+COMPANY_NAME=                 # optional, defaults to "Prime Printing Co."
+PICKUP_LOCATION=              # optional, defaults to a placeholder address
 ```
 
-Get `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN` from the Twilio Console dashboard. For development, Twilio's WhatsApp Sandbox works without business verification — join the sandbox from the Console and use its sandbox number as `TWILIO_WHATSAPP_NUMBER`. Production sending to arbitrary numbers requires a WhatsApp Business-verified sender, which is a multi-day Meta approval process outside this app's control. Leave all three unset to run stub-safe (every send logs as `skipped`, nothing else changes).
+Get `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN` from the Twilio Console dashboard. For development, Twilio's WhatsApp Sandbox works without business verification — add it as a Sender (Messaging Service path) or use its number directly as `TWILIO_WHATSAPP_NUMBER`. Production sending to arbitrary numbers requires a WhatsApp Business-verified sender, which is a multi-day Meta approval process outside this app's control. Leave `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN` unset, or leave both sending options unset, to run stub-safe (every send logs as `skipped`, nothing else changes).
 
 ## Testing boundary
 
