@@ -28,6 +28,7 @@ Leaving `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`, or both of `TWILIO_MESSAGING_S
 |---|---|---|
 | `COMPANY_NAME` | Server only (message templates) | `Prime Printing Co.` |
 | `PICKUP_LOCATION` | Server only (message templates) | `Prime Printing Co. — Shuwaikh Industrial, Kuwait` |
+| `PICKUP_HOURS` | Server only (message templates) | `9:00 AM – 5:00 PM` |
 
 ## Dev-only — never set true in production
 

@@ -50,7 +50,7 @@ A resend (manual, from the Notification Center, or the automatic retry cron) cre
 
 ## Message templates
 
-`lib/notifications/templates.ts` holds every message, in English and Arabic, as small functions of `TemplateVariables` (`customerName`, `employeeName`, `orderNumber`, `productName`, `deliveryDate`, `deliveryTime`, `pickupLocation`, `companyName`, `mapsLink`, `noteText`, `statusLabel`; `trackingLink` is reserved but unused — no customer-facing tracking page exists yet). `companyName`/`pickupLocation` default from the `COMPANY_NAME`/`PICKUP_LOCATION` env vars since there's one shop, not a per-order field.
+`lib/notifications/templates.ts` holds every message, in English and Arabic, as small functions of `TemplateVariables` (`customerName`, `employeeName`, `orderNumber`, `productName`, `deliveryDate`, `deliveryTime`, `pickupLocation`, `pickupHours`, `companyName`, `mapsLink`, `noteText`, `statusLabel`; `trackingLink` is reserved but unused — no customer-facing tracking page exists yet). `companyName`/`pickupLocation`/`pickupHours` default from the `COMPANY_NAME`/`PICKUP_LOCATION`/`PICKUP_HOURS` env vars since there's one shop, not a per-order field. `pickupHours` only appears in `order_ready_for_pickup`, e.g. "ready for pickup at Prime Printing Co. — Shuwaikh Industrial, Kuwait, open 9:00 AM – 5:00 PM."
 
 The Arabic copy is standard business MSA, not reviewed by a native speaker — treat it as a solid starting point to have proofread before real customers see it, not final copy.
 
@@ -104,6 +104,7 @@ TWILIO_STATUS_CALLBACK_URL=   # this app's own URL for app/api/twilio/whatsapp/s
 CRON_SECRET=                  # shared secret for /api/cron/* routes
 COMPANY_NAME=                 # optional, defaults to "Prime Printing Co."
 PICKUP_LOCATION=              # optional, defaults to a placeholder address
+PICKUP_HOURS=                 # optional, defaults to "9:00 AM – 5:00 PM"
 ```
 
 Get `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN` from the Twilio Console dashboard. For development, Twilio's WhatsApp Sandbox works without business verification — add it as a Sender (Messaging Service path) or use its number directly as `TWILIO_WHATSAPP_NUMBER`. Production sending to arbitrary numbers requires a WhatsApp Business-verified sender, which is a multi-day Meta approval process outside this app's control. Leave `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN` unset, or leave both sending options unset, to run stub-safe (every send logs as `skipped`, nothing else changes).

@@ -11,6 +11,7 @@ import type { OrderLanguage } from "@/types/database.types";
 
 export const COMPANY_NAME = process.env.COMPANY_NAME || "Prime Printing Co.";
 export const PICKUP_LOCATION = process.env.PICKUP_LOCATION || "Prime Printing Co. — Shuwaikh Industrial, Kuwait";
+export const PICKUP_HOURS = process.env.PICKUP_HOURS || "9:00 AM – 5:00 PM";
 
 export type CustomerTemplateName =
   | "order_received"
@@ -44,6 +45,7 @@ export interface TemplateVariables {
   deliveryDate?: string;
   deliveryTime?: string;
   pickupLocation?: string;
+  pickupHours?: string;
   companyName?: string;
   /** Not implemented yet — reserved for a future customer-facing order tracking page. */
   trackingLink?: string;
@@ -69,8 +71,9 @@ const TEMPLATES: Record<TemplateName, Record<OrderLanguage, TemplateFn>> = {
   },
   order_ready_for_pickup: {
     en: (v) =>
-      `Good news! Order ${v.orderNumber} (${v.productName}) is ready for pickup at ${v.pickupLocation}. Delivery slot was ${v.deliveryDate} ${v.deliveryTime}.`,
-    ar: (v) => `أخبار سارة! طلبكم ${v.orderNumber} (${v.productName}) جاهز للاستلام من ${v.pickupLocation}.`,
+      `Good news! Order ${v.orderNumber} (${v.productName}) is ready for pickup at ${v.pickupLocation}, open ${v.pickupHours}. Delivery slot was ${v.deliveryDate} ${v.deliveryTime}.`,
+    ar: (v) =>
+      `أخبار سارة! طلبكم ${v.orderNumber} (${v.productName}) جاهز للاستلام من ${v.pickupLocation}، ساعات العمل ${v.pickupHours}.`,
   },
   order_out_for_delivery: {
     en: (v) => `Order ${v.orderNumber} (${v.productName}) is out for delivery, expected ${v.deliveryDate} ${v.deliveryTime}.`,
@@ -142,6 +145,7 @@ export function renderTemplate(name: TemplateName, language: OrderLanguage, vars
   const withDefaults: TemplateVariables = {
     companyName: COMPANY_NAME,
     pickupLocation: PICKUP_LOCATION,
+    pickupHours: PICKUP_HOURS,
     ...vars,
   };
   return TEMPLATES[name][language](withDefaults);
