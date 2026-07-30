@@ -15,14 +15,17 @@ export interface NotificationPreferences {
 }
 
 /**
- * Every order now sends the customer all four production-stage updates —
- * the order form no longer exposes per-type toggles, so this is applied
- * unconditionally to every order rather than being a user-editable choice.
- * `delivered` stays off deliberately: the customer already has the order in
- * hand by then, so a confirmation text after out_for_delivery is redundant.
+ * Every order sends the customer exactly two WhatsApp updates — the order
+ * form doesn't expose per-type toggles, so this is applied unconditionally
+ * rather than being a user-editable choice. `order_received` and `delivered`
+ * stay off deliberately: the customer just placed the order (they don't need
+ * a text confirming that), and by `delivered` they already have it in hand.
+ * `ready_for_pickup` also gates order_collected_confirmation in
+ * lib/notifications/service.ts's STATUS_TEMPLATE — kept off there too, same
+ * "already have it" reasoning as `delivered`.
  */
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
-  order_received: true,
+  order_received: false,
   order_in_production: true,
   ready_for_pickup: true,
   out_for_delivery: true,

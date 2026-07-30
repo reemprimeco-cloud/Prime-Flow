@@ -33,8 +33,8 @@ describe("normalizeNotificationPreferences", () => {
     expect(normalizeNotificationPreferences(explicit)).toEqual(explicit);
   });
 
-  it("defaults every production-stage update to true, and delivered to false", () => {
-    expect(DEFAULT_NOTIFICATION_PREFERENCES.order_received).toBe(true);
+  it("defaults to exactly two customer updates: in-production and ready (pickup or delivery)", () => {
+    expect(DEFAULT_NOTIFICATION_PREFERENCES.order_received).toBe(false);
     expect(DEFAULT_NOTIFICATION_PREFERENCES.order_in_production).toBe(true);
     expect(DEFAULT_NOTIFICATION_PREFERENCES.ready_for_pickup).toBe(true);
     expect(DEFAULT_NOTIFICATION_PREFERENCES.out_for_delivery).toBe(true);

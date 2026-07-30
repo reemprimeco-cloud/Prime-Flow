@@ -197,7 +197,7 @@ const STATUS_TEMPLATE: Partial<
   in_progress: { template: "order_in_production", preference: "order_in_production" },
   ready_pickup: { template: "order_ready_for_pickup", preference: "ready_for_pickup" },
   ready_delivery: { template: "order_out_for_delivery", preference: "out_for_delivery" },
-  collected: { template: "order_collected_confirmation", preference: "ready_for_pickup" },
+  collected: { template: "order_collected_confirmation", preference: "delivered" },
   delivered: { template: "order_delivered_confirmation", preference: "delivered" },
 };
 
