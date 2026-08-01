@@ -25,6 +25,10 @@ Every variable below lives in `.env.local` for local development (see `.env.loca
 
 Leaving `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`, or both of `TWILIO_MESSAGING_SERVICE_SID` and `TWILIO_WHATSAPP_NUMBER`, blank makes every WhatsApp send resolve to `status: "skipped"` (logged in `notification_logs`, visible in the Notification Center) instead of erroring — the app runs fully otherwise. The Diagnostics page (`/diagnostics`) shows "Twilio Status: Not configured (stub-safe)" in this state, which is expected, not a fault.
 
+| Variable | Where it's used | Notes |
+|---|---|---|
+| `WOOCOMMERCE_WEBHOOK_SECRET` | Server only | Shared secret for the WooCommerce order-import webhook (`app/api/webhooks/woocommerce`) — must match the Secret field on the webhook in WooCommerce (Settings → Advanced → Webhooks). The route **fails closed** if unset: every request gets 403, so leaving it blank cleanly disables auto-import. See `ARCHITECTURE.md`. |
+
 | Variable | Where it's used | Default if unset |
 |---|---|---|
 | `COMPANY_NAME` | Server only (message templates) | `Prime Printing Co.` |

@@ -71,6 +71,18 @@ When a manager assigns more than one employee to an order, the order form's "Ass
 
 A second, optional field — `orders.delivery_map_link` (migration `0016_order_delivery_map_link.sql`) — lets the manager paste an exact Google Maps link (e.g. from a pin's Share > Copy Link) instead of relying on geocoding a free-text address. Every place that builds a maps link (`EmployeeNotificationContext`, the order detail drawer, the employee job card) prefers `deliveryMapLink` when present and falls back to `buildGoogleMapsLink(deliveryAddress)` otherwise — same pattern everywhere, so the two never drift.
 
+## WooCommerce order auto-import
+
+`app/api/webhooks/woocommerce/route.ts` receives WooCommerce's `order.created` webhook and creates a matching order on the board, so an online order doesn't have to be retyped by hand. Configure in WooCommerce: **Settings → Advanced → Webhooks → Add webhook**, Topic "Order created", Delivery URL `https://primeflowboard.netlify.app/api/webhooks/woocommerce`, Secret = `WOOCOMMERCE_WEBHOOK_SECRET`.
+
+Authenticated by WooCommerce's `x-wc-webhook-signature` header — base64 HMAC-SHA256 of the raw request body, compared with `crypto.timingSafeEqual`. Fails closed: no secret configured, or any signature mismatch, returns 403 without touching the database. Runs on the Node.js runtime for `crypto`, same as the Twilio status webhook.
+
+**Every imported order lands `approved: false`.** WooCommerce has no concept of this shop's print specs (paper, size, finishing) or a requested delivery date/time, and pickup-vs-delivery is only inferred from whether `shipping_lines` mentions "pickup" — so an import is a *draft*, not a production-ready job. The existing approval gate (see Production Approval above) already stops employees from starting an unapproved order, so a half-complete import can't reach the floor: the manager opens it, fills in the real specs, and approves. `orders.notes` carries the WooCommerce order number, total, the customer's own note, and an explicit list of what still needs confirming. `delivery_date` is a placeholder (+2 days, 5:00 PM) purely because the column is `not null`.
+
+Field mapping: billing first/last name → `customer_name`, billing phone → `customer_mobile` (via `sanitizePhoneInput`; `whatsapp_enabled` goes false and the number stores as `"N/A"` when WooCommerce has no phone, rather than sending to a junk number), first line item → the order's own `product`/`quantity`, remaining line items → `order_items` rows, shipping address → `delivery_address` when it's a delivery. `created_by` is the oldest active admin, since a webhook has no session; the audit-log entry records `actorName: "WooCommerce Import"` and `source: "woocommerce"` so imports are distinguishable from manually-created orders.
+
+Beyond signature rejection, every failure path (setup ping, unexpected topic, no line items, no active admin, insert error) logs and returns 200 — WooCommerce retries non-2xx responses, and none of these get better on retry.
+
 ## Customer phone on the employee job card
 
 `getMyJobs` (`lib/actions/employee-jobs.ts`) includes `customer_mobile` in `EmployeeJobItem`, rendered as a `tel:` link on the job card (`components/employee/job-card.tsx`) — an assigned employee (delivery staff especially) can call the customer directly, which previously required going through the manager since the number wasn't exposed anywhere on the employee side at all.
