@@ -6,6 +6,7 @@ const {
   mockRecordAuditLog,
   mockBroadcast,
   mockNotifyOrderStatusChanged,
+  mockNotifyAdminOrderStatusChanged,
   mockRevalidatePath,
 } = vi.hoisted(() => ({
   mockRequireEmployee: vi.fn(),
@@ -13,6 +14,7 @@ const {
   mockRecordAuditLog: vi.fn(async () => {}),
   mockBroadcast: vi.fn(async () => {}),
   mockNotifyOrderStatusChanged: vi.fn(async () => {}),
+  mockNotifyAdminOrderStatusChanged: vi.fn(async () => {}),
   mockRevalidatePath: vi.fn(),
 }));
 
@@ -26,7 +28,7 @@ vi.mock("@/lib/realtime/channels", () => ({
 }));
 vi.mock("@/lib/notifications/service", () => ({
   notifyAdminOrderNoteAdded: vi.fn(async () => {}),
-  notifyAdminOrderStatusChanged: vi.fn(async () => {}),
+  notifyAdminOrderStatusChanged: mockNotifyAdminOrderStatusChanged,
   notifyEmployeeJobReadyForYou: vi.fn(async () => {}),
   notifyEmployeeInternalPickupReady: vi.fn(async () => {}),
   notifyEmployeeOutForDeliveryStaff: vi.fn(async () => {}),
@@ -70,7 +72,7 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-import { toggleJobItemReady, updateEmployeeJobStatus } from "@/lib/actions/employee-jobs";
+import { submitMaterialRequestForJob, toggleJobItemReady, updateEmployeeJobStatus } from "@/lib/actions/employee-jobs";
 import { PRIMARY_ITEM_ID } from "@/types/domain";
 
 const EMPLOYEE_SESSION = { employeeId: "emp-1", username: "hassan", fullName: "Hassan Youssef", role: "employee" as const };
@@ -266,5 +268,65 @@ describe("Production Approval — updateEmployeeJobStatus", () => {
       "emp-1",
       "Hassan Youssef"
     );
+  });
+});
+
+const MATERIAL_REQUEST_INPUT = { materialType: "paper", description: "Out of A4 gloss", quantity: "5 reams", priority: "normal" };
+
+describe("Material Requests — submitMaterialRequestForJob", () => {
+  it("rejects when the employee isn't assigned to the order", async () => {
+    resetSupabaseMock({ order_assignments: [{ data: null, error: null }] });
+
+    await expect(submitMaterialRequestForJob("order-1", MATERIAL_REQUEST_INPUT)).rejects.toThrow("not assigned");
+  });
+
+  it("blocks writes in demo mode without touching the database", async () => {
+    mockIsDemoMode.mockReturnValue(true);
+    await expect(submitMaterialRequestForJob("order-1", MATERIAL_REQUEST_INPUT)).rejects.toThrow("read-only demo");
+  });
+
+  it("moves an in_progress order to waiting_materials and notifies admins with what's needed", async () => {
+    resetSupabaseMock({
+      order_assignments: [{ data: { id: "assignment-1" }, error: null }],
+      material_requests: [{ data: null, error: null }], // insert
+      orders: [
+        { data: { status: "in_progress" }, error: null }, // status check
+        { data: currentOrderRow("in_progress"), error: null }, // applyOrderStatusTransition fetch
+        { data: null, error: null }, // status update
+      ],
+      order_status_history: [{ data: null, error: null }],
+      employees: [{ data: [{ id: "admin-1", phone: "+96500000000" }], error: null }], // notifyAdmins lookup
+    });
+
+    await submitMaterialRequestForJob("order-1", MATERIAL_REQUEST_INPUT);
+
+    expect(mockNotifyAdminOrderStatusChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ orderNumber: "#1050", statusLabel: "Waiting for Materials" }),
+      "emp-1",
+      "Hassan Youssef"
+    );
+    expect(mockBroadcast).toHaveBeenCalledWith("material-requests", "material_request.created", { orderId: "order-1" });
+  });
+
+  it("doesn't touch the order's status when it's already waiting_materials — just logs the extra request", async () => {
+    resetSupabaseMock({
+      order_assignments: [{ data: { id: "assignment-1" }, error: null }],
+      material_requests: [{ data: null, error: null }], // insert
+      orders: [{ data: { status: "waiting_materials" }, error: null }], // status check only — no transition follows
+    });
+
+    await submitMaterialRequestForJob("order-1", MATERIAL_REQUEST_INPUT);
+
+    expect(mockNotifyAdminOrderStatusChanged).not.toHaveBeenCalled();
+    expect(mockRecordAuditLog).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid material request without creating anything", async () => {
+    resetSupabaseMock({ order_assignments: [{ data: { id: "assignment-1" }, error: null }] });
+
+    await expect(
+      submitMaterialRequestForJob("order-1", { ...MATERIAL_REQUEST_INPUT, description: "" })
+    ).rejects.toThrow();
+    expect(mockBroadcast).not.toHaveBeenCalled();
   });
 });

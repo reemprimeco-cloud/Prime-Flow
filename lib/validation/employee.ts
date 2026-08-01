@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { sanitizePhoneInput } from "@/lib/utils/phone";
+
 export const employeeRoleSchema = z.enum(["admin", "employee", "supervisor", "store", "delivery"]);
 
 const usernameSchema = z
@@ -17,14 +19,14 @@ export const createEmployeeSchema = z.object({
   password: passwordSchema,
   fullName: z.string().trim().min(1, "Full name is required").max(200),
   role: employeeRoleSchema,
-  phone: z.string().trim().max(30).optional().or(z.literal("")),
+  phone: z.string().trim().max(30).transform(sanitizePhoneInput).optional().or(z.literal("")),
   isOutsourced: z.boolean().default(false),
 });
 
 export const updateEmployeeSchema = z.object({
   fullName: z.string().trim().min(1, "Full name is required").max(200),
   role: employeeRoleSchema,
-  phone: z.string().trim().max(30).optional().or(z.literal("")),
+  phone: z.string().trim().max(30).transform(sanitizePhoneInput).optional().or(z.literal("")),
   isOutsourced: z.boolean().default(false),
 });
 

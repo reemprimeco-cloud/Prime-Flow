@@ -70,6 +70,15 @@ export function EmployeeDashboardClient({ initialJobs, fullName }: EmployeeDashb
     : null;
 
   const handleStatusChange = (job: EmployeeJobItem, status: OrderStatus) => {
+    // "Waiting for Materials" isn't a bare status flip — it opens the
+    // Request Material form instead, so the manager always learns *what's*
+    // needed. submitMaterialRequestForJob does the actual status transition
+    // once the form's submitted (see lib/actions/employee-jobs.ts).
+    if (status === "waiting_materials") {
+      setMaterialTarget(job);
+      return;
+    }
+
     setActioningId(job.id);
     updateEmployeeJobStatus(job.id, status)
       .then(() => {

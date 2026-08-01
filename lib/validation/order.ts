@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { sanitizePhoneInput } from "@/lib/utils/phone";
+
 const notificationPreferencesSchema = z.object({
   order_received: z.boolean(),
   order_in_production: z.boolean(),
@@ -21,7 +23,7 @@ export type OrderItemInput = z.infer<typeof orderItemSchema>;
 
 export const orderFormSchema = z.object({
   customerName: z.string().trim().min(1, "Customer name is required").max(200),
-  customerMobile: z.string().trim().min(6, "Enter a valid mobile number").max(30),
+  customerMobile: z.string().trim().min(6, "Enter a valid mobile number").max(30).transform(sanitizePhoneInput),
   preferredLanguage: z.enum(["ar", "en"]),
   whatsappEnabled: z.boolean(),
   preferredChannel: z.enum(["whatsapp", "email", "sms"]).default("whatsapp"),

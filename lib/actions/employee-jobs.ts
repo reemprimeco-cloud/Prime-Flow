@@ -9,6 +9,7 @@ import { broadcast, CHANNELS } from "@/lib/realtime/channels";
 import { isDemoMode } from "@/lib/demo/mode";
 import { getDemoMyJobs } from "@/lib/demo/data";
 import { materialRequestSchema, orderNoteSchema } from "@/lib/validation/material-request";
+import { sanitizePhoneInput } from "@/lib/utils/phone";
 import { applyOrderStatusTransition } from "@/lib/actions/status-transition";
 import { recordAuditLog } from "@/lib/audit/log";
 import {
@@ -46,6 +47,7 @@ export interface EmployeeJobItem {
   id: string;
   orderNumber: string;
   customerName: string;
+  customerMobile: string;
   product: string;
   paper: string | null;
   paperSize: string | null;
@@ -117,7 +119,7 @@ export async function getMyJobs(): Promise<MyJobsResult> {
   const { data: orders, error } = await supabase
     .from("orders")
     .select(
-      "id, order_number, customer_name, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, delivery_address, delivery_map_link, status, fulfillment_type, notes, item_ready, approved"
+      "id, order_number, customer_name, customer_mobile, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, delivery_address, delivery_map_link, status, fulfillment_type, notes, item_ready, approved"
     )
     .in("id", orderIds)
     .eq("archived", false)
@@ -229,6 +231,10 @@ export async function getMyJobs(): Promise<MyJobsResult> {
       id: o.id,
       orderNumber: o.order_number,
       customerName: o.customer_name,
+      // Sanitized on read too, not just on write — covers rows saved before
+      // this existed (e.g. a number pasted straight from WhatsApp/iOS,
+      // wrapped in invisible bidi marks that break tel:/wa.me links).
+      customerMobile: sanitizePhoneInput(o.customer_mobile),
       product: o.product,
       paper: o.paper,
       paperSize: o.paper_size,
@@ -632,6 +638,16 @@ export async function addJobNote(orderId: string, note: string): Promise<void> {
   revalidatePath("/employee");
 }
 
+/**
+ * Submitting a material request is what actually puts an order into
+ * "Waiting for Materials" — the employee dashboard's standalone status
+ * button was removed (see employee-dashboard-client.tsx) specifically so
+ * this can't happen without the manager also learning *what's* needed: a
+ * status flip with no request behind it left the manager with a stuck
+ * order and no way to act on it. Only transitions the status when the
+ * order's actually `in_progress` — re-requesting more material while
+ * already `waiting_materials` just adds another request, no status noise.
+ */
 export async function submitMaterialRequestForJob(
   orderId: string,
   input: { materialType: string; description: string; quantity: string; priority: string }
@@ -661,6 +677,20 @@ export async function submitMaterialRequestForJob(
     priority: parsed.data.priority,
   });
   if (error) throw new Error(error.message);
+
+  const { data: order } = await supabase.from("orders").select("status").eq("id", orderId).maybeSingle();
+  if (order?.status === "in_progress") {
+    const current = await applyOrderStatusTransition(supabase, orderId, "waiting_materials", session.employeeId, session.fullName);
+    await notifyAdmins(
+      supabase,
+      orderId,
+      current,
+      "admin_order_status_changed",
+      { statusLabel: ORDER_STATUS_LABELS.waiting_materials },
+      session.employeeId,
+      session.fullName
+    );
+  }
 
   await broadcast(CHANNELS.materialRequests, "material_request.created", { orderId });
   await broadcast(CHANNELS.notifications, "material_request.created", { orderId });

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { sanitizePhoneInput } from "@/lib/utils/phone";
+
 const orderRequestItemSchema = z.object({
   product: z.string().trim().min(1, "Product is required").max(200),
   paper: z.string().trim().max(200).optional().or(z.literal("")),
@@ -18,7 +20,7 @@ export type OrderRequestItemInput = z.infer<typeof orderRequestItemSchema>;
  */
 export const orderRequestSchema = z.object({
   customerName: z.string().trim().min(1, "Your name is required").max(200),
-  customerMobile: z.string().trim().min(6, "Enter a valid mobile number").max(30),
+  customerMobile: z.string().trim().min(6, "Enter a valid mobile number").max(30).transform(sanitizePhoneInput),
   product: z.string().trim().min(1, "Product is required").max(200),
   paper: z.string().trim().max(200).optional().or(z.literal("")),
   paperSize: z.string().trim().max(100).optional().or(z.literal("")),

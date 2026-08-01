@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { ArrowRightCircle, Download, ImageIcon, ListChecks, MapPin, NotebookPen, PackagePlus } from "lucide-react";
+import { ArrowRightCircle, Download, ImageIcon, ListChecks, MapPin, NotebookPen, PackagePlus, Phone } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 import { Card } from "@/components/ui/card";
@@ -83,6 +83,15 @@ export function JobCard({
               <div className="font-mono text-sm font-bold text-secondary">{job.orderNumber}</div>
               <div className="truncate text-base font-bold text-foreground">{job.customerName}</div>
               <div className="truncate text-sm text-muted-foreground">{job.product}</div>
+              {job.customerMobile && (
+                <a
+                  href={`tel:${job.customerMobile}`}
+                  className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold text-secondary hover:underline"
+                >
+                  <Phone className="size-3.5 shrink-0" />
+                  {job.customerMobile}
+                </a>
+              )}
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
               {job.priority === "urgent" && <Badge variant="destructive">Urgent</Badge>}

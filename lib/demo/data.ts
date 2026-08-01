@@ -684,6 +684,7 @@ export function getDemoMyJobs(employeeId: string): {
         id: order.id,
         orderNumber: order.orderNumber,
         customerName: order.customerName,
+        customerMobile: order.customerMobile,
         product: order.product,
         paper: order.paper,
         paperSize: order.paperSize,
