@@ -6,7 +6,7 @@ import { addDays, format } from "date-fns";
 import { createServiceClient } from "@/lib/supabase/server";
 import { broadcast, CHANNELS } from "@/lib/realtime/channels";
 import { recordAuditLog } from "@/lib/audit/log";
-import { notifyOrderCreated } from "@/lib/notifications/service";
+import { notifyAdminOrderStatusChanged, notifyOrderCreated } from "@/lib/notifications/service";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/notifications/constants";
 import { sanitizePhoneInput } from "@/lib/utils/phone";
 
@@ -130,14 +130,13 @@ export async function POST(request: Request) {
 
   const supabase = createServiceClient();
 
-  const { data: importingAdmin } = await supabase
+  const { data: admins } = await supabase
     .from("employees")
-    .select("id, full_name")
+    .select("id, full_name, phone")
     .eq("role", "admin")
     .eq("active", true)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .order("created_at", { ascending: true });
+  const importingAdmin = admins?.[0];
   if (!importingAdmin) {
     console.error(`[woocommerce] no active admin on file to attribute order ${order.id} to — skipping import`);
     return NextResponse.json({ received: true });
@@ -236,6 +235,31 @@ export async function POST(request: Request) {
     importingAdmin.id,
     "WooCommerce Import"
   );
+
+  // Tell every admin a WooCommerce order just landed and needs their
+  // attention — without this the import is silent, and an unapproved order
+  // sits on the board with nobody knowing to fill in its specs and assign
+  // it. Reuses the admin_order_status_changed template rather than adding a
+  // new one: it's already Meta-approved (so it reaches an admin outside the
+  // 24h window, see NOTIFICATIONS.md) and its three variables — who acted,
+  // which order, what state — fit this exactly.
+  for (const admin of admins ?? []) {
+    await notifyAdminOrderStatusChanged(
+      {
+        employeeId: admin.id,
+        employeePhone: admin.phone,
+        orderId: newOrder.id,
+        orderNumber: newOrder.order_number,
+        product: primaryItem.name,
+        deliveryDate: placeholderDate,
+        deliveryTime: "17:00",
+        employeeName: "WooCommerce",
+        statusLabel: "New — needs specs, assignment, and approval",
+      },
+      importingAdmin.id,
+      "WooCommerce Import"
+    );
+  }
 
   await broadcast(CHANNELS.production, "order.created", { orderId: newOrder.id });
 

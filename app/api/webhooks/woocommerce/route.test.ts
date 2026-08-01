@@ -2,14 +2,18 @@ import crypto from "node:crypto";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockBroadcast, mockRecordAuditLog, mockNotifyOrderCreated } = vi.hoisted(() => ({
+const { mockBroadcast, mockRecordAuditLog, mockNotifyOrderCreated, mockNotifyAdminOrderStatusChanged } = vi.hoisted(() => ({
   mockBroadcast: vi.fn(async () => {}),
   mockRecordAuditLog: vi.fn(async () => {}),
   mockNotifyOrderCreated: vi.fn(async () => {}),
+  mockNotifyAdminOrderStatusChanged: vi.fn(async () => {}),
 }));
 
 vi.mock("@/lib/audit/log", () => ({ recordAuditLog: mockRecordAuditLog }));
-vi.mock("@/lib/notifications/service", () => ({ notifyOrderCreated: mockNotifyOrderCreated }));
+vi.mock("@/lib/notifications/service", () => ({
+  notifyOrderCreated: mockNotifyOrderCreated,
+  notifyAdminOrderStatusChanged: mockNotifyAdminOrderStatusChanged,
+}));
 vi.mock("@/lib/realtime/channels", () => ({
   broadcast: mockBroadcast,
   CHANNELS: { production: "production", materialRequests: "material-requests", notifications: "notifications" },
@@ -89,7 +93,7 @@ function makeRequest(body: unknown, { secret = SECRET, topic = "order.created" a
 
 function withAdminAndInsert(orderRow: unknown = { id: "order-new", order_number: "#1029" }) {
   return {
-    employees: [{ data: { id: "admin-1", full_name: "Reem" }, error: null }],
+    employees: [{ data: [{ id: "admin-1", full_name: "Reem", phone: "+96565068000" }], error: null }],
     orders: [{ data: orderRow, error: null }],
     order_items: [{ data: null, error: null }],
     order_status_history: [{ data: null, error: null }],
@@ -213,7 +217,7 @@ describe("WooCommerce order webhook", () => {
   });
 
   it("skips the import when there's no active admin to attribute the order to", async () => {
-    resetSupabaseMock({ employees: [{ data: null, error: null }] });
+    resetSupabaseMock({ employees: [{ data: [], error: null }] });
 
     const response = await POST(makeRequest(WOO_ORDER));
 
@@ -221,9 +225,39 @@ describe("WooCommerce order webhook", () => {
     expect(insertedRows.orders).toBeUndefined();
   });
 
+  it("alerts every admin that an imported order needs specs, assignment, and approval", async () => {
+    resetSupabaseMock({
+      ...withAdminAndInsert(),
+      employees: [
+        {
+          data: [
+            { id: "admin-1", full_name: "Reem", phone: "+96565068000" },
+            { id: "admin-2", full_name: "Second Admin", phone: "+96599999999" },
+          ],
+          error: null,
+        },
+      ],
+    });
+
+    await POST(makeRequest(WOO_ORDER));
+
+    expect(mockNotifyAdminOrderStatusChanged).toHaveBeenCalledTimes(2);
+    expect(mockNotifyAdminOrderStatusChanged).toHaveBeenCalledWith(
+      expect.objectContaining({
+        employeeId: "admin-1",
+        employeePhone: "+96565068000",
+        orderNumber: "#1029",
+        employeeName: "WooCommerce",
+        statusLabel: "New — needs specs, assignment, and approval",
+      }),
+      "admin-1",
+      "WooCommerce Import"
+    );
+  });
+
   it("still returns 200 when the order insert fails, so WooCommerce doesn't retry forever", async () => {
     resetSupabaseMock({
-      employees: [{ data: { id: "admin-1", full_name: "Reem" }, error: null }],
+      employees: [{ data: [{ id: "admin-1", full_name: "Reem", phone: "+96565068000" }], error: null }],
       orders: [{ data: null, error: { message: "insert exploded" } }],
     });
 
