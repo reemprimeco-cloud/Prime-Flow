@@ -33,6 +33,8 @@ export interface NotificationPayload {
   language: OrderLanguage;
   channel: NotificationChannel;
   body: string;
+  /** Structured render variables alongside `body` — lets the provider send an approved WhatsApp Message Template (Content SID) instead of freeform text when one's configured for this templateName. Absent on resends of log rows created before this existed. */
+  templateVariables?: TemplateVariables;
 }
 
 export interface NotificationResult {
@@ -70,6 +72,7 @@ async function dispatch(payload: NotificationPayload, actorId: string | null, ac
     channel: payload.channel,
     language: payload.language,
     body: payload.body,
+    template_variables: (payload.templateVariables as never) ?? null,
     status: result.status,
     error: result.error ?? null,
     provider_response: (result.providerResponse as never) ?? null,
@@ -139,6 +142,7 @@ async function sendCustomerNotification(
       language: order.language,
       channel: order.preferredChannel,
       body: renderTemplate(templateName, order.language, vars),
+      templateVariables: vars,
     },
     actorId,
     actorName
@@ -185,6 +189,7 @@ export async function notifyOrderMovedBackToProduction(
       language: order.language,
       channel: order.preferredChannel,
       body: renderTemplate("order_returned_to_production", order.language, vars),
+      templateVariables: vars,
     },
     actorId,
     actorName
@@ -269,6 +274,7 @@ async function sendEmployeeNotification(
       language: "en",
       channel: "whatsapp",
       body: renderTemplate(templateName, "en", vars),
+      templateVariables: vars,
     },
     actorId,
     actorName
@@ -413,6 +419,7 @@ export async function resendNotification(logId: string, actorId: string | null, 
         language: log.language,
         channel,
         body: log.body,
+        templateVariables: (log.template_variables as TemplateVariables | null) ?? undefined,
       })
     : { status: "skipped", error: `"${channel}" channel isn't implemented yet` };
 

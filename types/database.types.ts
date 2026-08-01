@@ -236,6 +236,7 @@ export type Database = {
           sent_at: string | null
           status: Database["public"]["Enums"]["notification_status"]
           template_name: string
+          template_variables: Json | null
         }
         Insert: {
           body?: string | null
@@ -257,6 +258,7 @@ export type Database = {
           sent_at?: string | null
           status?: Database["public"]["Enums"]["notification_status"]
           template_name: string
+          template_variables?: Json | null
         }
         Update: {
           body?: string | null
@@ -278,6 +280,7 @@ export type Database = {
           sent_at?: string | null
           status?: Database["public"]["Enums"]["notification_status"]
           template_name?: string
+          template_variables?: Json | null
         }
         Relationships: [
           {

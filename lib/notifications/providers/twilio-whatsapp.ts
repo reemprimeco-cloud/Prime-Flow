@@ -3,6 +3,7 @@ import "server-only";
 import twilio from "twilio";
 
 import type { NotificationProvider, NotificationPayload, NotificationResult } from "@/lib/notifications/service";
+import type { TemplateName, TemplateVariables } from "@/lib/notifications/templates";
 
 /**
  * The only file in this project that touches Twilio credentials or the
@@ -17,6 +18,44 @@ import type { NotificationProvider, NotificationPayload, NotificationResult } fr
  * notification pipeline (logging, audit trail) keeps working end-to-end
  * whether or not Twilio is actually wired up for a given deployment.
  */
+
+interface ContentTemplateConfig {
+  /** Env var holding this template's approved Content SID (HX...) once Meta approves it — see docs/NOTIFICATIONS.md. */
+  envVar: string;
+  /** Maps our named TemplateVariables onto the numbered {{1}}, {{2}}... placeholders Meta approved the wording with. */
+  buildVariables: (vars: TemplateVariables) => Record<string, string>;
+}
+
+/**
+ * Templates registered as approved (or pending-approval) WhatsApp Message
+ * Templates in Twilio's Content Editor. A Content SID here bypasses
+ * WhatsApp's 24h customer-service window entirely — the reason these exist
+ * at all. Only a subset of TemplateName has one; anything not listed here
+ * always sends as freeform text via `body`.
+ */
+const CONTENT_TEMPLATES: Partial<Record<TemplateName, ContentTemplateConfig>> = {
+  job_assigned: {
+    envVar: "TWILIO_TEMPLATE_JOB_ASSIGNED_SID",
+    buildVariables: (v) => ({ "1": v.orderNumber, "2": v.productName ?? "", "3": v.deliveryDate ?? "", "4": v.deliveryTime ?? "" }),
+  },
+  order_in_production: {
+    envVar: "TWILIO_TEMPLATE_ORDER_IN_PRODUCTION_SID",
+    buildVariables: (v) => ({ "1": v.orderNumber, "2": v.productName ?? "" }),
+  },
+  order_ready_for_pickup: {
+    envVar: "TWILIO_TEMPLATE_ORDER_READY_FOR_PICKUP_SID",
+    buildVariables: (v) => ({ "1": v.orderNumber, "2": v.productName ?? "" }),
+  },
+  order_out_for_delivery: {
+    envVar: "TWILIO_TEMPLATE_ORDER_OUT_FOR_DELIVERY_SID",
+    buildVariables: (v) => ({ "1": v.orderNumber, "2": v.productName ?? "", "3": v.deliveryDate ?? "", "4": v.deliveryTime ?? "" }),
+  },
+  admin_order_status_changed: {
+    envVar: "TWILIO_TEMPLATE_ADMIN_ORDER_STATUS_CHANGED_SID",
+    buildVariables: (v) => ({ "1": v.employeeName ?? "", "2": v.orderNumber, "3": v.productName ?? "", "4": v.statusLabel ?? "" }),
+  },
+};
+
 export class TwilioWhatsAppProvider implements NotificationProvider {
   readonly channel = "whatsapp" as const;
 
@@ -45,12 +84,26 @@ export class TwilioWhatsAppProvider implements NotificationProvider {
       // Redundant (and harmless) if the Messaging Service already has its
       // own Status Callback URL set in the Twilio console.
       const statusCallback = process.env.TWILIO_STATUS_CALLBACK_URL || undefined;
+
+      // Prefer an approved Content Template over freeform body whenever one's
+      // configured for this templateName and we have the render variables to
+      // fill it (resends of log rows from before templateVariables existed
+      // won't have them, so those fall back to freeform). Sending with
+      // contentSid instead of body is what actually bypasses the 24h window —
+      // Twilio rejects the attempt with an error (caught below) if Meta
+      // hasn't approved it yet, same as any other Twilio API error.
+      const contentConfig = CONTENT_TEMPLATES[payload.templateName];
+      const contentSid = contentConfig ? process.env[contentConfig.envVar] : undefined;
+      const useContentTemplate = Boolean(contentSid && payload.templateVariables);
+
       const message = await client.messages.create({
         ...(messagingServiceSid
           ? { messagingServiceSid }
           : { from: toWhatsAppAddress(fromNumber!) }),
         to: toWhatsAppAddress(payload.phone),
-        body: payload.body,
+        ...(useContentTemplate
+          ? { contentSid, contentVariables: JSON.stringify(contentConfig!.buildVariables(payload.templateVariables!)) }
+          : { body: payload.body }),
         ...(statusCallback ? { statusCallback } : {}),
       });
 

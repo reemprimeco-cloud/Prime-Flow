@@ -101,6 +101,11 @@ TWILIO_AUTH_TOKEN=
 TWILIO_MESSAGING_SERVICE_SID= # preferred — MG... SID; needs a WhatsApp sender in its Sender Pool
 TWILIO_WHATSAPP_NUMBER=       # alternative to the above — e.g. +14155238886, ignored if the SID is set
 TWILIO_STATUS_CALLBACK_URL=   # this app's own URL for app/api/twilio/whatsapp/status — see above
+TWILIO_TEMPLATE_JOB_ASSIGNED_SID=               # HX... Content SID — see WhatsApp Message Templates below
+TWILIO_TEMPLATE_ORDER_IN_PRODUCTION_SID=
+TWILIO_TEMPLATE_ORDER_READY_FOR_PICKUP_SID=
+TWILIO_TEMPLATE_ORDER_OUT_FOR_DELIVERY_SID=
+TWILIO_TEMPLATE_ADMIN_ORDER_STATUS_CHANGED_SID=
 CRON_SECRET=                  # shared secret for /api/cron/* routes
 COMPANY_NAME=                 # optional, defaults to "Prime Printing Co."
 PICKUP_LOCATION=              # optional, defaults to a placeholder address
@@ -108,6 +113,28 @@ PICKUP_HOURS=                 # optional, defaults to "9:00 AM – 5:00 PM"
 ```
 
 Get `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN` from the Twilio Console dashboard. For development, Twilio's WhatsApp Sandbox works without business verification — add it as a Sender (Messaging Service path) or use its number directly as `TWILIO_WHATSAPP_NUMBER`. Production sending to arbitrary numbers requires a WhatsApp Business-verified sender, which is a multi-day Meta approval process outside this app's control. Leave `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN` unset, or leave both sending options unset, to run stub-safe (every send logs as `skipped`, nothing else changes).
+
+## WhatsApp Message Templates (bypassing the 24h window)
+
+WhatsApp only lets a business send **freeform** text (the `body` this app sends by default) to someone who messaged that WhatsApp number within the last 24 hours — outside that window, Twilio rejects the send with error 63016/63018 ("outside the allowed window"), and the row lands as `undelivered`/`failed` even though the app did everything right. This applies to every recipient, customers and staff alike, and since production jobs routinely take longer than 24h to finish, a customer's "ready for pickup" message can easily miss its own window.
+
+**Approved Message Templates are exempt.** Meta pre-approves fixed wording with numbered placeholders (`{{1}}`, `{{2}}`...) via Twilio's Content Editor (Console → Messaging → Content Editor → Create new → WhatsApp channel → Category: Utility); once approved, that exact template can be sent to anyone at any time, no window restriction.
+
+`lib/notifications/providers/twilio-whatsapp.ts`'s `CONTENT_TEMPLATES` map registers five `TemplateName`s against an env var holding their Content SID and a function mapping `TemplateVariables` onto the approved template's `{{1}}`, `{{2}}`... positions:
+
+| `TemplateName` | Env var | Positions |
+|---|---|---|
+| `job_assigned` | `TWILIO_TEMPLATE_JOB_ASSIGNED_SID` | 1=orderNumber, 2=productName, 3=deliveryDate, 4=deliveryTime |
+| `order_in_production` | `TWILIO_TEMPLATE_ORDER_IN_PRODUCTION_SID` | 1=orderNumber, 2=productName |
+| `order_ready_for_pickup` | `TWILIO_TEMPLATE_ORDER_READY_FOR_PICKUP_SID` | 1=orderNumber, 2=productName |
+| `order_out_for_delivery` | `TWILIO_TEMPLATE_ORDER_OUT_FOR_DELIVERY_SID` | 1=orderNumber, 2=productName, 3=deliveryDate, 4=deliveryTime |
+| `admin_order_status_changed` | `TWILIO_TEMPLATE_ADMIN_ORDER_STATUS_CHANGED_SID` | 1=employeeName, 2=orderNumber, 3=productName, 4=statusLabel |
+
+At send time, `send()` uses the Content SID + `contentVariables` instead of `body` whenever **both** an env var is set for that `templateName` **and** the payload carries `templateVariables` (present on every fresh dispatch; absent only when resending a `notification_logs` row created before the `template_variables` column existed, migration `0019_notification_template_variables.sql` — those fall back to freeform `body`, same as any template with no Content SID configured at all). Each of the five is independent: set one env var, that one notification stops being window-restricted; the rest keep sending freeform until their own SID is added.
+
+Submitting a Content SID before Meta approves it is safe — Twilio just rejects the send with an error (surfaces as a normal `failed` row with Twilio's error code, same handling as any other send failure) until approval comes through, then starts working with no code change needed.
+
+Only these five have templates; the other `TemplateName`s (`order_received`, `order_returned_to_production`, `order_collected_confirmation`, `order_delivered_confirmation`, `job_reassigned`, `high_priority_job_assigned`, `job_cancelled`, `internal_pickup_ready`, `order_out_for_delivery_staff`, `material_purchase_needed`, `material_request_approved`, `admin_order_note_added`) always send as freeform `body` and remain window-restricted — chosen as the minimal set covering the core loop (new job → customer updates → admin visibility) rather than submitting all fifteen for Meta review at once.
 
 ## Testing boundary
 
