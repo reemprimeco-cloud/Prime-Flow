@@ -128,11 +128,13 @@ WhatsApp only lets a business send **freeform** text (the `body` this app sends 
 | `order_in_production` | `TWILIO_TEMPLATE_ORDER_IN_PRODUCTION_SID` | 1=orderNumber, 2=productName |
 | `order_ready_for_pickup` | `TWILIO_TEMPLATE_ORDER_READY_FOR_PICKUP_SID` | 1=orderNumber, 2=productName |
 | `order_out_for_delivery` | `TWILIO_TEMPLATE_ORDER_OUT_FOR_DELIVERY_SID` | 1=orderNumber, 2=productName, 3=deliveryDate, 4=deliveryTime |
-| `admin_order_status_changed` | `TWILIO_TEMPLATE_ADMIN_ORDER_STATUS_CHANGED_SID` | 1=employeeName, 2=orderNumber, 3=productName, 4=statusLabel |
+| `admin_order_status_changed` | `TWILIO_TEMPLATE_ADMIN_ORDER_STATUS_CHANGED_SID` | 1=employeeName, 2=orderNumber, 3=statusLabel |
 
 At send time, `send()` uses the Content SID + `contentVariables` instead of `body` whenever **both** an env var is set for that `templateName` **and** the payload carries `templateVariables` (present on every fresh dispatch; absent only when resending a `notification_logs` row created before the `template_variables` column existed, migration `0019_notification_template_variables.sql` — those fall back to freeform `body`, same as any template with no Content SID configured at all). Each of the five is independent: set one env var, that one notification stops being window-restricted; the rest keep sending freeform until their own SID is added.
 
 Submitting a Content SID before Meta approves it is safe — Twilio just rejects the send with an error (surfaces as a normal `failed` row with Twilio's error code, same handling as any other send failure) until approval comes through, then starts working with no code change needed.
+
+Meta rejects templates with too many variables relative to the amount of fixed text around them ("too many variables for its length") — `admin_order_status_changed`'s original 4-variable one-liner hit this. Fixed by dropping `productName` (down to 3 variables: employeeName, orderNumber, statusLabel) and padding out the fixed wording, including the dashboard link (`https://primeflowboard.netlify.app/dashboard`) as plain static text since it never varies. Worth keeping in mind for any future template: pad short, high-variable-count messages with more fixed context rather than assuming Meta will accept a terse one.
 
 Only these five have templates; the other `TemplateName`s (`order_received`, `order_returned_to_production`, `order_collected_confirmation`, `order_delivered_confirmation`, `job_reassigned`, `high_priority_job_assigned`, `job_cancelled`, `internal_pickup_ready`, `order_out_for_delivery_staff`, `material_purchase_needed`, `material_request_approved`, `admin_order_note_added`) always send as freeform `body` and remain window-restricted — chosen as the minimal set covering the core loop (new job → customer updates → admin visibility) rather than submitting all fifteen for Meta review at once.
 
