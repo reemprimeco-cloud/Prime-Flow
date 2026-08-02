@@ -111,12 +111,21 @@ export function JobCard({
         <CountdownTimer deliveryDate={job.deliveryDate} deliveryTime={job.deliveryTime} />
       </div>
 
+      {/* Paper/Size are only collected on orders created before the form
+          collapsed them into one "Order details" box — rendered when present
+          rather than as empty "—" columns on every newer order. */}
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-        <Spec label="Paper" value={job.paper || "—"} />
-        <Spec label="Size" value={job.paperSize || "—"} />
         <Spec label="Qty" value={String(job.quantity)} />
-        <Spec label="Finishing" value={job.finishing || "—"} />
+        {job.paper && <Spec label="Paper" value={job.paper} />}
+        {job.paperSize && <Spec label="Size" value={job.paperSize} />}
       </div>
+
+      {job.finishing && (
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Order Details</div>
+          <p className="whitespace-pre-wrap text-sm font-medium text-foreground">{job.finishing}</p>
+        </div>
+      )}
 
       {hasMultipleItems && (
         <button

@@ -133,10 +133,13 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
 
               <DetailSection title="Specifications">
                 <DetailRow label="Product" value={order.product} />
-                <DetailRow label="Paper" value={order.paper || "—"} />
-                <DetailRow label="Size" value={order.paperSize || "—"} />
                 <DetailRow label="Quantity" value={String(order.quantity)} />
-                <DetailRow label="Finishing" value={order.finishing || "—"} />
+                {/* Paper/Size only exist on orders predating the form's
+                    single "Order details" box — shown when there's something
+                    to show rather than as empty rows. */}
+                {order.paper && <DetailRow label="Paper" value={order.paper} />}
+                {order.paperSize && <DetailRow label="Size" value={order.paperSize} />}
+                {order.finishing && <DetailRow label="Order Details" value={order.finishing} />}
                 <DetailRow
                   label="Delivery"
                   value={`${format(parseISO(order.deliveryDate), "EEE, MMM d")} · ${formatDeliveryTime(order.deliveryTime)}`}
@@ -173,10 +176,10 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
 
               {order.items.map((item, index) => (
                 <DetailSection key={item.id} title={`Item ${index + 2}: ${item.product}`}>
-                  <DetailRow label="Paper" value={item.paper || "—"} />
-                  <DetailRow label="Size" value={item.paperSize || "—"} />
                   <DetailRow label="Quantity" value={String(item.quantity)} />
-                  <DetailRow label="Finishing" value={item.finishing || "—"} />
+                  {item.paper && <DetailRow label="Paper" value={item.paper} />}
+                  {item.paperSize && <DetailRow label="Size" value={item.paperSize} />}
+                  {item.finishing && <DetailRow label="Order Details" value={item.finishing} />}
                   <DetailRow label="Assigned To" value={item.employeeName || "Unassigned"} />
                 </DetailSection>
               ))}

@@ -129,17 +129,25 @@ export const OrderCard = memo(function OrderCard({
       </div>
 
       <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-        <div className="truncate">
-          <span className="text-muted-foreground/70">Paper:</span> {order.paper || "—"}
-        </div>
         <div className="flex gap-4">
-          <span className="truncate">
-            <span className="text-muted-foreground/70">Size:</span> {order.paperSize || "—"}
-          </span>
           <span className="truncate">
             <span className="text-muted-foreground/70">Qty:</span> {order.quantity}
           </span>
+          {order.paperSize && (
+            <span className="truncate">
+              <span className="text-muted-foreground/70">Size:</span> {order.paperSize}
+            </span>
+          )}
         </div>
+        {/* Paper only exists on orders predating the form's single "Order
+            details" box; finishing now carries the whole spec, so it's the
+            one worth showing at a glance. */}
+        {order.paper && (
+          <div className="truncate">
+            <span className="text-muted-foreground/70">Paper:</span> {order.paper}
+          </div>
+        )}
+        {order.finishing && <div className="line-clamp-2">{order.finishing}</div>}
       </div>
 
       <EmployeeChips employees={order.assignedEmployees} />

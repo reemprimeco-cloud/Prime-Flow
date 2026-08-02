@@ -78,8 +78,7 @@ export function ItemReadinessDialog({ open, onOpenChange, job }: ItemReadinessDi
                   Item {index + 1}: {row.product}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {row.paper || "—"} · {row.paperSize || "—"} · Qty {row.quantity}
-                  {row.finishing ? ` · ${row.finishing}` : ""}
+                  {[`Qty ${row.quantity}`, row.paper, row.paperSize, row.finishing].filter(Boolean).join(" · ")}
                 </div>
               </div>
               {row.isReady && <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />}

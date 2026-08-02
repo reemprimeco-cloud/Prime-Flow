@@ -7,7 +7,7 @@ const orderRequestItemSchema = z.object({
   paper: z.string().trim().max(200).optional().or(z.literal("")),
   paperSize: z.string().trim().max(100).optional().or(z.literal("")),
   quantity: z.coerce.number().int("Whole numbers only").positive("Must be greater than 0"),
-  finishing: z.string().trim().max(300).optional().or(z.literal("")),
+  finishing: z.string().trim().max(1000).optional().or(z.literal("")),
 });
 
 export type OrderRequestItemInput = z.infer<typeof orderRequestItemSchema>;
@@ -25,7 +25,7 @@ export const orderRequestSchema = z.object({
   paper: z.string().trim().max(200).optional().or(z.literal("")),
   paperSize: z.string().trim().max(100).optional().or(z.literal("")),
   quantity: z.coerce.number().int("Whole numbers only").positive("Must be greater than 0"),
-  finishing: z.string().trim().max(300).optional().or(z.literal("")),
+  finishing: z.string().trim().max(1000).optional().or(z.literal("")),
   fulfillmentType: z.enum(["pickup", "delivery"]),
   deliveryDate: z.string().min(1, "Delivery date is required"),
   deliveryTime: z.string().min(1, "Delivery time is required"),

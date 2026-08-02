@@ -123,14 +123,12 @@ export function OrderRequestForm() {
           <Field label="Quantity" error={errors.quantity?.message}>
             <Input type="number" min={1} {...register("quantity")} aria-invalid={!!errors.quantity} />
           </Field>
-          <Field label="Paper (optional)">
-            <Input {...register("paper")} placeholder="Optional" />
-          </Field>
-          <Field label="Paper Size (optional)">
-            <Input {...register("paperSize")} placeholder="Optional" />
-          </Field>
-          <Field label="Finishing (optional)" className="sm:col-span-2">
-            <Input {...register("finishing")} placeholder="Optional" />
+          <Field label="Order details (optional)" className="sm:col-span-2">
+            <Textarea
+              {...register("finishing")}
+              rows={3}
+              placeholder="Paper, size, finishing — anything else about what you need"
+            />
           </Field>
         </div>
       </Card>
@@ -179,14 +177,12 @@ export function OrderRequestForm() {
                   aria-invalid={!!errors.items?.[index]?.quantity}
                 />
               </Field>
-              <Field label="Paper (optional)">
-                <Input {...register(`items.${index}.paper`)} placeholder="Optional" />
-              </Field>
-              <Field label="Paper Size (optional)">
-                <Input {...register(`items.${index}.paperSize`)} placeholder="Optional" />
-              </Field>
-              <Field label="Finishing (optional)" className="sm:col-span-2">
-                <Input {...register(`items.${index}.finishing`)} placeholder="Optional" />
+              <Field label="Order details (optional)" className="sm:col-span-2">
+                <Textarea
+                  {...register(`items.${index}.finishing`)}
+                  rows={2}
+                  placeholder="Paper, size, finishing — anything else about what you need"
+                />
               </Field>
             </div>
           </div>

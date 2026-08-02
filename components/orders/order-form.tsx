@@ -396,14 +396,15 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                 <Field label="Quantity" error={errors.quantity?.message}>
                   <Input type="number" min={1} {...register("quantity")} aria-invalid={!!errors.quantity} />
                 </Field>
-                <Field label="Paper (optional)">
-                  <Input {...register("paper")} placeholder="Optional" />
-                </Field>
-                <Field label="Paper Size (optional)">
-                  <Input {...register("paperSize")} placeholder="Optional" />
-                </Field>
-                <Field label="Finishing (optional)" className="sm:col-span-2">
-                  <Input {...register("finishing")} placeholder="Optional" />
+                {/* One free-text box instead of separate Paper/Size/Finishing
+                    inputs — real jobs rarely split cleanly into those three,
+                    and typing it all in one place is faster on a phone. */}
+                <Field label="Order details (optional)" className="sm:col-span-2">
+                  <Textarea
+                    {...register("finishing")}
+                    rows={3}
+                    placeholder="Paper, size, finishing — anything the floor needs to know"
+                  />
                 </Field>
               </div>
             </section>
@@ -529,14 +530,12 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                         aria-invalid={!!errors.items?.[index]?.quantity}
                       />
                     </Field>
-                    <Field label="Paper (optional)">
-                      <Input {...register(`items.${index}.paper`)} placeholder="Optional" />
-                    </Field>
-                    <Field label="Paper Size (optional)">
-                      <Input {...register(`items.${index}.paperSize`)} placeholder="Optional" />
-                    </Field>
-                    <Field label="Finishing (optional)" className="sm:col-span-2">
-                      <Input {...register(`items.${index}.finishing`)} placeholder="Optional" />
+                    <Field label="Order details (optional)" className="sm:col-span-2">
+                      <Textarea
+                        {...register(`items.${index}.finishing`)}
+                        rows={2}
+                        placeholder="Paper, size, finishing — anything the floor needs to know"
+                      />
                     </Field>
                     <Field label="Assign To" className="sm:col-span-2">
                       <Controller
