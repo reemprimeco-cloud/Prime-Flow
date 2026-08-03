@@ -71,6 +71,17 @@ When a manager assigns more than one employee to an order, the order form's "Ass
 
 A second, optional field — `orders.delivery_map_link` (migration `0016_order_delivery_map_link.sql`) — lets the manager paste an exact Google Maps link (e.g. from a pin's Share > Copy Link) instead of relying on geocoding a free-text address. Every place that builds a maps link (`EmployeeNotificationContext`, the order detail drawer, the employee job card) prefers `deliveryMapLink` when present and falls back to `buildGoogleMapsLink(deliveryAddress)` otherwise — same pattern everywhere, so the two never drift.
 
+## iOS home-screen app
+
+The board is installable via Safari's **Add to Home Screen**, after which it launches with no address bar or toolbar — the single biggest reason a web app reads as native on an iPhone. Four pieces make that work:
+
+- **`app/manifest.ts`** — Next's metadata route, `display: "standalone"`, `start_url: "/dashboard"`. iOS mostly ignores this in favour of the meta tags below, but Android/Chrome use it and it drives both install prompts.
+- **`app/layout.tsx`** — `appleWebApp: { capable, statusBarStyle }` emits the `apple-mobile-web-app-*` tags iOS actually reads; `viewport.viewportFit: "cover"` lets the page paint edge to edge behind the Dynamic Island and home indicator. `formatDetection` is off so iOS stops auto-linking order numbers as phone numbers. The Geist webfonts were dropped in favour of the platform stack (`-apple-system` → SF Pro / SF Mono), which is what makes the type look right — and removes a render-blocking fetch on the shop-floor tablets.
+- **`app/globals.css`** — `.pt-safe` / `.pb-safe` / `.pl-safe` / `.pr-safe` utilities wrapping `env(safe-area-inset-*)`, which resolve to `0` anywhere without insets and so are safe to apply unconditionally. Plus the three iOS touch tells: `-webkit-tap-highlight-color: transparent`, `user-select: none` on interactive elements, and a `16px` floor on inputs under `(pointer: coarse)` — anything smaller makes Safari zoom the viewport on focus and leave it zoomed. Pinch-zoom is deliberately **not** disabled (accessibility), and `overscroll-behavior-y: none` stops the whole page rubber-banding.
+- **`components/manager/mobile-tab-bar.tsx`** — a fixed bottom tab bar below `lg`, replacing the old hamburger drawer. Four destinations (Board / Calendar / Materials / Alerts) plus **More**, matching Apple's five-tab limit; More opens the same `Sheet` (now `side="bottom"`, added to `components/ui/sheet.tsx`) holding the full `SidebarNav`, so every one of the eleven nav items stays reachable and the list itself is still defined in exactly one place. Tabs are `min-h-[50px]` to clear Apple's 44pt touch-target minimum, and `main` carries `pb-24` below `lg` so the last card isn't hidden behind the bar.
+
+Desktop (`lg` and up) is untouched — the 260px sidebar behaves exactly as before, and the tab bar isn't rendered.
+
 ## WooCommerce order auto-import
 
 `app/api/webhooks/woocommerce/route.ts` receives WooCommerce's `order.created` webhook and creates a matching order on the board, so an online order doesn't have to be retyped by hand. Configure in WooCommerce: **Settings → Advanced → Webhooks → Add webhook**, Topic "Order created", Delivery URL `https://primeflowboard.netlify.app/api/webhooks/woocommerce`, Secret = `WOOCOMMERCE_WEBHOOK_SECRET`.

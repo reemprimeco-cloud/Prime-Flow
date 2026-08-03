@@ -80,18 +80,28 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Platform typefaces rather than a webfont — SF Pro / SF Mono on Apple
+     devices, Segoe/Roboto elsewhere. Matching the OS font is most of what
+     makes the board read as a native app on an iPhone, and it drops a
+     render-blocking font fetch on the shop-floor tablets too. */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 html {
   color-scheme: light;
+  /* Stops the whole page rubber-banding past its edges on iOS, which is
+     the tell that gives away a web app inside a native-looking shell.
+     Individual scroll containers still bounce normally. */
+  overscroll-behavior-y: none;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
 }
 
 * {
@@ -101,6 +111,57 @@ body {
 ::selection {
   background: var(--secondary);
   color: white;
+}
+
+/* --- iOS touch behaviour ------------------------------------------------
+   Together these remove the three most obvious "this is a web page" tells
+   on an iPhone: the grey flash on tap, text selecting when you press and
+   hold a button, and Safari zooming the viewport when a field is focused. */
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a,
+[role="button"],
+label {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Anything below 16px makes iOS zoom the page in on focus and leaves it
+   zoomed — the field can still *look* smaller via Tailwind's text-sm on
+   larger screens, but never on a touch device. */
+@media (hover: none) and (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+@layer utilities {
+  /* Content clears the Dynamic Island / notch and the home-indicator bar.
+     `env()` resolves to 0 everywhere that has no inset (desktop, Android,
+     Safari without viewport-fit=cover), so these are safe to apply
+     unconditionally. */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pl-safe {
+    padding-left: env(safe-area-inset-left);
+  }
+  .pr-safe {
+    padding-right: env(safe-area-inset-right);
+  }
+  .min-h-screen-safe {
+    min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
 }
 
 @layer utilities {

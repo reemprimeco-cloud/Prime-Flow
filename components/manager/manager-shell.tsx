@@ -3,9 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Menu } from "lucide-react";
 
 import { SidebarNav } from "@/components/manager/sidebar-nav";
+import { MobileTabBar } from "@/components/manager/mobile-tab-bar";
 import { GlobalSearch } from "@/components/manager/global-search";
 import { LogoutButton } from "@/components/shared/logout-button";
 import { DemoModeBanner } from "@/components/shared/demo-mode-banner";
@@ -23,10 +23,15 @@ interface ManagerShellProps {
 
 /**
  * Desktop (lg and up) keeps the original always-visible 260px sidebar,
- * completely unchanged. Below lg, that sidebar is replaced by a sticky
- * mobile top bar + a slide-in drawer (the same Sheet primitive used
- * elsewhere) holding identical content — an app-style nav pattern rather
- * than the sidebar just squeezing itself into a phone-width viewport.
+ * completely unchanged. Below lg it's an iOS-style shell instead: a
+ * compact title bar up top and a fixed bottom tab bar for the four
+ * most-used destinations, with the remaining nav behind its "More" tab —
+ * which opens the same Sheet drawer holding the full `SidebarNav`, so
+ * nothing is unreachable and the nav list stays defined in one place.
+ *
+ * Both bars sit inside the safe area (`pt-safe`/`pb-safe`) so they clear
+ * the Dynamic Island and home indicator once the board is launched from
+ * the iOS home screen — see app/layout.tsx and docs/ARCHITECTURE.md.
  */
 export function ManagerShell({ fullName, role, showDemoBanner, children }: ManagerShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -66,22 +71,13 @@ export function ManagerShell({ fullName, role, showDemoBanner, children }: Manag
     <div className="flex min-h-screen flex-col">
       {showDemoBanner && <DemoModeBanner />}
 
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/95 px-4 py-3 backdrop-blur lg:hidden">
-        <button
-          type="button"
-          onClick={() => setMobileNavOpen(true)}
-          className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-foreground"
-          aria-label="Open menu"
-        >
-          <Menu className="size-5" />
-        </button>
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg border border-border">
-            <Image src="/logo.jpg" alt="Prime Printing Co." width={32} height={32} className="size-full object-cover" priority />
+      <header className="sticky top-0 z-30 flex items-center justify-center border-b border-border bg-card/95 px-4 pt-safe backdrop-blur-xl lg:hidden">
+        <div className="flex items-center gap-2 py-3">
+          <div className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-lg border border-border">
+            <Image src="/logo.jpg" alt="Prime Printing Co." width={28} height={28} className="size-full object-cover" priority />
           </div>
-          <span className="text-sm font-bold">Prime Printing</span>
+          <span className="text-[17px] font-semibold tracking-tight">Prime Printing</span>
         </div>
-        <div className="size-9" aria-hidden />
       </header>
 
       <div className="flex flex-1">
@@ -90,14 +86,20 @@ export function ManagerShell({ fullName, role, showDemoBanner, children }: Manag
         </aside>
 
         <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-          <SheetContent side="left" className="flex w-[280px] flex-col gap-8 p-5 sm:max-w-[280px]">
+          {/* Bottom sheet rather than the old left drawer — matches how iOS
+              surfaces a "More" list, and lands under the thumb. */}
+          <SheetContent side="bottom" className="flex max-h-[85vh] flex-col gap-6 overflow-y-auto rounded-t-2xl p-5 pb-safe">
             <SheetTitle className="sr-only">Navigation</SheetTitle>
             {sidebarContent}
           </SheetContent>
         </Sheet>
 
-        <main className="min-w-0 flex-1 p-4 lg:p-8">{children}</main>
+        {/* pb-24 keeps the last card clear of the fixed tab bar; it's only
+            needed below lg, where that bar exists. */}
+        <main className="min-w-0 flex-1 p-4 pb-24 lg:p-8 lg:pb-8">{children}</main>
       </div>
+
+      <MobileTabBar onMore={() => setMobileNavOpen(true)} moreOpen={mobileNavOpen} />
     </div>
   );
 }
