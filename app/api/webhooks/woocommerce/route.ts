@@ -9,6 +9,7 @@ import { recordAuditLog } from "@/lib/audit/log";
 import { notifyAdminOrderStatusChanged, notifyOrderCreated } from "@/lib/notifications/service";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/notifications/constants";
 import { sanitizePhoneInput } from "@/lib/utils/phone";
+import { DESIGN_EXTENSIONS, MAX_FETCHED_FILE_BYTES } from "@/lib/files/constants";
 
 /**
  * Auto-imports a WooCommerce order the moment it's placed — configure in
@@ -42,9 +43,17 @@ interface WooCommerceAddress {
   phone?: string;
 }
 
+interface WooCommerceMeta {
+  key?: string;
+  value?: unknown;
+  display_key?: string;
+  display_value?: unknown;
+}
+
 interface WooCommerceLineItem {
   name: string;
   quantity: number;
+  meta_data?: WooCommerceMeta[];
 }
 
 interface WooCommerceShippingLine {
@@ -79,6 +88,120 @@ function buildAddress(address: WooCommerceAddress | undefined): string {
   return [address.address_1, address.address_2, address.city, address.state, address.postcode, address.country]
     .filter(Boolean)
     .join(", ");
+}
+
+/**
+ * Pulls every customer-uploaded artwork URL out of a line item's meta —
+ * WooCommerce stores these under whatever key the upload plugin chose
+ * (`_design_file_url` on this shop), so rather than hard-coding the key
+ * this takes any meta value that's an https URL ending in a design
+ * extension we already accept. Deduplicated across items, since the same
+ * artwork can legitimately be attached to several lines.
+ */
+function extractDesignFileUrls(lineItems: WooCommerceLineItem[]): string[] {
+  const urls = new Set<string>();
+  for (const item of lineItems) {
+    for (const meta of item.meta_data ?? []) {
+      for (const raw of [meta.value, meta.display_value]) {
+        if (typeof raw !== "string" || !raw.startsWith("https://")) continue;
+        let parsed: URL;
+        try {
+          parsed = new URL(raw);
+        } catch {
+          continue;
+        }
+        const ext = parsed.pathname.slice(parsed.pathname.lastIndexOf(".")).toLowerCase();
+        if (DESIGN_EXTENSIONS.includes(ext)) urls.add(raw);
+      }
+    }
+  }
+  return [...urls];
+}
+
+/**
+ * The store's own hostname is the only place artwork is fetched from.
+ * The payload is HMAC-verified, so an arbitrary URL shouldn't reach here
+ * in the first place — but this webhook fetches a URL out of a request
+ * body and stores the bytes somewhere a user can download them, which is
+ * exactly the shape of an SSRF exfiltration path. Pinning the host means
+ * a forged or compromised payload still can't point it at an internal
+ * address. Unset => artwork import is skipped entirely (the order still
+ * imports), the same stub-safe default the Twilio config uses.
+ */
+function isAllowedDesignHost(url: string): boolean {
+  const allowedHost = process.env.WOOCOMMERCE_STORE_HOST?.trim().toLowerCase();
+  if (!allowedHost) return false;
+  try {
+    const { protocol, hostname } = new URL(url);
+    return protocol === "https:" && hostname.toLowerCase() === allowedHost;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Downloads one artwork file and files it under the order exactly like a
+ * manual upload — same `design-files` bucket, same `order_files` row — so
+ * it shows up in the Design Files list on the order and the employee job
+ * card with nothing else to wire up. Never throws: artwork failing to
+ * transfer shouldn't cost the shop the order itself, so problems are
+ * logged and the import continues.
+ */
+async function importDesignFile(
+  supabase: ReturnType<typeof createServiceClient>,
+  orderId: string,
+  uploadedBy: string,
+  url: string
+): Promise<void> {
+  if (!isAllowedDesignHost(url)) {
+    console.warn(`[woocommerce] skipping design file from disallowed host: ${url}`);
+    return;
+  }
+
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+    if (!response.ok) {
+      console.warn(`[woocommerce] design file fetch failed (${response.status}): ${url}`);
+      return;
+    }
+
+    const declaredSize = Number(response.headers.get("content-length") ?? 0);
+    if (declaredSize > MAX_FETCHED_FILE_BYTES) {
+      console.warn(`[woocommerce] design file too large (${declaredSize} bytes): ${url}`);
+      return;
+    }
+
+    const bytes = await response.arrayBuffer();
+    // Re-checked against the real body — content-length is advisory and
+    // absent on chunked responses.
+    if (bytes.byteLength > MAX_FETCHED_FILE_BYTES) {
+      console.warn(`[woocommerce] design file too large (${bytes.byteLength} bytes): ${url}`);
+      return;
+    }
+
+    const fileName = decodeURIComponent(new URL(url).pathname.split("/").pop() || "design-file");
+    const safeName = fileName.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+    const path = `${orderId}/${Date.now()}-${safeName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("design-files")
+      .upload(path, bytes, { contentType: response.headers.get("content-type") || "application/octet-stream" });
+    if (uploadError) {
+      console.error(`[woocommerce] design file upload failed for ${fileName}`, uploadError);
+      return;
+    }
+
+    const { error: insertError } = await supabase.from("order_files").insert({
+      order_id: orderId,
+      file_type: "design_file",
+      storage_path: path,
+      file_name: fileName,
+      uploaded_by: uploadedBy,
+    });
+    if (insertError) console.error(`[woocommerce] order_files insert failed for ${fileName}`, insertError);
+  } catch (error) {
+    console.error(`[woocommerce] design file import errored for ${url}`, error);
+  }
 }
 
 function looksLikeDelivery(shippingLines: WooCommerceShippingLine[] | undefined): boolean {
@@ -199,6 +322,15 @@ export async function POST(request: Request) {
         sort_order: index,
       }))
     );
+  }
+
+  // Customer artwork lands in the order's Design Files alongside the
+  // order itself, so the floor never has to go dig it out of WooCommerce.
+  // Sequential rather than parallel: several 25MB files resolving at once
+  // is the one thing here that could push the function past its memory
+  // ceiling, and an import is never latency-critical.
+  for (const url of extractDesignFileUrls(lineItems)) {
+    await importDesignFile(supabase, newOrder.id, importingAdmin.id, url);
   }
 
   await supabase.from("order_status_history").insert({

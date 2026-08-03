@@ -28,6 +28,7 @@ Leaving `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`, or both of `TWILIO_MESSAGING_S
 | Variable | Where it's used | Notes |
 |---|---|---|
 | `WOOCOMMERCE_WEBHOOK_SECRET` | Server only | Shared secret for the WooCommerce order-import webhook (`app/api/webhooks/woocommerce`) — must match the Secret field on the webhook in WooCommerce (Settings → Advanced → Webhooks). The route **fails closed** if unset: every request gets 403, so leaving it blank cleanly disables auto-import. See `ARCHITECTURE.md`. |
+| `WOOCOMMERCE_STORE_HOST` | Server only | The store's bare hostname (e.g. `primeprint.com.kw`) — the only host customer artwork is downloaded from during an import. Also **fails closed**: unset means artwork is skipped and orders import without design files, rather than the webhook fetching whatever URL its payload names. See `ARCHITECTURE.md`. |
 
 | Variable | Where it's used | Default if unset |
 |---|---|---|

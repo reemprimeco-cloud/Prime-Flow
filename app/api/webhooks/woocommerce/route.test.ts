@@ -23,11 +23,13 @@ type Response_ = { data: unknown; error: unknown };
 let tableResponses: Record<string, Response_[]> = {};
 let tableCallCounts: Record<string, number> = {};
 let insertedRows: Record<string, unknown[]> = {};
+let storageUploads: { bucket: string; path: string }[] = [];
 
 function resetSupabaseMock(responses: Record<string, Response_[]>) {
   tableResponses = responses;
   tableCallCounts = {};
   insertedRows = {};
+  storageUploads = [];
 }
 
 function makeBuilder(table: string, result: Response_) {
@@ -56,6 +58,14 @@ vi.mock("@/lib/supabase/server", () => ({
       tableCallCounts[table] = idx + 1;
       return makeBuilder(table, queue[idx] ?? { data: null, error: null });
     },
+    storage: {
+      from: (bucket: string) => ({
+        upload: async (path: string) => {
+          storageUploads.push({ bucket, path });
+          return { error: null };
+        },
+      }),
+    },
   }),
 }));
 
@@ -73,7 +83,15 @@ const WOO_ORDER = {
   billing: { first_name: "Hanan", last_name: "Al-Fadhli", phone: "+965 9994 0535", city: "Hawalli", country: "KW" },
   shipping: { address_1: "Block 9, Street 908", address_2: "House 4", city: "Abdullah Mubarak", country: "KW" },
   line_items: [
-    { name: "Water Bottle Labels", quantity: 160 },
+    {
+      name: "Water Bottle Labels",
+      quantity: 160,
+      meta_data: [
+        { key: "Design File", value: "Ass-1.pdf" },
+        { key: "_design_file_url", value: "https://primeprint.com.kw/wp-content/uploads/2026/08/Ass-1.pdf" },
+        { key: "Width", value: "6.0" },
+      ],
+    },
     { name: "Gift Box Stickers", quantity: 50 },
   ],
   shipping_lines: [{ method_id: "flat_rate", method_title: "Flat rate" }],
@@ -100,11 +118,27 @@ function withAdminAndInsert(orderRow: unknown = { id: "order-new", order_number:
   };
 }
 
+const originalFetch = globalThis.fetch;
+
 beforeEach(() => {
   vi.clearAllMocks();
   process.env.WOOCOMMERCE_WEBHOOK_SECRET = SECRET;
+  process.env.WOOCOMMERCE_STORE_HOST = "primeprint.com.kw";
+  globalThis.fetch = originalFetch;
   resetSupabaseMock({});
 });
+
+/** Stands in for the store serving an artwork file over HTTPS. */
+function mockDesignFileFetch(bytes = 1024) {
+  const fetchMock = vi.fn(async () =>
+    new Response(new Uint8Array(bytes), {
+      status: 200,
+      headers: { "content-type": "application/pdf", "content-length": String(bytes) },
+    })
+  );
+  globalThis.fetch = fetchMock as unknown as typeof fetch;
+  return fetchMock;
+}
 
 describe("WooCommerce order webhook", () => {
   it("rejects a request with an invalid signature", async () => {
@@ -253,6 +287,87 @@ describe("WooCommerce order webhook", () => {
       "admin-1",
       "WooCommerce Import"
     );
+  });
+
+  it("downloads the customer's artwork into the order's design files", async () => {
+    resetSupabaseMock(withAdminAndInsert());
+    const fetchMock = mockDesignFileFetch();
+
+    await POST(makeRequest(WOO_ORDER));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://primeprint.com.kw/wp-content/uploads/2026/08/Ass-1.pdf",
+      expect.anything()
+    );
+    expect(storageUploads).toEqual([
+      { bucket: "design-files", path: expect.stringMatching(/^order-new\/\d+-Ass-1\.pdf$/) },
+    ]);
+    expect(insertedRows.order_files?.[0]).toMatchObject({
+      order_id: "order-new",
+      file_type: "design_file",
+      file_name: "Ass-1.pdf",
+    });
+  });
+
+  it("refuses artwork hosted anywhere but the configured store, so a forged URL can't be fetched", async () => {
+    resetSupabaseMock(withAdminAndInsert());
+    const fetchMock = mockDesignFileFetch();
+    const item = { ...WOO_ORDER.line_items[0], meta_data: [{ key: "_design_file_url", value: "https://evil.example/x.pdf" }] };
+
+    await POST(makeRequest({ ...WOO_ORDER, line_items: [item] }));
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(storageUploads).toEqual([]);
+  });
+
+  it("skips artwork entirely when no store host is configured", async () => {
+    delete process.env.WOOCOMMERCE_STORE_HOST;
+    resetSupabaseMock(withAdminAndInsert());
+    const fetchMock = mockDesignFileFetch();
+
+    const response = await POST(makeRequest(WOO_ORDER));
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    // The order itself still imports — artwork is additive, not a gate.
+    expect(insertedRows.orders).toBeDefined();
+    expect(response.status).toBe(200);
+  });
+
+  it("rejects artwork larger than the fetch ceiling", async () => {
+    resetSupabaseMock(withAdminAndInsert());
+    mockDesignFileFetch(26 * 1024 * 1024);
+
+    await POST(makeRequest(WOO_ORDER));
+
+    expect(storageUploads).toEqual([]);
+    expect(insertedRows.orders).toBeDefined();
+  });
+
+  it("still imports the order when the artwork download fails", async () => {
+    resetSupabaseMock(withAdminAndInsert());
+    globalThis.fetch = vi.fn(async () => new Response("nope", { status: 404 })) as unknown as typeof fetch;
+
+    const response = await POST(makeRequest(WOO_ORDER));
+
+    expect(response.status).toBe(200);
+    expect(insertedRows.orders).toBeDefined();
+    expect(storageUploads).toEqual([]);
+  });
+
+  it("ignores meta values that aren't design-file URLs", async () => {
+    resetSupabaseMock(withAdminAndInsert());
+    const fetchMock = mockDesignFileFetch();
+    const item = {
+      ...WOO_ORDER.line_items[0],
+      meta_data: [
+        { key: "Width", value: "6.0" },
+        { key: "Reference", value: "https://primeprint.com.kw/some/page" },
+      ],
+    };
+
+    await POST(makeRequest({ ...WOO_ORDER, line_items: [item] }));
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("still returns 200 when the order insert fails, so WooCommerce doesn't retry forever", async () => {

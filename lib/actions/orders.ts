@@ -1494,7 +1494,7 @@ async function uploadSingleFile(
   file: File
 ): Promise<void> {
   if (file.size > MAX_FILE_SIZE_BYTES) {
-    throw new Error(`${file.name} is larger than 25MB`);
+    throw new Error(`${file.name} is larger than ${Math.round(MAX_FILE_SIZE_BYTES / 1024 / 1024)}MB`);
   }
   if (!isAllowedUpload(file, uploadKind)) {
     throw new Error(`${file.name} isn't a supported file type.`);

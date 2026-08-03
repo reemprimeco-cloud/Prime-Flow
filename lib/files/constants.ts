@@ -26,6 +26,16 @@
 export const MAX_FILE_SIZE_BYTES = 3 * 1024 * 1024; // 3MB per file
 export const MAX_TOTAL_UPLOAD_BYTES = 4 * 1024 * 1024; // 4MB combined across all files in one submission
 
+/**
+ * A file the server *fetches* itself (the WooCommerce design-file import,
+ * app/api/webhooks/woocommerce) never passes through a Lambda request
+ * body, so the 6MB limit above doesn't apply to it — only the function's
+ * memory and Supabase Storage's own per-object ceiling do. 25MB covers a
+ * print-ready PDF comfortably while still bounding what one webhook can
+ * pull into memory.
+ */
+export const MAX_FETCHED_FILE_BYTES = 25 * 1024 * 1024;
+
 export const IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"];
 const IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"];
 
