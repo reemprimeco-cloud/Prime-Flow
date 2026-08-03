@@ -70,7 +70,16 @@ export const OrderCard = memo(function OrderCard({
       className={cn(
         "group relative flex flex-col gap-2.5 overflow-hidden p-3.5 pl-4 before:absolute before:inset-y-0 before:left-0 before:w-1",
         "transition-shadow hover:shadow-lg hover:shadow-black/10",
-        isInFlight ? ACCENT_BORDER[countdownColor] : "before:bg-border",
+        // A brand-new order gets a flat blue stripe (matching its status
+        // badge) rather than the countdown colour every other in-flight
+        // status uses — nobody's working it yet, so time-remaining urgency
+        // isn't the useful signal, and it keeps New visually distinct from
+        // In Progress and Ready at a glance.
+        order.status === "new"
+          ? "before:bg-secondary"
+          : isInFlight
+            ? ACCENT_BORDER[countdownColor]
+            : "before:bg-border",
         selected && "ring-2 ring-secondary"
       )}
     >
