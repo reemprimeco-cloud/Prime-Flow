@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { deletePushSubscription, isPushSubscribed, savePushSubscription } from "@/lib/actions/push";
+import { isRedirectError } from "@/lib/utils/redirect-error";
 import { cn } from "@/lib/utils";
 
 /**
@@ -40,18 +41,6 @@ function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
 }
 
 type State = "loading" | "unsupported" | "needs-install" | "off" | "on" | "blocked";
-
-/**
- * `redirect()` inside a Server Action reaches the client as a thrown error
- * carrying a NEXT_REDIRECT digest — it's control flow, not a failure, and
- * catching it both swallows the navigation and shows the user the literal
- * string "NEXT_REDIRECT". Re-throw so Next can act on it (e.g. a session
- * that expired mid-tap sends you to /login instead of showing gibberish).
- */
-function isRedirectError(error: unknown): boolean {
-  return typeof (error as { digest?: unknown })?.digest === "string" &&
-    ((error as { digest: string }).digest.startsWith("NEXT_REDIRECT"));
-}
 
 export function PushToggle({ className }: { className?: string }) {
   const [state, setState] = useState<State>("loading");

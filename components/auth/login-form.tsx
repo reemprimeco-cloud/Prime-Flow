@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 
 import { login } from "@/lib/actions/auth";
 import { loginSchema, type LoginInput } from "@/lib/validation/auth";
+import { isRedirectError } from "@/lib/utils/redirect-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +34,11 @@ export function LoginForm() {
           setFormError(result.error);
         }
       } catch (error) {
+        // A successful login ends in redirect(), which surfaces here as a
+        // thrown NEXT_REDIRECT — catching it stranded the user on the login
+        // page with a "couldn't reach the server" error despite the session
+        // cookie already being set.
+        if (isRedirectError(error)) throw error;
         console.error("[login] Request failed:", error);
         setFormError("Couldn't reach the server. Please refresh the page and try again.");
       }
