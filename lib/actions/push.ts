@@ -1,6 +1,6 @@
 "use server";
 
-import { requireEmployee } from "@/lib/auth/guards";
+import { requireSession } from "@/lib/auth/guards";
 import { createServiceClient } from "@/lib/supabase/server";
 import { isDemoMode } from "@/lib/demo/mode";
 
@@ -9,6 +9,11 @@ import { isDemoMode } from "@/lib/demo/mode";
  * right after the browser hands back a PushSubscription — the browser owns
  * the permission prompt and the keys; all this does is remember which
  * employee the device belongs to so notifications can be addressed.
+ *
+ * Guarded with `requireSession`, not `requireEmployee`: the toggle appears
+ * in both shells, and `requireEmployee` bounces admins to /dashboard —
+ * which surfaced as a raw "NEXT_REDIRECT" toast when a manager tapped it.
+ * Registering your own device is something any signed-in person can do.
  */
 
 export interface PushSubscriptionInput {
@@ -19,7 +24,7 @@ export interface PushSubscriptionInput {
 }
 
 export async function savePushSubscription(input: PushSubscriptionInput): Promise<void> {
-  const session = await requireEmployee();
+  const session = await requireSession();
   if (isDemoMode()) return;
 
   const supabase = createServiceClient();
@@ -42,7 +47,7 @@ export async function savePushSubscription(input: PushSubscriptionInput): Promis
 }
 
 export async function deletePushSubscription(endpoint: string): Promise<void> {
-  await requireEmployee();
+  await requireSession();
   if (isDemoMode()) return;
 
   const supabase = createServiceClient();
@@ -52,7 +57,7 @@ export async function deletePushSubscription(endpoint: string): Promise<void> {
 
 /** Lets the client confirm this device is still registered before showing itself as "on". */
 export async function isPushSubscribed(endpoint: string): Promise<boolean> {
-  await requireEmployee();
+  await requireSession();
   if (isDemoMode()) return false;
 
   const supabase = createServiceClient();

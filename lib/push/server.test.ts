@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockSendNotification, mockSetVapidDetails } = vi.hoisted(() => ({
-  mockSendNotification: vi.fn(async () => ({})),
+  // Params are declared so the mock's call tuple is typed — asserting on
+  // mock.calls[0] needs them, even though the body ignores both.
+  mockSendNotification: vi.fn(async (_subscription: unknown, _payload: string) => ({})),
   mockSetVapidDetails: vi.fn(),
 }));
 
@@ -74,7 +76,7 @@ describe("sendPushToEmployees", () => {
       endpoint: "https://push.example/abc",
       keys: { p256dh: "p256", auth: "auth" },
     });
-    expect(JSON.parse(payload as string)).toMatchObject({ title: "New job assigned", body: "Job #1029" });
+    expect(JSON.parse(payload)).toMatchObject({ title: "New job assigned", body: "Job #1029" });
   });
 
   it("does nothing when VAPID keys aren't configured, so the app stays stub-safe", async () => {
