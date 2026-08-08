@@ -7,6 +7,7 @@ import { renderTemplate, type TemplateName, type TemplateVariables } from "@/lib
 import { TwilioWhatsAppProvider } from "@/lib/notifications/providers/twilio-whatsapp";
 import { normalizeNotificationPreferences, type NotificationPreferences } from "@/lib/notifications/constants";
 import { buildGoogleMapsLink } from "@/lib/utils/maps";
+import { sendPushToEmployees } from "@/lib/push/server";
 import { formatDeliveryTime } from "@/lib/utils/countdown";
 import type {
   NotificationChannel,
@@ -246,14 +247,30 @@ interface EmployeeNotificationContext {
   statusLabel?: string;
 }
 
+/** Which dashboard tapping the push notification should land on. */
+const ADMIN_TEMPLATES: EmployeeTemplateNameLocal[] = ["admin_order_note_added", "admin_order_status_changed"];
+
+/** Short lock-screen headline per event — the rendered template is the body. */
+const PUSH_TITLES: Record<EmployeeTemplateNameLocal, string> = {
+  job_assigned: "New job assigned",
+  job_reassigned: "Job reassigned to you",
+  high_priority_job_assigned: "URGENT job assigned",
+  material_request_approved: "Material request approved",
+  job_cancelled: "Job cancelled",
+  internal_pickup_ready: "Ready to collect",
+  order_out_for_delivery_staff: "Out for delivery",
+  material_purchase_needed: "Material purchase needed",
+  job_ready_for_you: "Job ready for your stage",
+  admin_order_note_added: "Note added",
+  admin_order_status_changed: "Status changed",
+};
+
 async function sendEmployeeNotification(
   employee: EmployeeNotificationContext,
   templateName: EmployeeTemplateNameLocal,
   actorId: string,
   actorName: string
 ): Promise<void> {
-  if (!employee.employeePhone) return;
-
   const vars: TemplateVariables = {
     orderNumber: employee.orderNumber,
     productName: employee.product,
@@ -265,6 +282,24 @@ async function sendEmployeeNotification(
     statusLabel: employee.statusLabel,
   };
 
+  const body = renderTemplate(templateName, "en", vars);
+
+  // Push first, and independent of the phone number: Web Push has no
+  // 24-hour window and no template approval to wait on, so it's the more
+  // reliable of the two channels for staff who've installed the board —
+  // and it reaches someone with no phone number on file at all, who
+  // previously got nothing.
+  await sendPushToEmployees([employee.employeeId], {
+    title: PUSH_TITLES[templateName],
+    body,
+    url: ADMIN_TEMPLATES.includes(templateName) ? "/dashboard" : "/employee",
+    // One notification per order per event type — a second status change
+    // on the same order replaces the first rather than stacking.
+    tag: employee.orderId ? `${templateName}:${employee.orderId}` : templateName,
+  });
+
+  if (!employee.employeePhone) return;
+
   await dispatch(
     {
       orderId: employee.orderId,
@@ -273,7 +308,7 @@ async function sendEmployeeNotification(
       templateName,
       language: "en",
       channel: "whatsapp",
-      body: renderTemplate(templateName, "en", vars),
+      body,
       templateVariables: vars,
     },
     actorId,

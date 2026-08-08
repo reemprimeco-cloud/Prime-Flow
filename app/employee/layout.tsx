@@ -3,6 +3,7 @@ import Image from "next/image";
 import { requireEmployee } from "@/lib/auth/guards";
 import { isDemoMode } from "@/lib/demo/mode";
 import { LogoutButton } from "@/components/shared/logout-button";
+import { PushToggle } from "@/components/shared/push-toggle";
 import { DemoModeBanner } from "@/components/shared/demo-mode-banner";
 
 export default async function EmployeeLayout({ children }: { children: React.ReactNode }) {
@@ -23,7 +24,10 @@ export default async function EmployeeLayout({ children }: { children: React.Rea
             <div className="text-xs text-muted-foreground leading-tight">{session.fullName}</div>
           </div>
         </div>
-        <LogoutButton />
+        <div className="flex items-center gap-2">
+          <PushToggle />
+          <LogoutButton />
+        </div>
       </header>
 
       <main className="flex-1 p-4 pb-safe sm:p-6">{children}</main>

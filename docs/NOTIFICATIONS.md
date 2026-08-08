@@ -138,6 +138,20 @@ Meta rejects templates with too many variables relative to the amount of fixed t
 
 Only these five have templates; the other `TemplateName`s (`order_received`, `order_returned_to_production`, `order_collected_confirmation`, `order_delivered_confirmation`, `job_reassigned`, `high_priority_job_assigned`, `job_cancelled`, `internal_pickup_ready`, `order_out_for_delivery_staff`, `material_purchase_needed`, `material_request_approved`, `admin_order_note_added`) always send as freeform `body` and remain window-restricted — chosen as the minimal set covering the core loop (new job → customer updates → admin visibility) rather than submitting all fifteen for Meta review at once.
 
+## Web Push (lock-screen alerts for staff)
+
+A second, independent channel alongside WhatsApp, for staff only — customers never install the board, so they stay on WhatsApp. Its whole reason for existing is that **push has no 24-hour window and no Meta template approval**: once a device is registered, a notification reaches its lock screen at any time, which is exactly the constraint that made WhatsApp unreliable for shop-floor alerts (see above).
+
+`lib/push/server.ts` — `sendPushToEmployees(employeeIds, message)` loads every registered device for those employees and fans the payload out via the `web-push` library, signed with the VAPID keypair. Stub-safe: no keys configured means it returns immediately and nothing else changes. It never throws — a failed push must not break the status change that triggered it — and subscriptions the push service reports as `404`/`410` (app deleted, permission revoked) are deleted rather than retried forever, which is the only signal a device has dropped off.
+
+**Where it fires:** `sendEmployeeNotification` in `lib/notifications/service.ts`, so every existing staff event (job assigned, reassigned, urgent, cancelled, ready-for-you, material approved/needed, internal pickup, out for delivery, plus both admin alerts) sends a push *and* a WhatsApp. Push goes out **before** the phone-number check, so an employee with no phone on file — who previously got nothing at all — now gets notified. `PUSH_TITLES` maps each template to a short lock-screen headline; the rendered template text is the body; the notification is tagged `templateName:orderId` so a second update on one order replaces the first instead of stacking.
+
+**Registration** (`components/shared/push-toggle.tsx`, in both shells) is a button rather than automatic, because `Notification.requestPermission()` must come from a user gesture. It writes to `push_subscriptions` (migration `0020`) via `lib/actions/push.ts`, keyed on `endpoint` with an upsert — browsers silently re-issue subscriptions, and one person legitimately has several devices, all of which should ring.
+
+**The iOS catch:** Safari exposes Web Push *only* to a board that's been added to the home screen (iOS 16.4+). In a plain Safari tab `PushManager` is undefined, so the toggle detects that specific case and tells the user to install it rather than failing silently. See the iOS home-screen app section in `ARCHITECTURE.md`.
+
+`public/sw.js` is the service worker receiving the push. It deliberately does **no** offline caching — the board is realtime, and stale cached orders would be worse than the offline banner that already exists.
+
 ## Testing boundary
 
 This sandbox's network policy allows Supabase access only via MCP tools, not direct app-level HTTPS to third-party APIs — so live Twilio sending was **not** runtime-verified here, the same limitation documented for Supabase itself in `ARCHITECTURE.md`. Verified by static analysis (typecheck/lint/build) and in a real browser via Demo Mode: the unconfigured-credentials path (`skipped` status), the full pipeline end-to-end (trigger → log → audit trail → Notification Center display → resend button), and the Order Form's preference UI. Actually sending a WhatsApp message through Twilio needs verification on a real deployment with real credentials.

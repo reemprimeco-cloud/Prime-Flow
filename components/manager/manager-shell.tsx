@@ -8,6 +8,7 @@ import { SidebarNav } from "@/components/manager/sidebar-nav";
 import { MobileTabBar } from "@/components/manager/mobile-tab-bar";
 import { GlobalSearch } from "@/components/manager/global-search";
 import { LogoutButton } from "@/components/shared/logout-button";
+import { PushToggle } from "@/components/shared/push-toggle";
 import { DemoModeBanner } from "@/components/shared/demo-mode-banner";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -63,6 +64,7 @@ export function ManagerShell({ fullName, role, showDemoBanner, children }: Manag
           </Badge>
         </div>
       </div>
+      <PushToggle className="w-full justify-center" />
       <LogoutButton className="w-full justify-center" />
     </>
   );
