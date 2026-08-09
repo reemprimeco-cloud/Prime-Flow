@@ -14,6 +14,7 @@ const ENV_KEYS = [
   "TWILIO_STATUS_CALLBACK_URL",
   "TWILIO_TEMPLATE_JOB_ASSIGNED_SID",
   "TWILIO_TEMPLATE_ORDER_IN_PRODUCTION_SID",
+  "TWILIO_TEMPLATE_ADMIN_ORDER_STATUS_CHANGED_SID",
 ] as const;
 
 const BASE_PAYLOAD = {
@@ -43,6 +44,7 @@ describe("TwilioWhatsAppProvider — Content Templates", () => {
     delete process.env.TWILIO_STATUS_CALLBACK_URL;
     delete process.env.TWILIO_TEMPLATE_JOB_ASSIGNED_SID;
     delete process.env.TWILIO_TEMPLATE_ORDER_IN_PRODUCTION_SID;
+    delete process.env.TWILIO_TEMPLATE_ADMIN_ORDER_STATUS_CHANGED_SID;
     createMock.mockReset();
     createMock.mockResolvedValue({ sid: "SM_test", status: "sent", errorCode: null });
   });
@@ -98,6 +100,30 @@ describe("TwilioWhatsAppProvider — Content Templates", () => {
     const call = createMock.mock.calls[0][0];
     expect(call.contentSid).toBe("HX_in_production");
     expect(JSON.parse(call.contentVariables)).toEqual({ "1": "#1024", "2": "Business Cards" });
+  });
+
+  it("maps the admin alert's four variables in the order Meta approved them", async () => {
+    process.env.TWILIO_TEMPLATE_ADMIN_ORDER_STATUS_CHANGED_SID = "HX_admin";
+    const { TwilioWhatsAppProvider } = await import("./twilio-whatsapp");
+    await new TwilioWhatsAppProvider().send({
+      ...BASE_PAYLOAD,
+      templateName: "admin_order_status_changed",
+      templateVariables: {
+        orderNumber: "#1029",
+        customerName: "Hiba Al Mayouf",
+        employeeName: "Siva",
+        statusLabel: "Ready for Pickup",
+      },
+    });
+
+    const call = createMock.mock.calls[0][0];
+    expect(call.contentSid).toBe("HX_admin");
+    expect(JSON.parse(call.contentVariables)).toEqual({
+      "1": "Siva",
+      "2": "#1029",
+      "3": "Hiba Al Mayouf",
+      "4": "Ready for Pickup",
+    });
   });
 
   it("never uses a Content SID for a templateName with no registered template", async () => {

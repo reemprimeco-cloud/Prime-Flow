@@ -116,4 +116,22 @@ describe("Notification templates", () => {
     expect(rendered).toContain("Mariam Khalid");
     expect(rendered).toContain("Ready for Pickup");
   });
+
+  // An order number alone doesn't tell the manager whose job it is, which
+  // is the whole point of naming the customer in the admin alerts.
+  it("names the customer in both admin alerts", () => {
+    const statusChange = renderTemplate("admin_order_status_changed", "en", {
+      ...VARS,
+      employeeName: "Mariam Khalid",
+      statusLabel: "Ready for Pickup",
+    });
+    const noteAdded = renderTemplate("admin_order_note_added", "en", {
+      ...VARS,
+      employeeName: "Hassan Youssef",
+      noteText: "Switching to backup roll.",
+    });
+
+    expect(statusChange).toContain(VARS.customerName);
+    expect(noteAdded).toContain(VARS.customerName);
+  });
 });

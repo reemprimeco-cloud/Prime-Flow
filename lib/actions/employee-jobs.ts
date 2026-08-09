@@ -369,7 +369,7 @@ const DEMO_WRITE_ERROR = "This is a read-only demo — writes are disabled.";
 async function notifyAdmins(
   supabase: ServiceClient,
   orderId: string,
-  order: { order_number: string; product: string; delivery_date: string; delivery_time: string },
+  order: { order_number: string; customer_name: string; product: string; delivery_date: string; delivery_time: string },
   templateName: "admin_order_note_added" | "admin_order_status_changed",
   extra: { noteText?: string; statusLabel?: string },
   actorId: string,
@@ -387,6 +387,7 @@ async function notifyAdmins(
         employeePhone: admin.phone,
         orderId,
         orderNumber: order.order_number,
+        customerName: order.customer_name,
         product: order.product,
         deliveryDate: order.delivery_date,
         deliveryTime: order.delivery_time,
@@ -619,7 +620,7 @@ export async function addJobNote(orderId: string, note: string): Promise<void> {
 
   const { data: order } = await supabase
     .from("orders")
-    .select("order_number, product, delivery_date, delivery_time")
+    .select("order_number, customer_name, product, delivery_date, delivery_time")
     .eq("id", orderId)
     .single();
   if (order) {

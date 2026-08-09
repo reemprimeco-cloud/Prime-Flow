@@ -382,6 +382,7 @@ export async function POST(request: Request) {
         employeePhone: admin.phone,
         orderId: newOrder.id,
         orderNumber: newOrder.order_number,
+        customerName,
         product: primaryItem.name,
         deliveryDate: placeholderDate,
         deliveryTime: "17:00",

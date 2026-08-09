@@ -243,6 +243,8 @@ interface EmployeeNotificationContext {
   deliveryMapLink?: string | null;
   /** Which employee did the thing being reported — used by admin_order_note_added/admin_order_status_changed. */
   employeeName?: string;
+  /** Whose order it is — admin alerts name the customer, since an order number alone isn't enough to place the job. */
+  customerName?: string;
   noteText?: string;
   statusLabel?: string;
 }
@@ -278,6 +280,7 @@ async function sendEmployeeNotification(
     deliveryTime: formatDeliveryTime(employee.deliveryTime),
     mapsLink: employee.deliveryMapLink || (employee.deliveryAddress ? buildGoogleMapsLink(employee.deliveryAddress) : undefined),
     employeeName: employee.employeeName,
+    customerName: employee.customerName,
     noteText: employee.noteText,
     statusLabel: employee.statusLabel,
   };

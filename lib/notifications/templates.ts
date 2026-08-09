@@ -132,12 +132,12 @@ const TEMPLATES: Record<TemplateName, Record<OrderLanguage, TemplateFn>> = {
     ar: (v) => `المهمة ${v.orderNumber} (${v.productName}) جاهزة لمرحلتك — انتهى العمل الذي قبلك.`,
   },
   admin_order_note_added: {
-    en: (v) => `${v.employeeName} added a note to ${v.orderNumber} (${v.productName}): "${v.noteText}"`,
-    ar: (v) => `أضاف ${v.employeeName} ملاحظة على الطلب ${v.orderNumber} (${v.productName}): "${v.noteText}"`,
+    en: (v) => `${v.employeeName} added a note to ${v.orderNumber} for ${v.customerName} (${v.productName}): "${v.noteText}"`,
+    ar: (v) => `أضاف ${v.employeeName} ملاحظة على الطلب ${v.orderNumber} للعميل ${v.customerName} (${v.productName}): "${v.noteText}"`,
   },
   admin_order_status_changed: {
-    en: (v) => `${v.employeeName} moved ${v.orderNumber} (${v.productName}) to ${v.statusLabel}.`,
-    ar: (v) => `قام ${v.employeeName} بنقل الطلب ${v.orderNumber} (${v.productName}) إلى ${v.statusLabel}.`,
+    en: (v) => `${v.employeeName} moved ${v.orderNumber} for ${v.customerName} (${v.productName}) to ${v.statusLabel}.`,
+    ar: (v) => `قام ${v.employeeName} بنقل الطلب ${v.orderNumber} للعميل ${v.customerName} (${v.productName}) إلى ${v.statusLabel}.`,
   },
 };
 

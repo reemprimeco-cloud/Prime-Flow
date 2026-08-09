@@ -52,9 +52,16 @@ const CONTENT_TEMPLATES: Partial<Record<TemplateName, ContentTemplateConfig>> = 
   },
   admin_order_status_changed: {
     envVar: "TWILIO_TEMPLATE_ADMIN_ORDER_STATUS_CHANGED_SID",
-    // Meta rejected the original 4-variable body ("too many variables for
-    // its length") — resubmitted without productName, 3 variables now.
-    buildVariables: (v) => ({ "1": v.employeeName ?? "", "2": v.orderNumber, "3": v.statusLabel ?? "" }),
+    // Meta rejected an early 4-variable body ("too many variables for its
+    // length"), so the approved wording pads out the fixed text around
+    // these four rather than dropping one. productName stays out — the
+    // customer's name is what actually identifies the job at a glance.
+    buildVariables: (v) => ({
+      "1": v.employeeName ?? "",
+      "2": v.orderNumber,
+      "3": v.customerName ?? "",
+      "4": v.statusLabel ?? "",
+    }),
   },
 };
 
