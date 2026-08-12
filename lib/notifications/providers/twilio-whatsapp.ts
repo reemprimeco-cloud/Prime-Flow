@@ -52,15 +52,18 @@ const CONTENT_TEMPLATES: Partial<Record<TemplateName, ContentTemplateConfig>> = 
   },
   admin_order_status_changed: {
     envVar: "TWILIO_TEMPLATE_ADMIN_ORDER_STATUS_CHANGED_SID",
-    // Must match the *currently approved* template, which has three slots.
-    // Adding customerName here without swapping the Content SID first sent
-    // the customer's name into the status slot ('moved order #1007 to
-    // status "Devon"') — Twilio matches by position, so a count mismatch
-    // silently renders wrong values instead of erroring. The freeform body
-    // in templates.ts already names the customer; this gains a fourth
-    // variable only once the wider 4-variable template is approved and its
-    // SID is in place. See docs/NOTIFICATIONS.md.
-    buildVariables: (v) => ({ "1": v.employeeName ?? "", "2": v.orderNumber, "3": v.statusLabel ?? "" }),
+    // Four slots, matching prime_admin_tap_notify3. This mapping and the
+    // Content SID have to change in the same deploy: Twilio matches
+    // variables by position, so a count mismatch renders wrong values
+    // rather than erroring — an earlier mismatch produced a real alert
+    // reading 'moved order #1007 to status "Devon"' (the customer's name
+    // in the status slot). See docs/NOTIFICATIONS.md.
+    buildVariables: (v) => ({
+      "1": v.employeeName ?? "",
+      "2": v.orderNumber,
+      "3": v.customerName ?? "",
+      "4": v.statusLabel ?? "",
+    }),
   },
 };
 

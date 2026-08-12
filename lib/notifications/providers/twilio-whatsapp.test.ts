@@ -102,11 +102,11 @@ describe("TwilioWhatsAppProvider — Content Templates", () => {
     expect(JSON.parse(call.contentVariables)).toEqual({ "1": "#1024", "2": "Business Cards" });
   });
 
-  // Regression: sending a fourth variable to the approved three-slot
-  // template put the customer's name where the status belongs, producing
-  // 'moved order #1007 to status "Devon"' in a real alert. The mapping has
-  // to match the approved template's slot count exactly.
-  it("sends the admin alert exactly three variables, status last", async () => {
+  // Regression: this mapping once had one more variable than the approved
+  // template had slots, which shifted every value along and produced a real
+  // alert reading 'moved order #1007 to status "Devon"' — the customer's
+  // name in the status slot. Pins the exact slots of prime_admin_tap_notify3.
+  it("sends the admin alert four variables, customer third and status last", async () => {
     process.env.TWILIO_TEMPLATE_ADMIN_ORDER_STATUS_CHANGED_SID = "HX_admin";
     const { TwilioWhatsAppProvider } = await import("./twilio-whatsapp");
     await new TwilioWhatsAppProvider().send({
@@ -125,7 +125,8 @@ describe("TwilioWhatsAppProvider — Content Templates", () => {
     expect(JSON.parse(call.contentVariables)).toEqual({
       "1": "Siva",
       "2": "#1029",
-      "3": "Ready for Pickup",
+      "3": "Hiba Al Mayouf",
+      "4": "Ready for Pickup",
     });
   });
 
