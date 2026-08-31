@@ -12,5 +12,10 @@ export default function TvLayout({ children }: { children: React.ReactNode }) {
   // columns/cards get clipped exactly at the edge. `3vmin` keeps that
   // margin proportional on any screen size/aspect ratio (vmin = the
   // smaller of viewport width/height, the standard unit for this).
-  return <div className="fixed inset-0 overflow-hidden bg-background p-[3vmin]">{children}</div>;
+  //
+  // The background color (#82b1c8) is sampled directly from the light
+  // blue accent in the Prime logo (the "i" dot / "PRINTING CO." text in
+  // public/logo.jpg) -- a TV-only accent, not the app-wide --secondary
+  // token, since every other screen stays on the white/light theme.
+  return <div className="fixed inset-0 overflow-hidden bg-[#82b1c8] p-[3vmin]">{children}</div>;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { AlertTriangle, ClipboardList, Users } from "lucide-react";
 
 interface TvStatsBarProps {
@@ -19,7 +20,7 @@ export function TvStatsBar({ activeOrders, delayedOrders, employeesWorking }: Tv
   }, []);
 
   return (
-    <header className="grid grid-cols-[1.3fr_1fr_1fr_1fr] gap-3 border-b-2 border-border bg-card px-6 py-3.5">
+    <header className="relative flex items-center gap-4 border-b-2 border-border bg-card px-6 py-3.5">
       <div>
         <div className="font-mono text-4xl font-extrabold tabular-nums leading-none">
           {now ? now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : "--:--"}
@@ -31,9 +32,22 @@ export function TvStatsBar({ activeOrders, delayedOrders, employeesWorking }: Tv
         </div>
       </div>
 
-      <StatBlock icon={<ClipboardList className="size-6" />} value={activeOrders} label="Active Orders" tone="secondary" />
-      <StatBlock icon={<AlertTriangle className="size-6" />} value={delayedOrders} label="Delayed Orders" tone="destructive" />
-      <StatBlock icon={<Users className="size-6" />} value={employeesWorking} label="Employees Working" tone="success" />
+      {/* True center of the header bar, independent of how wide the time
+          block or stat row end up -- absolute + translate rather than a
+          grid column, so it stays dead-center regardless. Uses
+          logo-mark.png (a tight crop of public/logo.jpg's wordmark, no
+          surrounding whitespace -- see the crop step that produced it)
+          rather than the shared logo.jpg every other screen uses, sized to
+          the header's own height instead of a fixed small square. */}
+      <div className="absolute left-1/2 top-1/2 h-16 w-[140px] -translate-x-1/2 -translate-y-1/2">
+        <Image src="/logo-mark.png" alt="Prime Printing Co." fill sizes="140px" className="object-contain" priority />
+      </div>
+
+      <div className="flex flex-1 items-center justify-end gap-4">
+        <StatBlock icon={<ClipboardList className="size-6" />} value={activeOrders} label="Active Orders" tone="secondary" />
+        <StatBlock icon={<AlertTriangle className="size-6" />} value={delayedOrders} label="Delayed Orders" tone="destructive" />
+        <StatBlock icon={<Users className="size-6" />} value={employeesWorking} label="Employees Working" tone="success" />
+      </div>
     </header>
   );
 }
