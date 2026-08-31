@@ -12,6 +12,7 @@ import {
   notifyOrderMovedBackToProduction,
   notifyOrderStatusChanged,
 } from "@/lib/notifications/service";
+import { dispatchArmadaDelivery } from "@/lib/armada/dispatch";
 import type { OrderStatus } from "@/types/database.types";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
@@ -99,13 +100,13 @@ export async function applyOrderStatusTransition(
   supabase: ServiceClient,
   orderId: string,
   status: OrderStatus,
-  actorId: string,
+  actorId: string | null,
   actorName: string
 ) {
   const { data: current, error: fetchError } = await supabase
     .from("orders")
     .select(
-      "status, order_number, customer_name, customer_mobile, product, delivery_date, delivery_time, delivery_address, delivery_map_link, whatsapp_enabled, preferred_channel, preferred_language, notification_preferences"
+      "status, order_number, customer_name, customer_mobile, product, delivery_date, delivery_time, delivery_address, delivery_map_link, whatsapp_enabled, preferred_channel, preferred_language, notification_preferences, delivery_provider, notes"
     )
     .eq("id", orderId)
     .single();
@@ -161,20 +162,38 @@ export async function applyOrderStatusTransition(
     await supabase.from("order_items").update({ is_ready: false }).eq("order_id", orderId);
   }
 
+  // Every branch below except the customer notification assumes a human
+  // actor -- the Armada webhook (the only null-actorId caller) always
+  // targets "delivered", never "ready_internal_pickup"/"ready_delivery"/a
+  // revert, so `actorId!` here is a documented invariant, not a guess.
   if (status === "ready_internal_pickup") {
     // Outsourced worker's "done" -- internal handoff only, no customer
     // notification. Auto-assign the delivery-role staff so this job shows
     // up on their dashboard, and let them know to go collect it.
-    await notifyDeliveryStaffForStatus(supabase, orderId, current, "internal_pickup_ready", actorId, actorName);
+    await notifyDeliveryStaffForStatus(supabase, orderId, current, "internal_pickup_ready", actorId!, actorName);
   } else if (isRevertToProduction) {
-    await notifyOrderMovedBackToProduction(notificationContext, actorId, actorName);
+    await notifyOrderMovedBackToProduction(notificationContext, actorId!, actorName);
   } else {
     await notifyOrderStatusChanged({ ...notificationContext, toStatus: status }, actorId, actorName);
 
     if (status === "ready_delivery") {
-      // On top of the customer notification above: tell delivery-role
-      // staff (e.g. Naresh) to go deliver it, and put it on their dashboard.
-      await notifyDeliveryStaffForStatus(supabase, orderId, current, "order_out_for_delivery_staff", actorId, actorName);
+      if (current.delivery_provider === "armada") {
+        // Manager picked Armada for this order (see the order form's
+        // "Delivery Provider" field) -- dispatch it to their API instead of
+        // paging internal delivery staff. If Armada can't be reached or
+        // isn't configured, fall back to the internal notify below so the
+        // order still gets delivered by someone rather than stranding it.
+        try {
+          await dispatchArmadaDelivery(supabase, orderId, current, actorId, actorName);
+        } catch (dispatchError) {
+          console.error(`[armada] dispatch failed for ${current.order_number}, falling back to internal delivery staff`, dispatchError);
+          await notifyDeliveryStaffForStatus(supabase, orderId, current, "order_out_for_delivery_staff", actorId!, actorName);
+        }
+      } else {
+        // On top of the customer notification above: tell delivery-role
+        // staff (e.g. Naresh) to go deliver it, and put it on their dashboard.
+        await notifyDeliveryStaffForStatus(supabase, orderId, current, "order_out_for_delivery_staff", actorId!, actorName);
+      }
     }
   }
 

@@ -12,9 +12,11 @@ import {
   PackageCheck,
   PackageX,
   Trash2,
+  Truck,
   UserCog,
   UserMinus,
   UserPlus,
+  XCircle,
 } from "lucide-react";
 
 import { getOrderTimeline, type TimelineEntry } from "@/lib/actions/timeline";
@@ -34,6 +36,10 @@ const ACTION_ICONS: Record<AuditAction, React.ComponentType<{ className?: string
   employee_created: UserPlus,
   employee_updated: UserCog,
   employee_password_reset: KeyRound,
+  armada_delivery_dispatched: Truck,
+  armada_delivery_dispatch_failed: PackageX,
+  armada_delivery_canceled: XCircle,
+  armada_webhook_status_update: Truck,
 };
 
 function formatDuration(minutes: number): string {

@@ -173,6 +173,9 @@ export const OrderCard = memo(function OrderCard({
           )}
           {order.fulfillmentType === "delivery" ? "Delivery" : "Pickup"}
         </Badge>
+        {order.fulfillmentType === "delivery" && order.deliveryProvider === "armada" && (
+          <Badge variant="muted">Armada</Badge>
+        )}
         {order.status === "new" && !order.approved && (
           <Badge variant="warning" className="gap-1">
             <ShieldAlert className="size-3" />

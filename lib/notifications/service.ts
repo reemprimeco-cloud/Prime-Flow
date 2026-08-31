@@ -119,7 +119,7 @@ async function sendCustomerNotification(
   order: OrderNotificationContext,
   templateName: TemplateName,
   preferenceKey: keyof NotificationPreferences,
-  actorId: string,
+  actorId: string | null,
   actorName: string
 ): Promise<void> {
   if (!order.whatsappEnabled || !order.customerMobile) return;
@@ -214,7 +214,7 @@ type CustomerStatusTemplate = Extract<
 
 export async function notifyOrderStatusChanged(
   order: OrderNotificationContext & { toStatus: OrderStatus },
-  actorId: string,
+  actorId: string | null,
   actorName: string
 ): Promise<void> {
   const mapping = STATUS_TEMPLATE[order.toStatus];

@@ -3,6 +3,7 @@ import type {
   MaterialPriority,
   MaterialRequestStatus,
   MaterialType,
+  OrderDeliveryProvider,
   OrderFulfillmentType,
   OrderPriority,
   OrderStatus,
@@ -84,6 +85,20 @@ export const ORDER_PRIORITY_LABELS: Record<OrderPriority, string> = {
 export const ORDER_FULFILLMENT_TYPE_LABELS: Record<OrderFulfillmentType, string> = {
   pickup: "Pickup",
   delivery: "Delivery",
+};
+
+/**
+ * Who actually carries out a `delivery`-fulfillment order once it's ready:
+ * in-house delivery-role staff (e.g. Naresh, auto-assigned and notified —
+ * see notifyDeliveryStaffForStatus) or Armada's courier API (dispatched
+ * automatically the moment the order hits ready_delivery — see
+ * lib/armada/client.ts and docs/ARMADA_DELIVERY.md). Meaningless for
+ * `pickup` orders, so the form only shows it when fulfillmentType is
+ * "delivery".
+ */
+export const ORDER_DELIVERY_PROVIDER_LABELS: Record<OrderDeliveryProvider, string> = {
+  internal: "Internal delivery staff",
+  armada: "Armada",
 };
 
 /** Countdown badge thresholds, in minutes remaining until delivery. */

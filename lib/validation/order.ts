@@ -34,6 +34,7 @@ export const orderFormSchema = z.object({
   quantity: z.coerce.number().int("Whole numbers only").positive("Must be greater than 0"),
   finishing: z.string().trim().max(1000).optional().or(z.literal("")),
   fulfillmentType: z.enum(["pickup", "delivery"]),
+  deliveryProvider: z.enum(["internal", "armada"]).default("internal"),
   priority: z.enum(["normal", "urgent"]),
   approved: z.boolean().default(false),
   deliveryDate: z.string().min(1, "Delivery date is required"),
