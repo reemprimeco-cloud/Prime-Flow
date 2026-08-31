@@ -36,7 +36,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FileUpload } from "@/components/shared/file-upload";
 import { DESIGN_FILE_ACCEPT, MAX_TOTAL_UPLOAD_BYTES, PRODUCT_IMAGE_ACCEPT } from "@/lib/files/constants";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/notifications/constants";
-import { ORDER_DELIVERY_PROVIDER_LABELS, ORDER_FULFILLMENT_TYPE_LABELS, ORDER_PRIORITY_LABELS } from "@/types/domain";
+import { ORDER_FULFILLMENT_TYPE_LABELS, ORDER_PRIORITY_LABELS } from "@/types/domain";
 import { cn } from "@/lib/utils";
 
 interface OrderFormProps {
@@ -620,26 +620,6 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                 </Field>
                 {fulfillmentType === "delivery" && (
                   <>
-                    <Field label="Delivery Provider">
-                      <Controller
-                        control={control}
-                        name="deliveryProvider"
-                        render={({ field }) => (
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(ORDER_DELIVERY_PROVIDER_LABELS).map(([value, label]) => (
-                                <SelectItem key={value} value={value}>
-                                  {label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                    </Field>
                     <Field label="Delivery Address" className="sm:col-span-2">
                       <Input {...register("deliveryAddress")} placeholder="Building, street, area" />
                     </Field>

@@ -1,19 +1,31 @@
 # Armada Delivery Integration
 
-Lets a manager choose, per order, whether a `delivery`-fulfillment order is
-handed to in-house delivery staff (e.g. Naresh — auto-assigned and notified,
-the existing default) or dispatched to [Armada](https://armadadelivery.com)'s
-courier API. The choice lives on the order itself (`orders.delivery_provider`)
-and is made in the order form, same place `fulfillmentType` is picked.
+Lets whoever marks a `delivery`-fulfillment order ready choose, right at that
+moment, whether it's handed to in-house delivery staff (e.g. Naresh —
+auto-assigned and notified, the existing default) or dispatched to
+[Armada](https://armadadelivery.com)'s courier API. The choice is deliberately
+**not** made earlier at order-creation time — it's asked via a "Who's
+delivering this?" prompt exactly when the order goes `ready_delivery`, since
+that's the first point the answer is actually known, and it can genuinely
+vary order to order.
 
 ## How it works
 
-1. A manager creates or edits an order with **Fulfillment: Delivery** and
-   **Delivery Provider: Armada** (`components/orders/order-form.tsx`).
-2. The moment that order transitions to `ready_delivery` — whether an
-   employee marks their job done or a manager changes the status — the
-   single status-transition path (`applyOrderStatusTransition` in
-   `lib/actions/status-transition.ts`) checks `delivery_provider` and:
+1. Someone marks a delivery-fulfillment order ready:
+   - **Single-item order**: clicking the "Ready for Delivery" button
+     (`components/orders/status-actions.tsx`, used by both the employee job
+     card and the manager order detail drawer) pops the "Who's delivering
+     this?" choice (`components/orders/delivery-provider-dialog.tsx`) before
+     the transition fires.
+   - **Multi-item order**: this transition normally auto-fires the moment
+     the last item's readiness checkbox is ticked, with no button click to
+     hang a prompt on — so the same choice pops there instead, right before
+     that last checkbox actually commits
+     (`components/employee/item-readiness-dialog.tsx`).
+2. Whichever provider is chosen is persisted onto the order
+   (`orders.delivery_provider`) in the same update as the status flip, and
+   the single status-transition path (`applyOrderStatusTransition` in
+   `lib/actions/status-transition.ts`) acts on it immediately:
    - **`armada`**: calls `dispatchArmadaDelivery` (`lib/armada/dispatch.ts`),
      which creates the delivery via Armada's API and stores the result
      (`armada_delivery_code`, `armada_tracking_link`, `armada_delivery_fee`)

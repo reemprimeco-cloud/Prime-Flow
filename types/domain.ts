@@ -92,9 +92,10 @@ export const ORDER_FULFILLMENT_TYPE_LABELS: Record<OrderFulfillmentType, string>
  * in-house delivery-role staff (e.g. Naresh, auto-assigned and notified —
  * see notifyDeliveryStaffForStatus) or Armada's courier API (dispatched
  * automatically the moment the order hits ready_delivery — see
- * lib/armada/client.ts and docs/ARMADA_DELIVERY.md). Meaningless for
- * `pickup` orders, so the form only shows it when fulfillmentType is
- * "delivery".
+ * lib/armada/client.ts and docs/ARMADA_DELIVERY.md). Chosen via the "Who's
+ * delivering this?" prompt (components/orders/delivery-provider-dialog.tsx)
+ * at the moment an order goes ready_delivery, not earlier at order-creation
+ * time — meaningless for `pickup` orders either way.
  */
 export const ORDER_DELIVERY_PROVIDER_LABELS: Record<OrderDeliveryProvider, string> = {
   internal: "Internal delivery staff",

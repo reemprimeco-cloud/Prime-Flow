@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { buildGoogleMapsLink } from "@/lib/utils/maps";
 import { formatDeliveryTime } from "@/lib/utils/countdown";
 import type { EmployeeJobItem } from "@/lib/actions/employee-jobs";
-import type { OrderStatus } from "@/types/database.types";
+import type { OrderDeliveryProvider, OrderStatus } from "@/types/database.types";
 
 const ACCENT_BORDER = {
   green: "before:bg-success",
@@ -28,7 +28,7 @@ interface JobCardProps {
   job: EmployeeJobItem;
   isOutsourced: boolean;
   pending: boolean;
-  onStatusChange: (status: OrderStatus) => void;
+  onStatusChange: (status: OrderStatus, deliveryProvider?: OrderDeliveryProvider) => void;
   onHandOff: () => void;
   onAddNote: () => void;
   onRequestMaterial: () => void;

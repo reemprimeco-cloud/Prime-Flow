@@ -1299,12 +1299,16 @@ export async function deleteOrder(orderId: string): Promise<void> {
  * can act on any order — and admins don't need to be told about their own
  * change, so notifyAdmins is skipped.
  */
-export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
+export async function updateOrderStatus(
+  orderId: string,
+  status: OrderStatus,
+  deliveryProvider?: OrderDeliveryProvider
+): Promise<void> {
   const session = await requireAdmin();
   if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
   const supabase = createServiceClient();
 
-  await applyOrderStatusTransition(supabase, orderId, status, session.employeeId, session.fullName);
+  await applyOrderStatusTransition(supabase, orderId, status, session.employeeId, session.fullName, deliveryProvider);
 }
 
 /**

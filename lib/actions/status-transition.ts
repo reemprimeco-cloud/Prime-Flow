@@ -13,7 +13,7 @@ import {
   notifyOrderStatusChanged,
 } from "@/lib/notifications/service";
 import { dispatchArmadaDelivery } from "@/lib/armada/dispatch";
-import type { OrderStatus } from "@/types/database.types";
+import type { OrderDeliveryProvider, OrderStatus } from "@/types/database.types";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
 
@@ -101,7 +101,17 @@ export async function applyOrderStatusTransition(
   orderId: string,
   status: OrderStatus,
   actorId: string | null,
-  actorName: string
+  actorName: string,
+  /**
+   * Who's actually delivering it — only meaningful (and only ever passed)
+   * when `status` is "ready_delivery". Asked at this exact moment (the
+   * "Who's delivering this?" prompt in components/orders/status-actions.tsx
+   * and components/employee/item-readiness-dialog.tsx) rather than earlier
+   * at order-creation time, since the answer genuinely varies order to
+   * order and isn't known until the job's actually ready. Persisted onto
+   * the order in the same update as the status flip below.
+   */
+  deliveryProviderChoice?: OrderDeliveryProvider
 ) {
   const { data: current, error: fetchError } = await supabase
     .from("orders")
@@ -114,7 +124,13 @@ export async function applyOrderStatusTransition(
 
   assertValidTransition(current.status, status);
 
-  const { error } = await supabase.from("orders").update({ status }).eq("id", orderId);
+  const setsDeliveryProvider = status === "ready_delivery" && deliveryProviderChoice != null;
+  const effectiveDeliveryProvider = setsDeliveryProvider ? deliveryProviderChoice : current.delivery_provider;
+
+  const { error } = await supabase
+    .from("orders")
+    .update(setsDeliveryProvider ? { status, delivery_provider: deliveryProviderChoice } : { status })
+    .eq("id", orderId);
   if (error) throw new Error(error.message);
 
   await supabase.from("order_status_history").insert({
@@ -177,12 +193,12 @@ export async function applyOrderStatusTransition(
     await notifyOrderStatusChanged({ ...notificationContext, toStatus: status }, actorId, actorName);
 
     if (status === "ready_delivery") {
-      if (current.delivery_provider === "armada") {
-        // Manager picked Armada for this order (see the order form's
-        // "Delivery Provider" field) -- dispatch it to their API instead of
-        // paging internal delivery staff. If Armada can't be reached or
-        // isn't configured, fall back to the internal notify below so the
-        // order still gets delivered by someone rather than stranding it.
+      if (effectiveDeliveryProvider === "armada") {
+        // Whoever marked this ready picked Armada in the "Who's delivering
+        // this?" prompt -- dispatch it to their API instead of paging
+        // internal delivery staff. If Armada can't be reached or isn't
+        // configured, fall back to the internal notify below so the order
+        // still gets delivered by someone rather than stranding it.
         try {
           await dispatchArmadaDelivery(supabase, orderId, current, actorId, actorName);
         } catch (dispatchError) {

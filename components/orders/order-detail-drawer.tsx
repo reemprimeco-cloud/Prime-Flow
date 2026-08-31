@@ -37,7 +37,7 @@ import {
   ORDER_DELIVERY_PROVIDER_LABELS,
   ORDER_STATUS_LABELS,
 } from "@/types/domain";
-import type { OrderStatus } from "@/types/database.types";
+import type { OrderDeliveryProvider, OrderStatus } from "@/types/database.types";
 
 interface OrderDetailDrawerProps {
   orderId: string | null;
@@ -70,10 +70,10 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
     if (orderId) queryClient.invalidateQueries({ queryKey: ["order", orderId] });
   });
 
-  const handleStatusChange = (status: OrderStatus) => {
+  const handleStatusChange = (status: OrderStatus, deliveryProvider?: OrderDeliveryProvider) => {
     if (!order) return;
     setStatusPending(true);
-    updateOrderStatus(order.id, status)
+    updateOrderStatus(order.id, status, deliveryProvider)
       .then(() => {
         toast.success(`${order.orderNumber} → ${ORDER_STATUS_LABELS[status]}`);
         queryClient.invalidateQueries({ queryKey: ["order", orderId] });

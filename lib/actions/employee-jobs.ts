@@ -25,7 +25,7 @@ import {
   PRIMARY_ITEM_ID,
   PRIORITY_SORT_WEIGHT,
 } from "@/types/domain";
-import type { MaterialType, OrderFulfillmentType, OrderPriority, OrderStatus } from "@/types/database.types";
+import type { MaterialType, OrderDeliveryProvider, OrderFulfillmentType, OrderPriority, OrderStatus } from "@/types/database.types";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
 
@@ -401,7 +401,11 @@ async function notifyAdmins(
   }
 }
 
-export async function updateEmployeeJobStatus(orderId: string, status: OrderStatus): Promise<void> {
+export async function updateEmployeeJobStatus(
+  orderId: string,
+  status: OrderStatus,
+  deliveryProvider?: OrderDeliveryProvider
+): Promise<void> {
   const session = await requireEmployee();
   if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
   if (!EMPLOYEE_ALLOWED_TARGET_STATUSES.includes(status)) {
@@ -428,7 +432,14 @@ export async function updateEmployeeJobStatus(orderId: string, status: OrderStat
     }
   }
 
-  const current = await applyOrderStatusTransition(supabase, orderId, status, session.employeeId, session.fullName);
+  const current = await applyOrderStatusTransition(
+    supabase,
+    orderId,
+    status,
+    session.employeeId,
+    session.fullName,
+    deliveryProvider
+  );
 
   await notifyAdmins(
     supabase,
@@ -452,7 +463,13 @@ export async function updateEmployeeJobStatus(orderId: string, status: OrderStat
  * land in the same place without a redundant confirmation click.
  * Unchecking never reverts a status that already advanced.
  */
-export async function toggleJobItemReady(orderId: string, itemId: string, ready: boolean): Promise<void> {
+export async function toggleJobItemReady(
+  orderId: string,
+  itemId: string,
+  ready: boolean,
+  /** Only meaningful when checking the last item pushes a delivery-fulfillment order past ready_delivery — see the "Who's delivering this?" prompt in components/employee/item-readiness-dialog.tsx. Ignored for pickup/internal-pickup orders and for any toggle that isn't the completing one. */
+  deliveryProvider?: OrderDeliveryProvider
+): Promise<void> {
   const session = await requireEmployee();
   if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
   const supabase = createServiceClient();
@@ -503,7 +520,14 @@ export async function toggleJobItemReady(orderId: string, itemId: string, ready:
   const doneAction = actions[actions.length - 1];
   if (!doneAction) return;
 
-  const current = await applyOrderStatusTransition(supabase, orderId, doneAction.status, session.employeeId, session.fullName);
+  const current = await applyOrderStatusTransition(
+    supabase,
+    orderId,
+    doneAction.status,
+    session.employeeId,
+    session.fullName,
+    doneAction.status === "ready_delivery" ? deliveryProvider : undefined
+  );
   await notifyAdmins(
     supabase,
     orderId,
