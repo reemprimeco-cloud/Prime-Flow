@@ -30,7 +30,7 @@ export function TvDashboardClient({ initialBoard }: { initialBoard: TvBoardData 
   const board = boardQuery.data ?? initialBoard;
 
   return (
-    <div className="grid h-screen grid-rows-[auto_1fr_auto] overflow-hidden bg-background text-foreground">
+    <div className="grid h-full grid-rows-[auto_1fr_auto] overflow-hidden bg-background text-foreground">
       <TvStatsBar
         activeOrders={board.activeOrders}
         delayedOrders={board.delayedOrders}
