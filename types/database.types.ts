@@ -562,6 +562,12 @@ export type Database = {
         Row: {
           approved: boolean
           archived: boolean
+          armada_delivery_code: string | null
+          armada_delivery_fee: number | null
+          armada_delivery_status: string | null
+          armada_driver_name: string | null
+          armada_driver_phone: string | null
+          armada_tracking_link: string | null
           completed_at: string | null
           created_at: string
           created_by: string
@@ -570,6 +576,7 @@ export type Database = {
           delivery_address: string | null
           delivery_date: string
           delivery_map_link: string | null
+          delivery_provider: Database["public"]["Enums"]["order_delivery_provider"]
           delivery_time: string
           finishing: string | null
           fulfillment_type: Database["public"]["Enums"]["order_fulfillment_type"]
@@ -592,6 +599,12 @@ export type Database = {
         Insert: {
           approved?: boolean
           archived?: boolean
+          armada_delivery_code?: string | null
+          armada_delivery_fee?: number | null
+          armada_delivery_status?: string | null
+          armada_driver_name?: string | null
+          armada_driver_phone?: string | null
+          armada_tracking_link?: string | null
           completed_at?: string | null
           created_at?: string
           created_by: string
@@ -600,6 +613,7 @@ export type Database = {
           delivery_address?: string | null
           delivery_date: string
           delivery_map_link?: string | null
+          delivery_provider?: Database["public"]["Enums"]["order_delivery_provider"]
           delivery_time: string
           finishing?: string | null
           fulfillment_type?: Database["public"]["Enums"]["order_fulfillment_type"]
@@ -622,6 +636,12 @@ export type Database = {
         Update: {
           approved?: boolean
           archived?: boolean
+          armada_delivery_code?: string | null
+          armada_delivery_fee?: number | null
+          armada_delivery_status?: string | null
+          armada_driver_name?: string | null
+          armada_driver_phone?: string | null
+          armada_tracking_link?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string
@@ -630,6 +650,7 @@ export type Database = {
           delivery_address?: string | null
           delivery_date?: string
           delivery_map_link?: string | null
+          delivery_provider?: Database["public"]["Enums"]["order_delivery_provider"]
           delivery_time?: string
           finishing?: string | null
           fulfillment_type?: Database["public"]["Enums"]["order_fulfillment_type"]
@@ -681,6 +702,10 @@ export type Database = {
         | "employee_created"
         | "employee_updated"
         | "employee_password_reset"
+        | "armada_delivery_dispatched"
+        | "armada_delivery_dispatch_failed"
+        | "armada_delivery_canceled"
+        | "armada_webhook_status_update"
       employee_role: "admin" | "employee" | "supervisor" | "store" | "delivery"
       material_priority: "low" | "normal" | "urgent"
       material_request_status: "pending" | "approved" | "rejected" | "fulfilled"
@@ -703,6 +728,7 @@ export type Database = {
         | "accepted"
         | "read"
         | "undelivered"
+      order_delivery_provider: "internal" | "armada"
       order_file_type: "product_image" | "design_file"
       order_fulfillment_type: "pickup" | "delivery"
       order_language: "ar" | "en"
@@ -858,6 +884,10 @@ export const Constants = {
         "employee_created",
         "employee_updated",
         "employee_password_reset",
+        "armada_delivery_dispatched",
+        "armada_delivery_dispatch_failed",
+        "armada_delivery_canceled",
+        "armada_webhook_status_update",
       ],
       employee_role: ["admin", "employee", "supervisor", "store", "delivery"],
       material_priority: ["low", "normal", "urgent"],
@@ -883,6 +913,7 @@ export const Constants = {
         "read",
         "undelivered",
       ],
+      order_delivery_provider: ["internal", "armada"],
       order_file_type: ["product_image", "design_file"],
       order_fulfillment_type: ["pickup", "delivery"],
       order_language: ["ar", "en"],
@@ -912,6 +943,7 @@ export type OrderPriority = Database["public"]["Enums"]["order_priority"]
 export type OrderStatus = Database["public"]["Enums"]["order_status"]
 export type OrderFileType = Database["public"]["Enums"]["order_file_type"]
 export type OrderFulfillmentType = Database["public"]["Enums"]["order_fulfillment_type"]
+export type OrderDeliveryProvider = Database["public"]["Enums"]["order_delivery_provider"]
 export type MaterialType = Database["public"]["Enums"]["material_type"]
 export type MaterialPriority = Database["public"]["Enums"]["material_priority"]
 export type MaterialRequestStatus = Database["public"]["Enums"]["material_request_status"]

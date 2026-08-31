@@ -32,7 +32,7 @@ const ItemReadinessDialog = dynamic(
   { ssr: false }
 );
 import { ORDER_STATUS_LABELS } from "@/types/domain";
-import type { OrderStatus } from "@/types/database.types";
+import type { OrderDeliveryProvider, OrderStatus } from "@/types/database.types";
 
 interface EmployeeDashboardClientProps {
   initialJobs: MyJobsResult;
@@ -69,7 +69,7 @@ export function EmployeeDashboardClient({ initialJobs, fullName }: EmployeeDashb
     ? [...data.active, ...data.queue].find((j) => j.id === itemsTarget.id) ?? itemsTarget
     : null;
 
-  const handleStatusChange = (job: EmployeeJobItem, status: OrderStatus) => {
+  const handleStatusChange = (job: EmployeeJobItem, status: OrderStatus, deliveryProvider?: OrderDeliveryProvider) => {
     // "Waiting for Materials" isn't a bare status flip — it opens the
     // Request Material form instead, so the manager always learns *what's*
     // needed. submitMaterialRequestForJob does the actual status transition
@@ -80,7 +80,7 @@ export function EmployeeDashboardClient({ initialJobs, fullName }: EmployeeDashb
     }
 
     setActioningId(job.id);
-    updateEmployeeJobStatus(job.id, status)
+    updateEmployeeJobStatus(job.id, status, deliveryProvider)
       .then(() => {
         toast.success(`${job.orderNumber} → ${ORDER_STATUS_LABELS[status]}`);
         queryClient.invalidateQueries({ queryKey: ["my-jobs"] });
@@ -129,7 +129,7 @@ export function EmployeeDashboardClient({ initialJobs, fullName }: EmployeeDashb
                 job={job}
                 isOutsourced={data.isOutsourced}
                 pending={actioningId === job.id}
-                onStatusChange={(status) => handleStatusChange(job, status)}
+                onStatusChange={(status, deliveryProvider) => handleStatusChange(job, status, deliveryProvider)}
                 onHandOff={() => handleHandOff(job)}
                 onAddNote={() => setNoteTarget(job)}
                 onRequestMaterial={() => setMaterialTarget(job)}
@@ -182,6 +182,7 @@ export function EmployeeDashboardClient({ initialJobs, fullName }: EmployeeDashb
         open={!!itemsTarget}
         onOpenChange={(open) => !open && setItemsTarget(null)}
         job={liveItemsTarget}
+        isOutsourced={data.isOutsourced}
       />
     </div>
   );

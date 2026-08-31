@@ -23,7 +23,7 @@ export default function TvError({ error, reset }: { error: Error & { digest?: st
   }, [secondsLeft, reset]);
 
   return (
-    <div className="flex h-screen flex-col items-center justify-center gap-6 bg-background p-6 text-center">
+    <div className="flex h-full flex-col items-center justify-center gap-6 bg-background p-6 text-center">
       <div className="flex size-20 items-center justify-center rounded-3xl bg-destructive/10 text-destructive">
         <AlertTriangle className="size-10" />
       </div>

@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { format, parseISO } from "date-fns";
-import { FileText, ImageIcon, Loader2, MapPin, MessageSquareText, Pencil, ShieldAlert } from "lucide-react";
+import { ExternalLink, FileText, ImageIcon, Loader2, MapPin, MessageSquareText, Pencil, ShieldAlert, Truck } from "lucide-react";
 import { toast } from "sonner";
 
 import { getOrderDetail, updateOrderStatus } from "@/lib/actions/orders";
+import { cancelArmadaDeliveryAction, retryArmadaDispatch } from "@/lib/actions/armada";
 import { buildGoogleMapsLink } from "@/lib/utils/maps";
 import { formatDeliveryTime } from "@/lib/utils/countdown";
 import { useRealtimeChannel } from "@/lib/realtime/use-realtime-channel";
@@ -33,9 +34,10 @@ import {
   DELAYABLE_STATUSES,
   MATERIAL_REQUEST_STATUS_LABELS,
   MATERIAL_TYPE_LABELS,
+  ORDER_DELIVERY_PROVIDER_LABELS,
   ORDER_STATUS_LABELS,
 } from "@/types/domain";
-import type { OrderStatus } from "@/types/database.types";
+import type { OrderDeliveryProvider, OrderStatus } from "@/types/database.types";
 
 interface OrderDetailDrawerProps {
   orderId: string | null;
@@ -48,6 +50,7 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
   const queryClient = useQueryClient();
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [statusPending, setStatusPending] = useState(false);
+  const [armadaActionPending, startArmadaAction] = useTransition();
   const { data: order, isLoading } = useQuery({
     queryKey: ["order", orderId],
     queryFn: () => getOrderDetail(orderId as string),
@@ -67,10 +70,10 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
     if (orderId) queryClient.invalidateQueries({ queryKey: ["order", orderId] });
   });
 
-  const handleStatusChange = (status: OrderStatus) => {
+  const handleStatusChange = (status: OrderStatus, deliveryProvider?: OrderDeliveryProvider) => {
     if (!order) return;
     setStatusPending(true);
-    updateOrderStatus(order.id, status)
+    updateOrderStatus(order.id, status, deliveryProvider)
       .then(() => {
         toast.success(`${order.orderNumber} → ${ORDER_STATUS_LABELS[status]}`);
         queryClient.invalidateQueries({ queryKey: ["order", orderId] });
@@ -80,6 +83,38 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
       })
       .catch((error) => toast.error(error instanceof Error ? error.message : "Failed to update status"))
       .finally(() => setStatusPending(false));
+  };
+
+  const refreshOrder = () => {
+    queryClient.invalidateQueries({ queryKey: ["order", orderId] });
+    queryClient.invalidateQueries({ queryKey: ["orders"] });
+    queryClient.invalidateQueries({ queryKey: ["order-timeline", orderId] });
+  };
+
+  const handleRetryArmadaDispatch = () => {
+    if (!order) return;
+    startArmadaAction(async () => {
+      try {
+        await retryArmadaDispatch(order.id);
+        toast.success("Dispatched to Armada");
+        refreshOrder();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to dispatch to Armada");
+      }
+    });
+  };
+
+  const handleCancelArmadaDelivery = () => {
+    if (!order) return;
+    startArmadaAction(async () => {
+      try {
+        await cancelArmadaDeliveryAction(order.id);
+        toast.success("Armada delivery canceled");
+        refreshOrder();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to cancel Armada delivery");
+      }
+    });
   };
 
   return (
@@ -173,6 +208,63 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                   </div>
                 )}
               </DetailSection>
+
+              {order.fulfillmentType === "delivery" && (
+                <DetailSection title="Delivery Provider">
+                  <DetailRow label="Provider" value={ORDER_DELIVERY_PROVIDER_LABELS[order.deliveryProvider]} />
+                  {order.deliveryProvider === "armada" && (
+                    <>
+                      {order.armadaDeliveryStatus && (
+                        <DetailRow label="Armada Status" value={order.armadaDeliveryStatus} />
+                      )}
+                      {order.armadaDriverName && <DetailRow label="Driver" value={order.armadaDriverName} />}
+                      {order.armadaDriverPhone && <DetailRow label="Driver Phone" value={order.armadaDriverPhone} />}
+                      {order.armadaTrackingLink && (
+                        <div className="flex items-center justify-between gap-4 text-sm">
+                          <span className="text-muted-foreground">Tracking</span>
+                          <a
+                            href={order.armadaTrackingLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-1 text-right font-medium text-secondary hover:underline"
+                          >
+                            Open tracking link
+                            <ExternalLink className="size-3.5 shrink-0" />
+                          </a>
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {!order.armadaDeliveryCode && order.status === "ready_delivery" && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={armadaActionPending}
+                            onClick={handleRetryArmadaDispatch}
+                            className="gap-2"
+                          >
+                            {armadaActionPending ? <Loader2 className="size-3.5 animate-spin" /> : <Truck className="size-3.5" />}
+                            Dispatch to Armada
+                          </Button>
+                        )}
+                        {order.armadaDeliveryCode && order.status !== "delivered" && order.armadaDeliveryStatus !== "canceled" && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={armadaActionPending}
+                            onClick={handleCancelArmadaDelivery}
+                            className="gap-2"
+                          >
+                            {armadaActionPending && <Loader2 className="size-3.5 animate-spin" />}
+                            Cancel Armada Delivery
+                          </Button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </DetailSection>
+              )}
 
               {order.items.map((item, index) => (
                 <DetailSection key={item.id} title={`Item ${index + 2}: ${item.product}`}>

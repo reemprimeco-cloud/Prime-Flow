@@ -5,9 +5,10 @@ import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { DeliveryProviderDialog } from "@/components/orders/delivery-provider-dialog";
 import { cn } from "@/lib/utils";
 import { getEmployeeNextActions } from "@/types/domain";
-import type { OrderFulfillmentType, OrderStatus } from "@/types/database.types";
+import type { OrderDeliveryProvider, OrderFulfillmentType, OrderStatus } from "@/types/database.types";
 
 const SUCCESS_TARGETS: OrderStatus[] = ["ready_pickup", "ready_delivery", "collected", "delivered"];
 
@@ -23,7 +24,12 @@ interface StatusActionsProps {
   fulfillmentType: OrderFulfillmentType;
   isOutsourced: boolean;
   pending: boolean;
-  onChange: (status: OrderStatus) => void;
+  /**
+   * `deliveryProvider` is only ever passed when `status` is "ready_delivery"
+   * — see the "Who's delivering this?" prompt below, asked at this exact
+   * moment rather than earlier at order-creation time.
+   */
+  onChange: (status: OrderStatus, deliveryProvider?: OrderDeliveryProvider) => void;
   /**
    * Hides the "done" action (Ready for Pickup/Delivery/Internal Pickup) from
    * `in_progress` — used for multi-item orders, where that transition is
@@ -48,11 +54,22 @@ export function StatusActions({
   only,
 }: StatusActionsProps) {
   const [confirmTarget, setConfirmTarget] = useState<{ status: OrderStatus; label: string } | null>(null);
+  const [providerPromptOpen, setProviderPromptOpen] = useState(false);
 
   let actions = getEmployeeNextActions(status, fulfillmentType, isOutsourced);
   if (suppressDoneAction && status === "in_progress") actions = actions.slice(0, -1);
   if (only) actions = actions.filter((a) => only.includes(a.status));
   if (actions.length === 0) return null;
+
+  const handleClick = (action: { status: OrderStatus; label: string }) => {
+    if (action.status === "ready_delivery") {
+      setProviderPromptOpen(true);
+    } else if (CONFIRM_REQUIRED.includes(action.status)) {
+      setConfirmTarget(action);
+    } else {
+      onChange(action.status);
+    }
+  };
 
   return (
     <>
@@ -64,9 +81,7 @@ export function StatusActions({
             size={size}
             variant={SUCCESS_TARGETS.includes(action.status) ? "success" : "primary"}
             disabled={pending}
-            onClick={() =>
-              CONFIRM_REQUIRED.includes(action.status) ? setConfirmTarget(action) : onChange(action.status)
-            }
+            onClick={() => handleClick(action)}
             className={cn(
               size === "lg" ? "min-w-[168px]" : size === "default" ? "min-w-[140px]" : "min-w-0",
               "flex-1 sm:flex-none"
@@ -106,6 +121,15 @@ export function StatusActions({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeliveryProviderDialog
+        open={providerPromptOpen}
+        onOpenChange={setProviderPromptOpen}
+        onChoose={(provider) => {
+          setProviderPromptOpen(false);
+          onChange("ready_delivery", provider);
+        }}
+      />
     </>
   );
 }

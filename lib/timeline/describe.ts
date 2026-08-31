@@ -52,6 +52,16 @@ export function describeAuditEntry(action: AuditAction, oldValue: unknown, newVa
     }
     case "employee_password_reset":
       return "Employee password reset";
+    case "armada_delivery_dispatched":
+      return "Dispatched to Armada";
+    case "armada_delivery_dispatch_failed":
+      return "Armada dispatch failed — fell back to internal delivery staff";
+    case "armada_delivery_canceled":
+      return "Armada delivery canceled";
+    case "armada_webhook_status_update": {
+      const status = typeof next.orderStatus === "string" ? next.orderStatus : "";
+      return status ? `Armada update: ${status}` : "Armada status update";
+    }
     default:
       return action;
   }

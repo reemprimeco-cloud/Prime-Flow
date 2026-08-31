@@ -37,6 +37,7 @@ import type {
   MaterialRequestStatus,
   MaterialType,
   NotificationChannel,
+  OrderDeliveryProvider,
   OrderFileType,
   OrderFulfillmentType,
   OrderLanguage,
@@ -82,6 +83,7 @@ export interface OrderListItem {
   deliveryTime: string;
   status: OrderStatus;
   fulfillmentType: OrderFulfillmentType;
+  deliveryProvider: OrderDeliveryProvider;
   notes: string | null;
   whatsappEnabled: boolean;
   preferredLanguage: OrderLanguage;
@@ -125,6 +127,12 @@ export interface OrderDetail {
   notes: string | null;
   status: OrderStatus;
   fulfillmentType: OrderFulfillmentType;
+  deliveryProvider: OrderDeliveryProvider;
+  armadaDeliveryCode: string | null;
+  armadaDeliveryStatus: string | null;
+  armadaTrackingLink: string | null;
+  armadaDriverName: string | null;
+  armadaDriverPhone: string | null;
   approved: boolean;
   createdAt: string;
   updatedAt: string;
@@ -189,7 +197,7 @@ export interface CompletedOrderFilters {
 const DASHBOARD_COMPLETED_STATUSES: OrderStatus[] = ["collected", "delivered", "completed"];
 
 const ORDER_LIST_SELECT =
-  "id, order_number, customer_name, customer_mobile, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, status, fulfillment_type, notes, whatsapp_enabled, preferred_language, approved";
+  "id, order_number, customer_name, customer_mobile, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, status, fulfillment_type, delivery_provider, notes, whatsapp_enabled, preferred_language, approved";
 
 interface OrderListRow {
   id: string;
@@ -206,6 +214,7 @@ interface OrderListRow {
   delivery_time: string;
   status: OrderStatus;
   fulfillment_type: OrderFulfillmentType;
+  delivery_provider: OrderDeliveryProvider;
   notes: string | null;
   whatsapp_enabled: boolean;
   preferred_language: OrderLanguage;
@@ -547,6 +556,7 @@ async function buildOrderListItems(supabase: ServiceClient, orders: OrderListRow
       deliveryTime: o.delivery_time,
       status: o.status,
       fulfillmentType: o.fulfillment_type,
+      deliveryProvider: o.delivery_provider,
       notes: o.notes,
       whatsappEnabled: o.whatsapp_enabled,
       preferredLanguage: o.preferred_language,
@@ -683,6 +693,12 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
     notes: order.notes,
     status: order.status,
     fulfillmentType: order.fulfillment_type,
+    deliveryProvider: order.delivery_provider,
+    armadaDeliveryCode: order.armada_delivery_code,
+    armadaDeliveryStatus: order.armada_delivery_status,
+    armadaTrackingLink: order.armada_tracking_link,
+    armadaDriverName: order.armada_driver_name,
+    armadaDriverPhone: order.armada_driver_phone,
     approved: order.approved,
     createdAt: order.created_at,
     updatedAt: order.updated_at,
@@ -828,6 +844,7 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
       quantity: input.quantity,
       finishing: input.finishing || null,
       fulfillment_type: input.fulfillmentType,
+      delivery_provider: input.deliveryProvider,
       priority: input.priority,
       delivery_date: input.deliveryDate,
       delivery_time: input.deliveryTime,
@@ -966,6 +983,7 @@ export async function updateOrder(orderId: string, formData: FormData): Promise<
       quantity: input.quantity,
       finishing: input.finishing || null,
       fulfillment_type: input.fulfillmentType,
+      delivery_provider: input.deliveryProvider,
       priority: input.priority,
       delivery_date: input.deliveryDate,
       delivery_time: input.deliveryTime,
@@ -1123,6 +1141,11 @@ export async function duplicateOrder(orderId: string): Promise<{ id: string }> {
       quantity: original.quantity,
       finishing: original.finishing,
       fulfillment_type: original.fulfillment_type,
+      // The provider choice carries over, but never an already-dispatched
+      // Armada delivery -- that code/tracking belongs to the original
+      // order's actual courier run, not this fresh copy (which starts
+      // production from scratch and hasn't been dispatched to anyone yet).
+      delivery_provider: original.delivery_provider,
       priority: original.priority,
       delivery_date: original.delivery_date,
       delivery_time: original.delivery_time,
@@ -1276,12 +1299,16 @@ export async function deleteOrder(orderId: string): Promise<void> {
  * can act on any order — and admins don't need to be told about their own
  * change, so notifyAdmins is skipped.
  */
-export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
+export async function updateOrderStatus(
+  orderId: string,
+  status: OrderStatus,
+  deliveryProvider?: OrderDeliveryProvider
+): Promise<void> {
   const session = await requireAdmin();
   if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
   const supabase = createServiceClient();
 
-  await applyOrderStatusTransition(supabase, orderId, status, session.employeeId, session.fullName);
+  await applyOrderStatusTransition(supabase, orderId, status, session.employeeId, session.fullName, deliveryProvider);
 }
 
 /**
@@ -1390,6 +1417,7 @@ function parseOrderForm(formData: FormData) {
     quantity: formData.get("quantity"),
     finishing: formData.get("finishing") || undefined,
     fulfillmentType: formData.get("fulfillmentType"),
+    deliveryProvider: formData.get("deliveryProvider") || "internal",
     priority: formData.get("priority"),
     approved: formData.get("approved") === "true",
     deliveryDate: formData.get("deliveryDate"),

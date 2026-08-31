@@ -68,6 +68,7 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
       quantity: 1,
       finishing: "",
       fulfillmentType: "pickup",
+      deliveryProvider: "internal",
       priority: "normal",
       approved: false,
       deliveryDate: "",
@@ -96,6 +97,7 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
     quantity: order.quantity,
     finishing: order.finishing ?? "",
     fulfillmentType: order.fulfillmentType,
+    deliveryProvider: order.deliveryProvider,
     priority: order.priority,
     approved: order.approved,
     deliveryDate: order.deliveryDate,
@@ -251,6 +253,7 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
         formData.set("quantity", String(values.quantity));
         formData.set("finishing", values.finishing ?? "");
         formData.set("fulfillmentType", values.fulfillmentType);
+        formData.set("deliveryProvider", values.deliveryProvider ?? "internal");
         formData.set("priority", values.priority);
         formData.set("approved", String(values.approved));
         formData.set("deliveryDate", values.deliveryDate);
