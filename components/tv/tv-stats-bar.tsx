@@ -20,13 +20,16 @@ export function TvStatsBar({ activeOrders, delayedOrders, employeesWorking }: Tv
   }, []);
 
   return (
-    // Real grid columns, not an absolutely-positioned overlay -- the logo
-    // previously floated at the literal viewport center with no reserved
-    // space of its own, so on any screen narrower than what this was
-    // tested at, it landed directly on top of the stat blocks instead of
-    // between them. A dedicated `auto` column guarantees the logo and the
-    // stats never share the same pixels, at any width.
-    <header className="grid grid-cols-[auto_auto_1fr] items-center gap-4 border-b-2 border-border bg-card px-6 py-3.5">
+    // grid-cols-[1fr_auto_1fr]: the two flanking columns share the leftover
+    // space equally, so the middle (logo + Dashboard) column always lands
+    // truly centered on the header regardless of how wide the time block
+    // or stat row end up -- not just centered relative to whatever's left
+    // over. Real grid columns rather than an absolutely-positioned overlay
+    // for the same reason as before: the logo previously floated at the
+    // literal viewport center with no reserved space of its own, so on a
+    // screen narrower than what this was tested at, it landed directly on
+    // top of the stat blocks instead of between them.
+    <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 border-b-2 border-border bg-card px-6 py-3.5">
       <div className="min-w-0">
         <div className="font-mono text-4xl font-extrabold tabular-nums leading-none">
           {now ? now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : "--:--"}
@@ -38,8 +41,20 @@ export function TvStatsBar({ activeOrders, delayedOrders, employeesWorking }: Tv
         </div>
       </div>
 
-      <div className="relative h-14 w-[120px] shrink-0 px-4">
-        <Image src="/logo-mark.png" alt="Prime Printing Co." fill sizes="120px" className="object-contain" priority />
+      <div className="flex shrink-0 items-center gap-4 px-2">
+        <div className="relative h-14 w-[120px] shrink-0">
+          <Image src="/logo-mark.png" alt="Prime Printing Co." fill sizes="120px" className="object-contain" priority />
+        </div>
+        {/* Echoes the logo's own geometric-sans, wide-tracked, uppercase
+            treatment (see "PRINTING CO." in public/logo-mark.png) using the
+            system font stack rather than a matching webfont -- this app
+            deliberately loads no webfonts (see --font-sans above) to avoid
+            a render-blocking fetch on shop-floor tablets, and that holds
+            for the TV board too. Sized to match the logo's own h-14
+            height rather than sitting small next to it. */}
+        <span className="border-l border-border pl-4 text-4xl leading-none font-extrabold tracking-[0.08em] text-primary uppercase">
+          Dashboard
+        </span>
       </div>
 
       <div className="flex min-w-0 items-center justify-end gap-3">
