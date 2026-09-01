@@ -19,6 +19,26 @@ const SUCCESS_TARGETS: OrderStatus[] = ["ready_pickup", "ready_delivery", "colle
  */
 const CONFIRM_REQUIRED: OrderStatus[] = ["delivered"];
 
+/** Per-target-status confirm dialog copy — keyed by a stable id since the
+ * same target status (e.g. `in_progress`) can mean different things
+ * depending on the order's *current* status (Start Production vs. Resume
+ * Production vs. Back to Production), and only one of those needs a
+ * confirm step. */
+const CONFIRM_COPY: Record<
+  string,
+  { title: string; description: (label: string) => string }
+> = {
+  delivered: {
+    title: "Confirm delivery",
+    description: (label) =>
+      `Mark this order as ${label.toLowerCase()}? Only confirm once it’s actually in the customer’s hands.`,
+  },
+  start_production: {
+    title: "Start production?",
+    description: () => "This moves the order out of the queue and marks it as being worked on.",
+  },
+};
+
 interface StatusActionsProps {
   status: OrderStatus;
   fulfillmentType: OrderFulfillmentType;
@@ -61,15 +81,19 @@ export function StatusActions({
   if (only) actions = actions.filter((a) => only.includes(a.status));
   if (actions.length === 0) return null;
 
+  const isStartProduction = (action: { status: OrderStatus }) => status === "new" && action.status === "in_progress";
+
   const handleClick = (action: { status: OrderStatus; label: string }) => {
     if (action.status === "ready_delivery") {
       setProviderPromptOpen(true);
-    } else if (CONFIRM_REQUIRED.includes(action.status)) {
+    } else if (CONFIRM_REQUIRED.includes(action.status) || isStartProduction(action)) {
       setConfirmTarget(action);
     } else {
       onChange(action.status);
     }
   };
+
+  const confirmCopy = confirmTarget && CONFIRM_COPY[isStartProduction(confirmTarget) ? "start_production" : confirmTarget.status];
 
   return (
     <>
@@ -96,11 +120,8 @@ export function StatusActions({
       <Dialog open={!!confirmTarget} onOpenChange={(open) => !open && setConfirmTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm delivery</DialogTitle>
-            <DialogDescription>
-              Mark this order as {confirmTarget?.label.toLowerCase()}? Only confirm once it&rsquo;s actually in the
-              customer&rsquo;s hands.
-            </DialogDescription>
+            <DialogTitle>{confirmCopy?.title ?? confirmTarget?.label}</DialogTitle>
+            <DialogDescription>{confirmTarget && confirmCopy?.description(confirmTarget.label)}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setConfirmTarget(null)}>
