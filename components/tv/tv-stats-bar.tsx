@@ -20,17 +20,20 @@ export function TvStatsBar({ activeOrders, delayedOrders, employeesWorking }: Tv
   }, []);
 
   return (
-    // grid-cols-[1fr_auto_1fr]: the two flanking columns share the leftover
-    // space equally, so the middle (logo + Dashboard) column always lands
-    // truly centered on the header regardless of how wide the time block
-    // or stat row end up -- not just centered relative to whatever's left
-    // over. Real grid columns rather than an absolutely-positioned overlay
-    // for the same reason as before: the logo previously floated at the
-    // literal viewport center with no reserved space of its own, so on a
-    // screen narrower than what this was tested at, it landed directly on
-    // top of the stat blocks instead of between them.
-    <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 border-b-2 border-border bg-card px-6 py-3.5">
-      <div className="min-w-0">
+    // flex, not grid-cols-[1fr_auto_1fr]: equal-width flanking *columns*
+    // sounds like it'd center the logo, but it forces the stats track to
+    // the same width as the much narrower time block, which is what was
+    // actually truncating "Active Orders" down to "Active Or..." on the
+    // real TV -- the time column had spare room it wasn't using while the
+    // stats column was starved right next to it. Here `time` and `stats`
+    // each just take the width their own content needs (shrink-0, never
+    // squeezed), and the logo+Dashboard group is the one flexible element
+    // that absorbs whatever's left via flex-1 + justify-center -- it's
+    // usually near-centered since time/date and 3 stat blocks are
+    // reasonably close in width, but stats staying fully readable matters
+    // more than the logo sitting at the mathematically exact midpoint.
+    <header className="flex items-center gap-4 border-b-2 border-border bg-card px-6 py-3.5">
+      <div className="shrink-0">
         <div className="font-mono text-4xl font-extrabold tabular-nums leading-none">
           {now ? now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : "--:--"}
         </div>
@@ -41,7 +44,7 @@ export function TvStatsBar({ activeOrders, delayedOrders, employeesWorking }: Tv
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center gap-4 px-2">
+      <div className="flex min-w-0 flex-1 items-center justify-center gap-4 overflow-hidden px-2">
         <div className="relative h-14 w-[120px] shrink-0">
           <Image src="/logo-mark.png" alt="Prime Printing Co." fill sizes="120px" className="object-contain" priority />
         </div>
@@ -51,13 +54,17 @@ export function TvStatsBar({ activeOrders, delayedOrders, employeesWorking }: Tv
             deliberately loads no webfonts (see --font-sans above) to avoid
             a render-blocking fetch on shop-floor tablets, and that holds
             for the TV board too. Sized to match the logo's own h-14
-            height rather than sitting small next to it. */}
-        <span className="border-l border-border pl-4 text-4xl leading-none font-extrabold tracking-[0.08em] text-primary uppercase">
+            height rather than sitting small next to it. `min-w-0` +
+            `truncate` so on a narrow screen this shrinks and ellipsizes
+            instead of overflowing into the time block next to it --  the
+            logo (shrink-0, fixed width) never budges, this is the one
+            element that gives. */}
+        <span className="min-w-0 truncate border-l border-border pl-4 text-4xl leading-none font-extrabold tracking-[0.08em] text-primary uppercase">
           Dashboard
         </span>
       </div>
 
-      <div className="flex min-w-0 items-center justify-end gap-3">
+      <div className="flex shrink-0 items-center gap-3">
         <StatBlock icon={<ClipboardList className="size-6" />} value={activeOrders} label="Active Orders" tone="secondary" />
         <StatBlock icon={<AlertTriangle className="size-6" />} value={delayedOrders} label="Delayed Orders" tone="destructive" />
         <StatBlock icon={<Users className="size-6" />} value={employeesWorking} label="Employees Working" tone="success" />

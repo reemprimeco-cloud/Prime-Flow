@@ -903,7 +903,7 @@ export function getDemoArchivedOrders(): ArchivedOrderItem[] {
 // Demo TV board
 // ---------------------------------------------------------------------------
 
-const TV_COLUMN_KEYS: TvColumnKey[] = ["in_progress", "waiting_materials", "ready_pickup", "ready_delivery"];
+const TV_COLUMN_KEYS: TvColumnKey[] = ["new", "in_progress", "ready_pickup", "ready_delivery"];
 const TERMINAL_STATUSES: OrderStatus[] = ["completed", "delivered", "collected"];
 /** Baseline order counts Sun..Sat for days other than today, just to give the weekly strip believable shape. */
 const WEEK_BASELINE_COUNTS = [4, 6, 7, 8, 5, 6, 3];

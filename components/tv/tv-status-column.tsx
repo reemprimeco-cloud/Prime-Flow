@@ -1,6 +1,7 @@
-import { Loader, Hourglass, MapPinCheck, Truck } from "lucide-react";
+import { Loader, Inbox, MapPinCheck, Truck } from "lucide-react";
 
 import { TvOrderCard } from "@/components/tv/tv-order-card";
+import { TvCompactCard } from "@/components/tv/tv-compact-card";
 import { ORDER_STATUS_LABELS } from "@/types/domain";
 import type { TvOrderCardData } from "@/lib/actions/tv";
 import type { TvColumnKey } from "@/types/domain";
@@ -9,13 +10,24 @@ import type { TvColumnKey } from "@/types/domain";
 // tv-dashboard-client.tsx) and cards are a compact landscape strip now
 // (tv-order-card.tsx), so a lot more fits per column without scrolling --
 // a TV remote can't scroll, so "+N more" is the only fallback past this cap.
+// `new` gets a higher cap of its own (see below) since its cards
+// (tv-compact-card.tsx) are much shorter.
 const MAX_VISIBLE = 10;
+const MAX_VISIBLE_COMPACT = 16;
 
 const COLUMN_STYLE: Record<TvColumnKey, { icon: typeof Loader; className: string }> = {
   in_progress: { icon: Loader, className: "bg-secondary/10 text-secondary" },
-  waiting_materials: { icon: Hourglass, className: "bg-warning/10 text-warning" },
   ready_pickup: { icon: MapPinCheck, className: "bg-success/10 text-success" },
   ready_delivery: { icon: Truck, className: "bg-violet-500/10 text-violet-600" },
+  new: { icon: Inbox, className: "bg-warning/10 text-warning" },
+};
+
+// TV-only label override -- everywhere else (Manager/Employee dashboards,
+// order status badges) keeps ORDER_STATUS_LABELS' "New", which describes
+// the underlying order_status value; the TV board's audience just needs a
+// short heading for its narrow queue column.
+const TV_COLUMN_LABELS: Partial<Record<TvColumnKey, string>> = {
+  new: "Queue Orders",
 };
 
 interface TvStatusColumnProps {
@@ -24,7 +36,12 @@ interface TvStatusColumnProps {
 }
 
 export function TvStatusColumn({ status, orders }: TvStatusColumnProps) {
-  const visible = orders.slice(0, MAX_VISIBLE);
+  // `new` (not-yet-started orders) is the narrow column (see
+  // tv-dashboard-client.tsx) and uses the compact card -- a glance at
+  // what's about to start, not a working view.
+  const isCompact = status === "new";
+  const maxVisible = isCompact ? MAX_VISIBLE_COMPACT : MAX_VISIBLE;
+  const visible = orders.slice(0, maxVisible);
   const overflow = orders.length - visible.length;
   const { icon: Icon, className: iconClassName } = COLUMN_STYLE[status];
 
@@ -35,9 +52,11 @@ export function TvStatusColumn({ status, orders }: TvStatusColumnProps) {
           <span className={`flex size-7 shrink-0 items-center justify-center rounded-lg ${iconClassName}`}>
             <Icon className="size-4" />
           </span>
-          <h2 className="text-lg font-extrabold">{ORDER_STATUS_LABELS[status]}</h2>
+          <h2 className={isCompact ? "text-sm font-extrabold" : "text-lg font-extrabold"}>
+            {TV_COLUMN_LABELS[status] ?? ORDER_STATUS_LABELS[status]}
+          </h2>
         </div>
-        <span className="flex size-8 items-center justify-center rounded-full bg-muted font-mono text-base font-extrabold tabular-nums">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted font-mono text-base font-extrabold tabular-nums">
           {orders.length}
         </span>
       </div>
@@ -46,6 +65,8 @@ export function TvStatusColumn({ status, orders }: TvStatusColumnProps) {
           <div className="flex flex-1 items-center justify-center text-sm font-medium text-muted-foreground">
             Nothing here
           </div>
+        ) : isCompact ? (
+          visible.map((order) => <TvCompactCard key={order.id} order={order} />)
         ) : (
           visible.map((order) => <TvOrderCard key={order.id} order={order} />)
         )}
