@@ -194,7 +194,16 @@ export const PRIORITY_SORT_WEIGHT: Record<OrderPriority, number> = {
   normal: 1,
 };
 
-/** The four production columns shown on the TV Dashboard board. */
-export type TvColumnKey = "in_progress" | "waiting_materials" | "ready_pickup" | "ready_delivery";
+/**
+ * The four production columns shown on the TV Dashboard board, in display
+ * order. `new` ("Queue Orders") leads and is rendered narrower with
+ * compact cards (tv-status-column.tsx) -- it's just a glance at what's
+ * about to start, not a working view, so it doesn't get equal billing
+ * with the three production-flow columns. `waiting_materials` is
+ * deliberately NOT shown on the TV at all (only on the Manager/Employee
+ * dashboards) -- it's an internal procurement concern for staff, not
+ * something to broadcast to the shop floor.
+ */
+export type TvColumnKey = "new" | "in_progress" | "ready_pickup" | "ready_delivery";
 
-export const TV_COLUMNS: TvColumnKey[] = ["in_progress", "waiting_materials", "ready_pickup", "ready_delivery"];
+export const TV_COLUMNS: TvColumnKey[] = ["new", "in_progress", "ready_pickup", "ready_delivery"];
