@@ -7,7 +7,7 @@
 ```ts
 export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   new: ["in_progress"],
-  in_progress: ["waiting_materials", "ready_pickup", "ready_delivery"],
+  in_progress: ["waiting_materials", "ready_pickup", "ready_delivery", "new"],
   waiting_materials: ["in_progress"],
   ready_pickup: ["collected", "in_progress"],
   ready_delivery: ["delivered", "in_progress"],
@@ -21,8 +21,9 @@ export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
 new ─▶ in_progress ─┬─▶ waiting_materials ─▶ in_progress (loop)
                      ├─▶ ready_pickup ─▶ collected ─▶ completed
                      │        └─▶ in_progress (revert — marked ready by mistake)
-                     └─▶ ready_delivery ─▶ delivered ─▶ completed
-                              └─▶ in_progress (revert — marked ready by mistake)
+                     ├─▶ ready_delivery ─▶ delivered ─▶ completed
+                     │        └─▶ in_progress (revert — marked ready by mistake)
+                     └─▶ new (manager-only "Back to Queue" undo — started by mistake)
 ```
 
 The `ready_pickup`/`ready_delivery → in_progress` edges (added RC3) exist so an employee can undo marking a job ready by mistake, before it's actually collected/delivered. `notifyOrderMovedBackToProduction` (see `NOTIFICATIONS.md`) fires a correction message to the customer on this specific transition, since a "ready" message may have already gone out.

@@ -67,8 +67,9 @@ export const OrderCard = memo(function OrderCard({
 
   return (
     <Card
+      onClick={() => onOpen(order)}
       className={cn(
-        "group relative flex flex-col gap-2.5 overflow-hidden p-3.5 pl-4 before:absolute before:inset-y-0 before:left-0 before:w-1",
+        "group relative flex cursor-pointer flex-col gap-2.5 overflow-hidden p-3.5 pl-4 before:absolute before:inset-y-0 before:left-0 before:w-1",
         "transition-shadow hover:shadow-lg hover:shadow-black/10",
         // A brand-new order gets a flat blue stripe (matching its status
         // badge) rather than the countdown colour every other in-flight
@@ -110,9 +111,15 @@ export const OrderCard = memo(function OrderCard({
             <div className="flex shrink-0 items-center gap-1.5">
               {order.priority === "urgent" && <Badge variant="destructive">Urgent</Badge>}
               {onToggleSelect && (
-                <Checkbox checked={selected ?? false} onCheckedChange={() => onToggleSelect(order.id)} />
+                <Checkbox
+                  checked={selected ?? false}
+                  onCheckedChange={() => onToggleSelect(order.id)}
+                  onClick={(e) => e.stopPropagation()}
+                />
               )}
-              <OrderActionsMenu order={order} onOpen={onOpen} onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
+              <div onClick={(e) => e.stopPropagation()}>
+                <OrderActionsMenu order={order} onOpen={onOpen} onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
+              </div>
             </div>
           </div>
           <div className="truncate text-sm font-semibold text-foreground">{order.customerName}</div>
@@ -185,15 +192,17 @@ export const OrderCard = memo(function OrderCard({
       </div>
 
       {onQuickStatusChange && (order.status === "ready_pickup" || order.status === "ready_delivery") && (
-        <StatusActions
-          status={order.status}
-          fulfillmentType={order.fulfillmentType}
-          isOutsourced={false}
-          pending={!!quickActionPending}
-          onChange={(status) => onQuickStatusChange(order, status)}
-          only={["collected", "delivered"]}
-          size="sm"
-        />
+        <div onClick={(e) => e.stopPropagation()}>
+          <StatusActions
+            status={order.status}
+            fulfillmentType={order.fulfillmentType}
+            isOutsourced={false}
+            pending={!!quickActionPending}
+            onChange={(status) => onQuickStatusChange(order, status)}
+            only={["collected", "delivered"]}
+            size="sm"
+          />
+        </div>
       )}
     </Card>
   );

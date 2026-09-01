@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { format, parseISO } from "date-fns";
-import { ExternalLink, FileText, ImageIcon, Loader2, MapPin, MessageSquareText, Pencil, ShieldAlert, Truck } from "lucide-react";
+import { ExternalLink, FileText, ImageIcon, Loader2, MapPin, MessageSquareText, Pencil, ShieldAlert, Truck, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { getOrderDetail, updateOrderStatus } from "@/lib/actions/orders";
@@ -153,13 +153,30 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                 )}
               </section>
 
-              <StatusActions
-                status={order.status}
-                fulfillmentType={order.fulfillmentType}
-                isOutsourced={false}
-                pending={statusPending}
-                onChange={handleStatusChange}
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusActions
+                  status={order.status}
+                  fulfillmentType={order.fulfillmentType}
+                  isOutsourced={false}
+                  pending={statusPending}
+                  onChange={handleStatusChange}
+                />
+                {/* Manager-only undo for a job started by mistake -- never
+                    offered to employees (see the `-> new` edge's comment in
+                    lib/status/engine.ts). */}
+                {order.status === "in_progress" && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={statusPending}
+                    onClick={() => handleStatusChange("new")}
+                    className="gap-2"
+                  >
+                    {statusPending ? <Loader2 className="size-4 animate-spin" /> : <Undo2 className="size-4" />}
+                    Back to Queue
+                  </Button>
+                )}
+              </div>
 
               <DetailSection title="Customer">
                 <DetailRow label="Name" value={order.customerName} />

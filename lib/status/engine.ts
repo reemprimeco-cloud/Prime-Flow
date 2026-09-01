@@ -13,7 +13,13 @@ import type { OrderStatus } from "@/types/database.types";
  */
 export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   new: ["in_progress"],
-  in_progress: ["waiting_materials", "ready_pickup", "ready_delivery", "ready_internal_pickup"],
+  // The `-> new` edge is a manager-only "Back to Queue" undo for a job
+  // started by mistake (components/orders/order-detail-drawer.tsx) — never
+  // offered to employees. EMPLOYEE_ALLOWED_TARGET_STATUSES (types/domain.ts)
+  // still excludes `new`, so an employee hitting this edge through
+  // updateEmployeeJobStatus is rejected there before assertValidTransition
+  // even runs.
+  in_progress: ["waiting_materials", "ready_pickup", "ready_delivery", "ready_internal_pickup", "new"],
   waiting_materials: ["in_progress"],
   // An outsourced worker's "done" action -- no customer notification, just
   // an internal handoff. Back to in_progress once a Prime employee collects
