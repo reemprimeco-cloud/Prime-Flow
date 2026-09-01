@@ -35,7 +35,8 @@ const CONFIRM_COPY: Record<
   },
   start_production: {
     title: "Start production?",
-    description: () => "This moves the order out of the queue and marks it as being worked on.",
+    description: () =>
+      "This moves the order out of the queue and marks it as being worked on. The customer will be notified — are you sure?",
   },
 };
 
