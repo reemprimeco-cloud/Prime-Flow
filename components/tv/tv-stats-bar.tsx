@@ -20,8 +20,14 @@ export function TvStatsBar({ activeOrders, delayedOrders, employeesWorking }: Tv
   }, []);
 
   return (
-    <header className="relative flex items-center gap-4 border-b-2 border-border bg-card px-6 py-3.5">
-      <div>
+    // Real grid columns, not an absolutely-positioned overlay -- the logo
+    // previously floated at the literal viewport center with no reserved
+    // space of its own, so on any screen narrower than what this was
+    // tested at, it landed directly on top of the stat blocks instead of
+    // between them. A dedicated `auto` column guarantees the logo and the
+    // stats never share the same pixels, at any width.
+    <header className="grid grid-cols-[auto_auto_1fr] items-center gap-4 border-b-2 border-border bg-card px-6 py-3.5">
+      <div className="min-w-0">
         <div className="font-mono text-4xl font-extrabold tabular-nums leading-none">
           {now ? now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : "--:--"}
         </div>
@@ -32,18 +38,11 @@ export function TvStatsBar({ activeOrders, delayedOrders, employeesWorking }: Tv
         </div>
       </div>
 
-      {/* True center of the header bar, independent of how wide the time
-          block or stat row end up -- absolute + translate rather than a
-          grid column, so it stays dead-center regardless. Uses
-          logo-mark.png (a tight crop of public/logo.jpg's wordmark, no
-          surrounding whitespace -- see the crop step that produced it)
-          rather than the shared logo.jpg every other screen uses, sized to
-          the header's own height instead of a fixed small square. */}
-      <div className="absolute left-1/2 top-1/2 h-16 w-[140px] -translate-x-1/2 -translate-y-1/2">
-        <Image src="/logo-mark.png" alt="Prime Printing Co." fill sizes="140px" className="object-contain" priority />
+      <div className="relative h-14 w-[120px] shrink-0 px-4">
+        <Image src="/logo-mark.png" alt="Prime Printing Co." fill sizes="120px" className="object-contain" priority />
       </div>
 
-      <div className="flex flex-1 items-center justify-end gap-4">
+      <div className="flex min-w-0 items-center justify-end gap-3">
         <StatBlock icon={<ClipboardList className="size-6" />} value={activeOrders} label="Active Orders" tone="secondary" />
         <StatBlock icon={<AlertTriangle className="size-6" />} value={delayedOrders} label="Delayed Orders" tone="destructive" />
         <StatBlock icon={<Users className="size-6" />} value={employeesWorking} label="Employees Working" tone="success" />
@@ -70,11 +69,11 @@ function StatBlock({
   }[tone];
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border px-3.5 py-1.5">
+    <div className="flex min-w-0 items-center gap-3 rounded-xl border border-border px-3.5 py-1.5">
       <div className={`flex size-11 shrink-0 items-center justify-center rounded-xl ${toneClasses}`}>{icon}</div>
-      <div>
+      <div className="min-w-0">
         <div className="font-mono text-3xl font-extrabold tabular-nums leading-none">{value}</div>
-        <div className="mt-0.5 text-sm font-semibold text-muted-foreground">{label}</div>
+        <div className="mt-0.5 truncate text-sm font-semibold text-muted-foreground">{label}</div>
       </div>
     </div>
   );

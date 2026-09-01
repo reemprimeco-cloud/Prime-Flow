@@ -23,12 +23,15 @@ const CHIP_STYLES = {
 } as const;
 
 /**
- * A single landscape strip -- thumbnail on the left, everything else laid
- * out inline across three compact rows on the right, rather than the old
- * design's four/five stacked lines. Wider and shorter per card means more
- * of them fit down a column now that the footer's gone (see
- * tv-dashboard-client.tsx) and there's no scrolling to fall back on for a
- * TV remote.
+ * A single landscape strip -- thumbnail on the left, badges (urgent,
+ * countdown) stacked in their own column on the right, and everything else
+ * -- order#/customer, product, staff, time -- each gets its own full-width
+ * row in between, rather than sharing a row with a badge that eats into
+ * its space. An earlier version packed 2-3 fields per row, which worked at
+ * a 1920px test width but truncated hard (single-letter names, three-char
+ * product names) on real TV hardware running at a narrower resolution --
+ * giving every field its own row means it degrades to truncating one long
+ * value at a time instead of several short ones simultaneously.
  */
 export const TvOrderCard = memo(function TvOrderCard({ order }: { order: TvOrderCardData }) {
   const [now, setNow] = useState<Date | null>(null);
@@ -62,22 +65,20 @@ export const TvOrderCard = memo(function TvOrderCard({ order }: { order: TvOrder
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <div className="flex items-center gap-2 text-sm">
-          <span className="font-mono font-extrabold">{order.orderNumber}</span>
-          <span className="min-w-0 flex-1 truncate font-bold">{order.customerName}</span>
-          {order.priority === "urgent" && (
-            <span className="shrink-0 rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-extrabold text-white">URGENT</span>
-          )}
+        <div className="flex items-baseline gap-2 text-sm">
+          <span className="shrink-0 font-mono font-extrabold">{order.orderNumber}</span>
+          <span className="min-w-0 truncate font-bold">{order.customerName}</span>
         </div>
 
-        <div className="flex items-center gap-2 text-xs">
-          <span className="min-w-0 max-w-[55%] truncate rounded-md bg-secondary/10 px-1.5 py-0.5 font-bold text-secondary">
+        <div className="min-w-0 text-xs">
+          <span className="inline-block max-w-full truncate rounded-md bg-secondary/10 px-1.5 py-0.5 font-bold text-secondary">
             {order.product}
           </span>
-          <span className="flex min-w-0 flex-1 items-center gap-1 truncate text-muted-foreground">
-            <Users className="size-3 shrink-0" />
-            {order.assignedEmployees.length > 0 ? order.assignedEmployees.join(", ") : "Unassigned"}
-          </span>
+        </div>
+
+        <div className="flex min-w-0 items-center gap-1 truncate text-xs text-muted-foreground">
+          <Users className="size-3 shrink-0" />
+          <span className="truncate">{order.assignedEmployees.length > 0 ? order.assignedEmployees.join(", ") : "Unassigned"}</span>
         </div>
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -99,11 +100,18 @@ export const TvOrderCard = memo(function TvOrderCard({ order }: { order: TvOrder
         </div>
       </div>
 
-      {now && (
-        <span className={cn("shrink-0 rounded-lg px-2 py-1 text-xs font-extrabold whitespace-nowrap", CHIP_STYLES[color])}>
-          {formatCountdown(minutesRemaining)}
-        </span>
-      )}
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        {order.priority === "urgent" && (
+          <span className="rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-extrabold whitespace-nowrap text-white">
+            URGENT
+          </span>
+        )}
+        {now && (
+          <span className={cn("rounded-lg px-2 py-1 text-xs font-extrabold whitespace-nowrap", CHIP_STYLES[color])}>
+            {formatCountdown(minutesRemaining)}
+          </span>
+        )}
+      </div>
     </div>
   );
 });
