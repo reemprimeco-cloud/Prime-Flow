@@ -97,9 +97,9 @@ const TEMPLATES: Record<TemplateName, Record<OrderLanguage, TemplateFn>> = {
   },
   design_approval_requested: {
     en: (v) =>
-      `Hi ${v.customerName}, please review the design for order ${v.orderNumber} (${v.productName}) and let us know if it's approved: ${v.trackingLink}`,
+      `Hi ${v.customerName}, please review the design for your order ${v.orderNumber} (${v.productName}) here:\n${v.trackingLink}\n\nApproving the design means you agree to it and to our order terms & conditions.\n\n⚠️ Please note: production won't start until you approve the design — without your approval, the order will stay on hold with us.`,
     ar: (v) =>
-      `مرحباً ${v.customerName}، يرجى مراجعة تصميم طلبكم ${v.orderNumber} (${v.productName}) وإخبارنا بالاعتماد من خلال الرابط: ${v.trackingLink}`,
+      `مرحباً ${v.customerName}،\nنأمل مراجعة تصميم طلبكم ${v.orderNumber} (${v.productName}) عبر الرابط التالي:\n${v.trackingLink}\n\nاعتمادكم للتصميم يُعد موافقة منكم على التصميم المعروض وعلى الشروط والأحكام الخاصة بالطلب.\n\n⚠️ يرجى العلم أنه لن يتم البدء بتنفيذ الطلب إلا بعد اعتمادكم للتصميم، وبدون الاعتماد سيبقى الطلب متوقفاً لدينا.`,
   },
   job_assigned: {
     en: (v) => `New job assigned: ${v.orderNumber} (${v.productName}), due ${v.deliveryDate} ${v.deliveryTime}.`,

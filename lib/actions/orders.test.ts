@@ -55,7 +55,7 @@ function resetSupabaseMock(responses: Record<string, Response[]>) {
 
 function makeBuilder(result: Response, record?: boolean) {
   const builder: Record<string, unknown> = {};
-  for (const method of ["select", "update", "insert", "eq", "in", "not", "or", "order", "range"]) {
+  for (const method of ["select", "update", "insert", "delete", "eq", "in", "not", "or", "order", "range"]) {
     builder[method] = (...args: unknown[]) => {
       if (record) recordedOrdersCalls.push({ method, args });
       return builder;
@@ -78,7 +78,7 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-import { createOrder, getCompletedOrders, getOrders, updateOrderStatus } from "@/lib/actions/orders";
+import { createOrder, getCompletedOrders, getOrders, updateOrder, updateOrderStatus } from "@/lib/actions/orders";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/notifications/constants";
 
 const ADMIN_SESSION = { employeeId: "admin-1", username: "admin", fullName: "Rana Al-Fadhli", role: "admin" as const };
@@ -108,7 +108,24 @@ beforeEach(() => {
 });
 
 describe("Order Creation — createOrder", () => {
-  it("creates an order, logs an audit entry, notifies the customer, and broadcasts", async () => {
+  it("creates a pre-approved order, logs an audit entry, notifies the customer, and broadcasts", async () => {
+    resetSupabaseMock({
+      orders: [{ data: { id: "order-1", order_number: "#1050" }, error: null }],
+    });
+
+    const fd = minimalOrderFormData();
+    fd.set("approved", "true");
+    const result = await createOrder(fd);
+
+    expect(result).toEqual({ id: "order-1" });
+    expect(mockRecordAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "order_created", entityId: "order-1" })
+    );
+    expect(mockNotifyOrderCreated).toHaveBeenCalledTimes(1);
+    expect(mockBroadcast).toHaveBeenCalledWith("production", "order.created", { orderId: "order-1" });
+  });
+
+  it("holds the customer notification when created unapproved (the form default) — it fires later once approved", async () => {
     resetSupabaseMock({
       orders: [{ data: { id: "order-1", order_number: "#1050" }, error: null }],
     });
@@ -116,10 +133,7 @@ describe("Order Creation — createOrder", () => {
     const result = await createOrder(minimalOrderFormData());
 
     expect(result).toEqual({ id: "order-1" });
-    expect(mockRecordAuditLog).toHaveBeenCalledWith(
-      expect.objectContaining({ action: "order_created", entityId: "order-1" })
-    );
-    expect(mockNotifyOrderCreated).toHaveBeenCalledTimes(1);
+    expect(mockNotifyOrderCreated).not.toHaveBeenCalled();
     expect(mockBroadcast).toHaveBeenCalledWith("production", "order.created", { orderId: "order-1" });
   });
 
@@ -167,6 +181,61 @@ function currentOrderRow(status: string) {
     notification_preferences: DEFAULT_NOTIFICATION_PREFERENCES,
   };
 }
+
+describe("Order editing — updateOrder approval transition", () => {
+  it("fires the deferred customer notification the moment an edit flips an order from unapproved to approved", async () => {
+    resetSupabaseMock({
+      orders: [
+        { data: { approved: false }, error: null }, // beforeUpdate check
+        { data: null, error: null }, // the update itself
+        { data: currentOrderRow("new"), error: null }, // sendOrderApprovedNotifications' own select
+      ],
+      order_items: [{ data: null, error: null }], // wholesale delete (no items in this form)
+      order_assignments: [
+        { data: [], error: null }, // existing assignments (none)
+        { data: [], error: null }, // sendOrderApprovedNotifications' assignment lookup (none)
+      ],
+    });
+
+    const fd = minimalOrderFormData();
+    fd.set("approved", "true");
+    await updateOrder("order-1", fd);
+
+    expect(mockNotifyOrderCreated).toHaveBeenCalledTimes(1);
+  });
+
+  it("doesn't re-fire the customer notification on an edit that was already approved", async () => {
+    resetSupabaseMock({
+      orders: [
+        { data: { approved: true }, error: null }, // beforeUpdate check — already approved
+        { data: null, error: null }, // the update itself
+      ],
+      order_items: [{ data: null, error: null }],
+      order_assignments: [{ data: [], error: null }],
+    });
+
+    const fd = minimalOrderFormData();
+    fd.set("approved", "true");
+    await updateOrder("order-1", fd);
+
+    expect(mockNotifyOrderCreated).not.toHaveBeenCalled();
+  });
+
+  it("still doesn't notify on an edit that leaves the order unapproved", async () => {
+    resetSupabaseMock({
+      orders: [
+        { data: { approved: false }, error: null }, // beforeUpdate check
+        { data: null, error: null }, // the update itself
+      ],
+      order_items: [{ data: null, error: null }],
+      order_assignments: [{ data: [], error: null }],
+    });
+
+    await updateOrder("order-1", minimalOrderFormData()); // approved defaults to false
+
+    expect(mockNotifyOrderCreated).not.toHaveBeenCalled();
+  });
+});
 
 describe("Manager quick status action — updateOrderStatus", () => {
   it("lets an admin advance an order the same way an employee would (e.g. Ready for Delivery)", async () => {

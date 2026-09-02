@@ -928,42 +928,51 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
     });
   }
 
-  await notifyOrderCreated(
-    {
-      orderId: order.id,
-      orderNumber: order.order_number,
-      customerName: input.customerName,
-      customerMobile: input.customerMobile,
-      product: input.product,
-      deliveryDate: input.deliveryDate,
-      deliveryTime: input.deliveryTime,
-      whatsappEnabled: input.whatsappEnabled,
-      preferredChannel: input.preferredChannel,
-      language: input.preferredLanguage,
-      notificationPreferences: input.notificationPreferences,
-    },
-    session.employeeId,
-    session.fullName
-  );
-
-  if (allEmployeeIds.length > 0) {
-    const assignedEmployees = await fetchEmployeePhones(supabase, allEmployeeIds);
-    for (const employeeId of allEmployeeIds) {
-      const employee = assignedEmployees.get(employeeId);
-      if (!employee) continue;
-      const context = {
-        employeeId,
-        employeePhone: employee.phone,
+  // A brand-new order defaults to unapproved (the order form's "Production
+  // Approval" switch — see 0017_order_approval.sql) -- while it sits
+  // unapproved, nobody's told about it yet: no customer "order received"
+  // confirmation, no employee assignment ping. sendOrderApprovedNotifications
+  // fires this same burst later, the moment it actually clears (an admin
+  // flips the toggle on an edit, or the customer approves a design approval
+  // link — see updateOrder and lib/actions/design-approval.ts).
+  if (input.approved) {
+    await notifyOrderCreated(
+      {
         orderId: order.id,
         orderNumber: order.order_number,
+        customerName: input.customerName,
+        customerMobile: input.customerMobile,
         product: input.product,
         deliveryDate: input.deliveryDate,
         deliveryTime: input.deliveryTime,
-      };
-      if (input.priority === "urgent") {
-        await notifyEmployeeHighPriorityAssigned(context, session.employeeId, session.fullName);
-      } else {
-        await notifyEmployeeJobAssigned(context, session.employeeId, session.fullName);
+        whatsappEnabled: input.whatsappEnabled,
+        preferredChannel: input.preferredChannel,
+        language: input.preferredLanguage,
+        notificationPreferences: input.notificationPreferences,
+      },
+      session.employeeId,
+      session.fullName
+    );
+
+    if (allEmployeeIds.length > 0) {
+      const assignedEmployees = await fetchEmployeePhones(supabase, allEmployeeIds);
+      for (const employeeId of allEmployeeIds) {
+        const employee = assignedEmployees.get(employeeId);
+        if (!employee) continue;
+        const context = {
+          employeeId,
+          employeePhone: employee.phone,
+          orderId: order.id,
+          orderNumber: order.order_number,
+          product: input.product,
+          deliveryDate: input.deliveryDate,
+          deliveryTime: input.deliveryTime,
+        };
+        if (input.priority === "urgent") {
+          await notifyEmployeeHighPriorityAssigned(context, session.employeeId, session.fullName);
+        } else {
+          await notifyEmployeeJobAssigned(context, session.employeeId, session.fullName);
+        }
       }
     }
   }
@@ -974,11 +983,84 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
   return { id: order.id };
 }
 
+/**
+ * Fires the "order confirmed" notification burst deferred from createOrder
+ * above — customer "order received" plus a job-assigned ping to every
+ * currently assigned employee — the first time an order's approval gate
+ * actually clears. `actorId` is null when the customer themselves is the
+ * one clearing it (approving a design approval link, see
+ * lib/actions/design-approval.ts); an admin flipping the edit-form toggle
+ * (updateOrder below) passes their own session instead.
+ */
+export async function sendOrderApprovedNotifications(
+  supabase: ServiceClient,
+  orderId: string,
+  actorId: string | null,
+  actorName: string
+): Promise<void> {
+  const { data: order } = await supabase
+    .from("orders")
+    .select(
+      "order_number, customer_name, customer_mobile, product, delivery_date, delivery_time, whatsapp_enabled, preferred_channel, preferred_language, notification_preferences, priority"
+    )
+    .eq("id", orderId)
+    .single();
+  if (!order) return;
+
+  await notifyOrderCreated(
+    {
+      orderId,
+      orderNumber: order.order_number,
+      customerName: order.customer_name,
+      customerMobile: order.customer_mobile,
+      product: order.product,
+      deliveryDate: order.delivery_date,
+      deliveryTime: order.delivery_time,
+      whatsappEnabled: order.whatsapp_enabled,
+      preferredChannel: order.preferred_channel,
+      language: order.preferred_language,
+      notificationPreferences: order.notification_preferences,
+    },
+    actorId,
+    actorName
+  );
+
+  const { data: assignments } = await supabase.from("order_assignments").select("employee_id").eq("order_id", orderId);
+  const employeeIds = (assignments ?? []).map((a) => a.employee_id);
+  if (employeeIds.length === 0) return;
+
+  const assignedEmployees = await fetchEmployeePhones(supabase, employeeIds);
+  for (const employeeId of employeeIds) {
+    const employee = assignedEmployees.get(employeeId);
+    if (!employee) continue;
+    const context = {
+      employeeId,
+      employeePhone: employee.phone,
+      orderId,
+      orderNumber: order.order_number,
+      product: order.product,
+      deliveryDate: order.delivery_date,
+      deliveryTime: order.delivery_time,
+    };
+    if (order.priority === "urgent") {
+      await notifyEmployeeHighPriorityAssigned(context, actorId, actorName);
+    } else {
+      await notifyEmployeeJobAssigned(context, actorId, actorName);
+    }
+  }
+}
+
 export async function updateOrder(orderId: string, formData: FormData): Promise<{ id: string }> {
   const session = await requireAdmin();
   if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
   const supabase = createServiceClient();
   const input = parseOrderForm(formData);
+
+  // Whether this edit is the one that actually clears the order's approval
+  // gate -- see sendOrderApprovedNotifications above for why that moment
+  // (not order creation) is when the deferred notification burst fires.
+  const { data: beforeUpdate } = await supabase.from("orders").select("approved").eq("id", orderId).single();
+  const justApproved = beforeUpdate?.approved === false && input.approved;
 
   const { error } = await supabase
     .from("orders")
@@ -1069,36 +1151,47 @@ export async function updateOrder(orderId: string, formData: FormData): Promise<
       });
     }
 
-    // A removal in the same update means these adds are filling a vacated
-    // slot — "reassigned" — rather than a fresh assignment.
-    const isReassignment = toRemove.length > 0;
-    const [assignedEmployees, orderRow] = await Promise.all([
-      fetchEmployeePhones(supabase, toAdd),
-      supabase.from("orders").select("order_number").eq("id", orderId).single(),
-    ]);
-    const orderNumber = orderRow.data?.order_number ?? orderId;
+    // Still unapproved, or just cleared its approval gate this edit -- in
+    // either case, don't ping toAdd individually here: unapproved means
+    // nobody's told yet (see createOrder), and justApproved fires everyone
+    // currently assigned -- toAdd included -- via the bulk call below
+    // instead of a second, duplicate ping.
+    if (input.approved && !justApproved) {
+      // A removal in the same update means these adds are filling a vacated
+      // slot — "reassigned" — rather than a fresh assignment.
+      const isReassignment = toRemove.length > 0;
+      const [assignedEmployees, orderRow] = await Promise.all([
+        fetchEmployeePhones(supabase, toAdd),
+        supabase.from("orders").select("order_number").eq("id", orderId).single(),
+      ]);
+      const orderNumber = orderRow.data?.order_number ?? orderId;
 
-    for (const employeeId of toAdd) {
-      const employee = assignedEmployees.get(employeeId);
-      if (!employee) continue;
-      const context = {
-        employeeId,
-        employeePhone: employee.phone,
-        orderId,
-        orderNumber,
-        product: input.product,
-        deliveryDate: input.deliveryDate,
-        deliveryTime: input.deliveryTime,
-      };
+      for (const employeeId of toAdd) {
+        const employee = assignedEmployees.get(employeeId);
+        if (!employee) continue;
+        const context = {
+          employeeId,
+          employeePhone: employee.phone,
+          orderId,
+          orderNumber,
+          product: input.product,
+          deliveryDate: input.deliveryDate,
+          deliveryTime: input.deliveryTime,
+        };
 
-      if (input.priority === "urgent") {
-        await notifyEmployeeHighPriorityAssigned(context, session.employeeId, session.fullName);
-      } else if (isReassignment) {
-        await notifyEmployeeJobReassigned(context, session.employeeId, session.fullName);
-      } else {
-        await notifyEmployeeJobAssigned(context, session.employeeId, session.fullName);
+        if (input.priority === "urgent") {
+          await notifyEmployeeHighPriorityAssigned(context, session.employeeId, session.fullName);
+        } else if (isReassignment) {
+          await notifyEmployeeJobReassigned(context, session.employeeId, session.fullName);
+        } else {
+          await notifyEmployeeJobAssigned(context, session.employeeId, session.fullName);
+        }
       }
     }
+  }
+
+  if (justApproved) {
+    await sendOrderApprovedNotifications(supabase, orderId, session.employeeId, session.fullName);
   }
 
   await syncAssignmentSequences(supabase, orderId, input.employeeIds, [...nextIds]);
