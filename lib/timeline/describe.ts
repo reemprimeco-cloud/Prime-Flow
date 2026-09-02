@@ -62,6 +62,12 @@ export function describeAuditEntry(action: AuditAction, oldValue: unknown, newVa
       const status = typeof next.orderStatus === "string" ? next.orderStatus : "";
       return status ? `Armada update: ${status}` : "Armada status update";
     }
+    case "design_approval_requested":
+      return "Sent for customer design approval";
+    case "design_approval_responded": {
+      const status = typeof next.status === "string" ? next.status : "";
+      return status === "approved" ? "Customer approved the design" : "Customer requested design changes";
+    }
     default:
       return action;
   }

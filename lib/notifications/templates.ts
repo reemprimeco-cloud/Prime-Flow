@@ -20,7 +20,8 @@ export type CustomerTemplateName =
   | "order_out_for_delivery"
   | "order_returned_to_production"
   | "order_collected_confirmation"
-  | "order_delivered_confirmation";
+  | "order_delivered_confirmation"
+  | "design_approval_requested";
 
 export type EmployeeTemplateName =
   | "job_assigned"
@@ -33,7 +34,8 @@ export type EmployeeTemplateName =
   | "material_purchase_needed"
   | "job_ready_for_you"
   | "admin_order_note_added"
-  | "admin_order_status_changed";
+  | "admin_order_status_changed"
+  | "design_approval_responded";
 
 export type TemplateName = CustomerTemplateName | EmployeeTemplateName;
 
@@ -93,6 +95,12 @@ const TEMPLATES: Record<TemplateName, Record<OrderLanguage, TemplateFn>> = {
     en: (v) => `Order ${v.orderNumber} (${v.productName}) has been delivered. Thank you for choosing ${v.companyName}!`,
     ar: (v) => `تم تسليم طلبكم ${v.orderNumber} (${v.productName}). شكراً لاختياركم ${v.companyName}!`,
   },
+  design_approval_requested: {
+    en: (v) =>
+      `Hi ${v.customerName}, please review the design for order ${v.orderNumber} (${v.productName}) and let us know if it's approved: ${v.trackingLink}`,
+    ar: (v) =>
+      `مرحباً ${v.customerName}، يرجى مراجعة تصميم طلبكم ${v.orderNumber} (${v.productName}) وإخبارنا بالاعتماد من خلال الرابط: ${v.trackingLink}`,
+  },
   job_assigned: {
     en: (v) => `New job assigned: ${v.orderNumber} (${v.productName}), due ${v.deliveryDate} ${v.deliveryTime}.`,
     ar: (v) => `تم إسناد مهمة جديدة إليك: ${v.orderNumber} (${v.productName})، التسليم في ${v.deliveryDate} ${v.deliveryTime}.`,
@@ -138,6 +146,12 @@ const TEMPLATES: Record<TemplateName, Record<OrderLanguage, TemplateFn>> = {
   admin_order_status_changed: {
     en: (v) => `${v.employeeName} moved ${v.orderNumber} for ${v.customerName} (${v.productName}) to ${v.statusLabel}.`,
     ar: (v) => `قام ${v.employeeName} بنقل الطلب ${v.orderNumber} للعميل ${v.customerName} (${v.productName}) إلى ${v.statusLabel}.`,
+  },
+  design_approval_responded: {
+    en: (v) =>
+      `${v.customerName} responded to the design approval for ${v.orderNumber} (${v.productName}): ${v.statusLabel}.${v.noteText ? ` Note: "${v.noteText}"` : ""}`,
+    ar: (v) =>
+      `رد ${v.customerName} على طلب اعتماد التصميم لطلب ${v.orderNumber} (${v.productName}): ${v.statusLabel}.${v.noteText ? ` ملاحظة: "${v.noteText}"` : ""}`,
   },
 };
 

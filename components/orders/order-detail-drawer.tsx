@@ -4,11 +4,12 @@ import { useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { format, parseISO } from "date-fns";
-import { ExternalLink, FileText, ImageIcon, Loader2, MapPin, MessageSquareText, Pencil, ShieldAlert, Truck, Undo2 } from "lucide-react";
+import { ExternalLink, FileText, ImageIcon, Loader2, MapPin, MessageSquareText, Pencil, Send, ShieldAlert, Truck, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { getOrderDetail, updateOrderStatus } from "@/lib/actions/orders";
 import { cancelArmadaDeliveryAction, retryArmadaDispatch } from "@/lib/actions/armada";
+import { requestDesignApproval } from "@/lib/actions/design-approval";
 import { buildGoogleMapsLink } from "@/lib/utils/maps";
 import { formatDeliveryTime } from "@/lib/utils/countdown";
 import { useRealtimeChannel } from "@/lib/realtime/use-realtime-channel";
@@ -32,6 +33,7 @@ import { OrderTimeline } from "@/components/orders/order-timeline";
 import { OverrideStatusDialog } from "@/components/orders/override-status-dialog";
 import {
   DELAYABLE_STATUSES,
+  DESIGN_APPROVAL_STATUS_LABELS,
   MATERIAL_REQUEST_STATUS_LABELS,
   MATERIAL_TYPE_LABELS,
   ORDER_DELIVERY_PROVIDER_LABELS,
@@ -51,6 +53,7 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [statusPending, setStatusPending] = useState(false);
   const [armadaActionPending, startArmadaAction] = useTransition();
+  const [designApprovalPending, startDesignApprovalAction] = useTransition();
   const { data: order, isLoading } = useQuery({
     queryKey: ["order", orderId],
     queryFn: () => getOrderDetail(orderId as string),
@@ -100,6 +103,19 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
         refreshOrder();
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Failed to dispatch to Armada");
+      }
+    });
+  };
+
+  const handleSendDesignApproval = () => {
+    if (!order) return;
+    startDesignApprovalAction(async () => {
+      try {
+        await requestDesignApproval(order.id);
+        toast.success("Approval link sent to the customer");
+        refreshOrder();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to send the approval link");
       }
     });
   };
@@ -312,6 +328,47 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                   </div>
                 )}
               </DetailSection>
+
+              {(order.productImages.length > 0 || order.designFiles.length > 0) && (
+                <DetailSection title="Design Approval">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Badge
+                      variant={
+                        order.designApprovalStatus === "approved"
+                          ? "success"
+                          : order.designApprovalStatus === "changes_requested"
+                            ? "destructive"
+                            : order.designApprovalStatus === "pending"
+                              ? "warning"
+                              : "muted"
+                      }
+                    >
+                      {DESIGN_APPROVAL_STATUS_LABELS[order.designApprovalStatus]}
+                    </Badge>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={designApprovalPending}
+                      onClick={handleSendDesignApproval}
+                      className="gap-2"
+                    >
+                      {designApprovalPending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
+                      {order.designApprovalStatus === "not_sent" ? "Send for Approval" : "Resend Link"}
+                    </Button>
+                  </div>
+                  {order.designApprovalStatus === "changes_requested" && order.designApprovalNote && (
+                    <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-foreground">
+                      &ldquo;{order.designApprovalNote}&rdquo;
+                    </p>
+                  )}
+                  {order.designApprovalStatus === "pending" && (
+                    <p className="text-xs text-muted-foreground">
+                      Start Production is blocked until the customer responds.
+                    </p>
+                  )}
+                </DetailSection>
+              )}
 
               <DetailSection title="Product Images">
                 {order.productImages.length === 0 ? (

@@ -1,4 +1,5 @@
 import type {
+  DesignApprovalStatus,
   EmployeeRole,
   MaterialPriority,
   MaterialRequestStatus,
@@ -100,6 +101,23 @@ export const ORDER_FULFILLMENT_TYPE_LABELS: Record<OrderFulfillmentType, string>
 export const ORDER_DELIVERY_PROVIDER_LABELS: Record<OrderDeliveryProvider, string> = {
   internal: "Internal delivery staff",
   armada: "Armada",
+};
+
+/**
+ * Customer-facing design/proof approval, sent as a public link
+ * (components/orders/order-detail-drawer.tsx "Send for Approval" ->
+ * app/approve/[token]). `not_sent` is the default for every order and
+ * never shown as a badge -- most orders never use this feature at all.
+ * While `pending` or `changes_requested`, the customer hasn't signed off
+ * yet, so `applyOrderStatusTransition` (lib/actions/status-transition.ts)
+ * blocks `new -> in_progress` ("Start Production") until it's `approved`.
+ * See docs/DESIGN_APPROVAL.md.
+ */
+export const DESIGN_APPROVAL_STATUS_LABELS: Record<DesignApprovalStatus, string> = {
+  not_sent: "Not Sent",
+  pending: "Awaiting Customer Approval",
+  approved: "Design Approved",
+  changes_requested: "Changes Requested",
 };
 
 /** Countdown badge thresholds, in minutes remaining until delivery. */

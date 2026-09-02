@@ -33,6 +33,7 @@ import {
 import { DEFAULT_NOTIFICATION_PREFERENCES, normalizeNotificationPreferences } from "@/lib/notifications/constants";
 import type { NotificationPreferences } from "@/lib/notifications/constants";
 import type {
+  DesignApprovalStatus,
   MaterialPriority,
   MaterialRequestStatus,
   MaterialType,
@@ -88,6 +89,7 @@ export interface OrderListItem {
   whatsappEnabled: boolean;
   preferredLanguage: OrderLanguage;
   approved: boolean;
+  designApprovalStatus: DesignApprovalStatus;
   assignedEmployees: { id: string; fullName: string }[];
   thumbnailUrl: string | null;
   pendingMaterialTypes: MaterialType[];
@@ -134,6 +136,10 @@ export interface OrderDetail {
   armadaDriverName: string | null;
   armadaDriverPhone: string | null;
   approved: boolean;
+  designApprovalStatus: DesignApprovalStatus;
+  designApprovalNote: string | null;
+  designApprovalRequestedAt: string | null;
+  designApprovalRespondedAt: string | null;
   createdAt: string;
   updatedAt: string;
   assignedEmployees: { id: string; fullName: string }[];
@@ -197,7 +203,7 @@ export interface CompletedOrderFilters {
 const DASHBOARD_COMPLETED_STATUSES: OrderStatus[] = ["collected", "delivered", "completed"];
 
 const ORDER_LIST_SELECT =
-  "id, order_number, customer_name, customer_mobile, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, status, fulfillment_type, delivery_provider, notes, whatsapp_enabled, preferred_language, approved";
+  "id, order_number, customer_name, customer_mobile, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, status, fulfillment_type, delivery_provider, notes, whatsapp_enabled, preferred_language, approved, design_approval_status";
 
 interface OrderListRow {
   id: string;
@@ -219,6 +225,7 @@ interface OrderListRow {
   whatsapp_enabled: boolean;
   preferred_language: OrderLanguage;
   approved: boolean;
+  design_approval_status: DesignApprovalStatus;
 }
 
 /**
@@ -561,6 +568,7 @@ async function buildOrderListItems(supabase: ServiceClient, orders: OrderListRow
       whatsappEnabled: o.whatsapp_enabled,
       preferredLanguage: o.preferred_language,
       approved: o.approved,
+      designApprovalStatus: o.design_approval_status,
       assignedEmployees: assignmentsByOrder.get(o.id) ?? [],
       thumbnailUrl: thumbnailPath ? signedUrlByPath.get(thumbnailPath) ?? null : null,
       pendingMaterialTypes: pendingTypesByOrder.get(o.id) ?? [],
@@ -700,6 +708,10 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
     armadaDriverName: order.armada_driver_name,
     armadaDriverPhone: order.armada_driver_phone,
     approved: order.approved,
+    designApprovalStatus: order.design_approval_status,
+    designApprovalNote: order.design_approval_note,
+    designApprovalRequestedAt: order.design_approval_requested_at,
+    designApprovalRespondedAt: order.design_approval_responded_at,
     createdAt: order.created_at,
     updatedAt: order.updated_at,
     assignedEmployees: (assignmentRows ?? []).map((r) => ({
@@ -1479,7 +1491,8 @@ async function fetchEmployeePhones(
   return new Map((data ?? []).map((e) => [e.id, { phone: e.phone }]));
 }
 
-async function signUrls(
+/** Also used by lib/actions/design-approval.ts to sign design/product image URLs for the public approval page. */
+export async function signUrls(
   supabase: ServiceClient,
   bucket: "product-images" | "design-files",
   paths: string[]

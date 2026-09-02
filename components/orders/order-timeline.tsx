@@ -5,12 +5,14 @@ import { format } from "date-fns";
 import {
   Bell,
   CircleDot,
+  FileCheck2,
   FilePlus,
   KeyRound,
   Loader2,
   PackagePlus,
   PackageCheck,
   PackageX,
+  Send,
   Trash2,
   Truck,
   UserCog,
@@ -40,6 +42,8 @@ const ACTION_ICONS: Record<AuditAction, React.ComponentType<{ className?: string
   armada_delivery_dispatch_failed: PackageX,
   armada_delivery_canceled: XCircle,
   armada_webhook_status_update: Truck,
+  design_approval_requested: Send,
+  design_approval_responded: FileCheck2,
 };
 
 function formatDuration(minutes: number): string {
