@@ -25,6 +25,14 @@ or request changes — before production starts.
    `respondToDesignApproval` updates `design_approval_status` to `approved`
    or `changes_requested`, stores the note, and notifies every active admin
    (`notifyAdminDesignApprovalResponded`) via push + WhatsApp.
+   - **Approving also flips `orders.approved`** — the customer's yes *is*
+     the production-approval gate's signal, so there's no separate manual
+     toggle for a manager to remember. If the order was still unapproved
+     (the default — see "Deferred initial notifications" below),
+     approving is also the moment `sendOrderApprovedNotifications`
+     (`lib/actions/orders.ts`) fires: the customer's "order received"
+     confirmation and each assigned employee's job-assigned ping, both
+     held back until now.
 3. **While `pending` or `changes_requested`, Start Production is blocked** —
    enforced centrally in `applyOrderStatusTransition`
    (`lib/actions/status-transition.ts`), so it applies to both the employee
@@ -37,6 +45,19 @@ or request changes — before production starts.
    **Resend Link** button. The order card also shows a small "Awaiting
    Customer"/"Design Changes Requested" badge on `new` orders so it's
    visible at a glance on the board.
+
+## Deferred initial notifications
+
+A brand-new order defaults to unapproved (`orders.approved`, the
+pre-existing "Production Approval" gate — see `docs/ARCHITECTURE.md`).
+While it sits unapproved, nobody's told about it: `createOrder` skips both
+the customer's "order received" confirmation and every assigned employee's
+job-assigned ping. That deferred burst fires later, on whichever comes
+first — a manager flipping the approval toggle on an edit, or the customer
+approving a design approval link (which also flips the toggle, above). This
+means a manager can safely send a design approval link right after creating
+an order without any employee dashboard, or the customer, hearing about a
+job that isn't actually confirmed yet.
 
 ## What the public page can see
 

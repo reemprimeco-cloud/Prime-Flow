@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/auth/guards";
 import { createServiceClient } from "@/lib/supabase/server";
-import { signUrls } from "@/lib/actions/orders";
+import { sendOrderApprovedNotifications, signUrls } from "@/lib/actions/orders";
 import { broadcast, CHANNELS } from "@/lib/realtime/channels";
 import { isDemoMode } from "@/lib/demo/mode";
 import { recordAuditLog } from "@/lib/audit/log";
@@ -189,7 +189,7 @@ export async function respondToDesignApproval(
   const supabase = createServiceClient();
   const { data: order, error } = await supabase
     .from("orders")
-    .select("id, order_number, customer_name, product, delivery_date, delivery_time, design_approval_status")
+    .select("id, order_number, customer_name, product, delivery_date, delivery_time, design_approval_status, approved")
     .eq("design_approval_token", token)
     .maybeSingle();
   if (error || !order) throw new Error("This approval link is invalid.");
@@ -197,15 +197,29 @@ export async function respondToDesignApproval(
     throw new Error("This design approval has already been responded to.");
   }
 
+  // Approving the design doubles as the manager's own production-approval
+  // gate (orders.approved) -- the customer saying yes is exactly the signal
+  // that gate exists to wait for, so there's no separate manual step for a
+  // manager to remember. If the order was still unapproved, this is also
+  // the moment the deferred "order confirmed" notifications go out (see
+  // sendOrderApprovedNotifications in lib/actions/orders.ts) -- nobody was
+  // told about this order while it sat waiting on the customer.
+  const justApproved = decision === "approved" && !order.approved;
+
   const { error: updateError } = await supabase
     .from("orders")
     .update({
       design_approval_status: decision,
       design_approval_note: decision === "changes_requested" ? note!.trim() : null,
       design_approval_responded_at: new Date().toISOString(),
+      ...(decision === "approved" ? { approved: true } : {}),
     })
     .eq("id", order.id);
   if (updateError) throw new Error(updateError.message);
+
+  if (justApproved) {
+    await sendOrderApprovedNotifications(supabase, order.id, null, `${order.customer_name} (design approval link)`);
+  }
 
   await recordAuditLog({
     actorId: null,

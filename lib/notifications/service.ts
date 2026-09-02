@@ -152,7 +152,7 @@ async function sendCustomerNotification(
 
 export async function notifyOrderCreated(
   order: OrderNotificationContext,
-  actorId: string,
+  actorId: string | null,
   actorName: string
 ): Promise<void> {
   await sendCustomerNotification(order, "order_received", "order_received", actorId, actorName);
@@ -381,7 +381,7 @@ type EmployeeTemplateNameLocal = Extract<
 
 export async function notifyEmployeeJobAssigned(
   employee: EmployeeNotificationContext,
-  actorId: string,
+  actorId: string | null,
   actorName: string
 ): Promise<void> {
   await sendEmployeeNotification(employee, "job_assigned", actorId, actorName);
@@ -397,7 +397,7 @@ export async function notifyEmployeeJobReassigned(
 
 export async function notifyEmployeeHighPriorityAssigned(
   employee: EmployeeNotificationContext,
-  actorId: string,
+  actorId: string | null,
   actorName: string
 ): Promise<void> {
   await sendEmployeeNotification(employee, "high_priority_job_assigned", actorId, actorName);
