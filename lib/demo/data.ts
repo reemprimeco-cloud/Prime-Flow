@@ -21,6 +21,7 @@ import type {
   OrderListItem,
   OrderListResult,
 } from "@/lib/actions/orders";
+import type { PublicDesignApproval } from "@/lib/actions/design-approval";
 import { DEFAULT_ORDERS_PAGE_SIZE } from "@/lib/orders/constants";
 import type { EmployeeListItem } from "@/lib/actions/employees";
 import type { MaterialRequestListItem } from "@/lib/actions/material-requests";
@@ -39,7 +40,7 @@ import type { DiagnosticsSnapshot } from "@/lib/actions/diagnostics";
 import { describeAuditEntry } from "@/lib/timeline/describe";
 import { DELAYABLE_STATUSES, EMPLOYEE_ACTIVE_STATUSES, type TvColumnKey } from "@/types/domain";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/notifications/constants";
-import type { MaterialType, OrderFulfillmentType, OrderStatus } from "@/types/database.types";
+import type { DesignApprovalStatus, MaterialType, OrderFulfillmentType, OrderStatus } from "@/types/database.types";
 
 // ---------------------------------------------------------------------------
 // Demo employees
@@ -108,6 +109,8 @@ interface DemoOrderSeed {
   items?: DemoOrderItemSeed[];
   /** Admin approval gate — defaults true (see 0017_order_approval.sql); set false to demo the "Wait for Admin Approval" state. */
   approved?: boolean;
+  /** Customer design approval — defaults "not_sent" (see 0022_design_approval.sql); set to demo the "Send for Approval" flow. */
+  designApprovalStatus?: DesignApprovalStatus;
 }
 
 /** Demo seeds don't carry an explicit fulfillment type — infer a plausible
@@ -119,7 +122,7 @@ function deriveFulfillmentType(status: OrderStatus): OrderFulfillmentType {
 
 const ORDER_SEEDS: DemoOrderSeed[] = [
   { id: "demo-order-1", orderNumber: "#1042", customerName: "Ahmed Al-Sayed", customerMobile: "+96555011111", product: "Business Cards", paper: "350gsm Matte", paperSize: "9x5cm", quantity: 500, finishing: "Lamination, rounded corners", priority: "normal", status: "new", offsetMinutes: 6 * 60, assignedTo: [], assignedHoursAgo: 1, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "ar", notes: "" },
-  { id: "demo-order-2", orderNumber: "#1043", customerName: "Fatima Noor", customerMobile: "+96555022222", product: "Wedding Invitations", paper: "250gsm Pearl", paperSize: "A5", quantity: 200, finishing: "Gold foil edges", priority: "urgent", status: "new", offsetMinutes: 90, assignedTo: ["demo-emp-2"], assignedHoursAgo: 3, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "ar", notes: "Customer wants a proof approved before final run." },
+  { id: "demo-order-2", orderNumber: "#1043", customerName: "Fatima Noor", customerMobile: "+96555022222", product: "Wedding Invitations", paper: "250gsm Pearl", paperSize: "A5", quantity: 200, finishing: "Gold foil edges", priority: "urgent", status: "new", offsetMinutes: 90, assignedTo: ["demo-emp-2"], assignedHoursAgo: 3, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "ar", notes: "Customer wants a proof approved before final run.", designApprovalStatus: "pending" },
   { id: "demo-order-3", orderNumber: "#1044", customerName: "TechHub Kuwait", customerMobile: "+96555033333", product: "Trade Show Banners", paper: "Vinyl 13oz", paperSize: "200x90cm", quantity: 4, finishing: "Grommets", priority: "normal", status: "in_progress", offsetMinutes: 45, assignedTo: ["demo-emp-1"], assignedHoursAgo: 5, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "en", notes: "" },
   { id: "demo-order-4", orderNumber: "#1045", customerName: "Layla Hassan", customerMobile: "+96555044444", product: "Product Packaging Boxes", paper: "400gsm Card", paperSize: "15x15x8cm", quantity: 1000, finishing: "Matte lamination, die-cut", priority: "urgent", status: "in_progress", offsetMinutes: -20, assignedTo: ["demo-emp-1", "demo-emp-3"], assignedHoursAgo: 4, pendingMaterials: ["paper"], whatsappEnabled: true, preferredLanguage: "en", notes: "Rush order — client picking up in person.", itemReady: true, items: [
     { id: "demo-order-4-item-2", product: "Thank You Cards", paper: "300gsm Silk", paperSize: "9x5cm", quantity: 1000, finishing: "Matte lamination", isReady: true },
@@ -161,6 +164,7 @@ function buildOrder(seed: DemoOrderSeed, now: Date): OrderListItem & { completed
     whatsappEnabled: seed.whatsappEnabled,
     preferredLanguage: seed.preferredLanguage,
     approved: seed.approved ?? true,
+    designApprovalStatus: seed.designApprovalStatus ?? "not_sent",
     assignedEmployees: emp(...seed.assignedTo),
     thumbnailUrl: null,
     pendingMaterialTypes: seed.pendingMaterials,
@@ -434,6 +438,10 @@ export function getDemoOrderDetail(orderId: string): OrderDetail {
     notes: order.notes,
     status: order.status,
     approved: order.approved,
+    designApprovalStatus: order.designApprovalStatus,
+    designApprovalNote: null,
+    designApprovalRequestedAt: order.designApprovalStatus === "not_sent" ? null : subHours(now, 20).toISOString(),
+    designApprovalRespondedAt: null,
     fulfillmentType: order.fulfillmentType,
     deliveryProvider: order.deliveryProvider,
     armadaDeliveryCode: null,
@@ -446,7 +454,10 @@ export function getDemoOrderDetail(orderId: string): OrderDetail {
     assignedEmployees: order.assignedEmployees,
     items: [],
     productImages: [],
-    designFiles: [],
+    // A placeholder so the Design Approval section (order-detail-drawer.tsx)
+    // has something to preview in demo mode -- real orders get actual
+    // uploaded files, demo orders never do (see getDemoOrders/buildOrder).
+    designFiles: order.designApprovalStatus !== "not_sent" ? [{ id: `${orderId}-design-1`, fileName: "proof-v1.jpg", url: "/logo.jpg" }] : [],
     orderNotes:
       seed.notes && seed.notes.length > 0
         ? [
@@ -460,6 +471,26 @@ export function getDemoOrderDetail(orderId: string): OrderDetail {
         : [],
     statusHistory,
     materialRequests,
+  };
+}
+
+/** Demo-mode stand-in for a real orders.design_approval_token — lets the public /approve/[token] page be previewed without a real Supabase-issued link. Bound to #1043 (demo-order-2), the one seed with a "pending" designApprovalStatus. */
+export const DEMO_DESIGN_APPROVAL_TOKEN = "demo-token-1043";
+
+export function getDemoDesignApprovalByToken(token: string): PublicDesignApproval | null {
+  if (token !== DEMO_DESIGN_APPROVAL_TOKEN) return null;
+  const seed = SEED_BY_ID.get("demo-order-2");
+  if (!seed) return null;
+  const order = buildOrder(seed, new Date());
+
+  return {
+    orderNumber: order.orderNumber,
+    customerName: order.customerName,
+    product: order.product,
+    status: order.designApprovalStatus,
+    note: null,
+    productImages: [],
+    designFiles: [{ id: "demo-design-1", fileName: "proof-v1.jpg", url: "/logo.jpg" }],
   };
 }
 

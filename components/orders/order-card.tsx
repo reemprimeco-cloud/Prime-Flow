@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import Image from "next/image";
-import { ImageIcon, MoreVertical, Copy, Pencil, Trash2, Eye, CalendarClock, Store, Truck, ShieldAlert } from "lucide-react";
+import { ImageIcon, MoreVertical, Copy, Pencil, Trash2, Eye, CalendarClock, Store, Truck, ShieldAlert, FileClock } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 import { Card } from "@/components/ui/card";
@@ -187,6 +187,18 @@ export const OrderCard = memo(function OrderCard({
           <Badge variant="warning" className="gap-1">
             <ShieldAlert className="size-3" />
             Pending Approval
+          </Badge>
+        )}
+        {order.status === "new" && order.designApprovalStatus === "pending" && (
+          <Badge variant="warning" className="gap-1">
+            <FileClock className="size-3" />
+            Awaiting Customer
+          </Badge>
+        )}
+        {order.status === "new" && order.designApprovalStatus === "changes_requested" && (
+          <Badge variant="destructive" className="gap-1">
+            <FileClock className="size-3" />
+            Design Changes Requested
           </Badge>
         )}
       </div>

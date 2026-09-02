@@ -517,6 +517,143 @@ export type Database = {
           },
         ]
       }
+      orders: {
+        Row: {
+          approved: boolean
+          archived: boolean
+          armada_delivery_code: string | null
+          armada_delivery_fee: number | null
+          armada_delivery_status: string | null
+          armada_driver_name: string | null
+          armada_driver_phone: string | null
+          armada_tracking_link: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          customer_mobile: string
+          customer_name: string
+          delivery_address: string | null
+          delivery_date: string
+          delivery_map_link: string | null
+          delivery_provider: Database["public"]["Enums"]["order_delivery_provider"]
+          delivery_time: string
+          design_approval_note: string | null
+          design_approval_requested_at: string | null
+          design_approval_responded_at: string | null
+          design_approval_status: Database["public"]["Enums"]["design_approval_status"]
+          design_approval_token: string | null
+          finishing: string | null
+          fulfillment_type: Database["public"]["Enums"]["order_fulfillment_type"]
+          id: string
+          item_ready: boolean
+          notes: string | null
+          notification_preferences: Json
+          order_number: string
+          paper: string | null
+          paper_size: string | null
+          preferred_channel: Database["public"]["Enums"]["notification_channel"]
+          preferred_language: Database["public"]["Enums"]["order_language"]
+          priority: Database["public"]["Enums"]["order_priority"]
+          product: string
+          quantity: number
+          status: Database["public"]["Enums"]["order_status"]
+          updated_at: string
+          whatsapp_enabled: boolean
+        }
+        Insert: {
+          approved?: boolean
+          archived?: boolean
+          armada_delivery_code?: string | null
+          armada_delivery_fee?: number | null
+          armada_delivery_status?: string | null
+          armada_driver_name?: string | null
+          armada_driver_phone?: string | null
+          armada_tracking_link?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          customer_mobile: string
+          customer_name: string
+          delivery_address?: string | null
+          delivery_date: string
+          delivery_map_link?: string | null
+          delivery_provider?: Database["public"]["Enums"]["order_delivery_provider"]
+          delivery_time: string
+          design_approval_note?: string | null
+          design_approval_requested_at?: string | null
+          design_approval_responded_at?: string | null
+          design_approval_status?: Database["public"]["Enums"]["design_approval_status"]
+          design_approval_token?: string | null
+          finishing?: string | null
+          fulfillment_type?: Database["public"]["Enums"]["order_fulfillment_type"]
+          id?: string
+          item_ready?: boolean
+          notes?: string | null
+          notification_preferences?: Json
+          order_number?: string
+          paper?: string | null
+          paper_size?: string | null
+          preferred_channel?: Database["public"]["Enums"]["notification_channel"]
+          preferred_language?: Database["public"]["Enums"]["order_language"]
+          priority?: Database["public"]["Enums"]["order_priority"]
+          product: string
+          quantity: number
+          status?: Database["public"]["Enums"]["order_status"]
+          updated_at?: string
+          whatsapp_enabled?: boolean
+        }
+        Update: {
+          approved?: boolean
+          archived?: boolean
+          armada_delivery_code?: string | null
+          armada_delivery_fee?: number | null
+          armada_delivery_status?: string | null
+          armada_driver_name?: string | null
+          armada_driver_phone?: string | null
+          armada_tracking_link?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          customer_mobile?: string
+          customer_name?: string
+          delivery_address?: string | null
+          delivery_date?: string
+          delivery_map_link?: string | null
+          delivery_provider?: Database["public"]["Enums"]["order_delivery_provider"]
+          delivery_time?: string
+          design_approval_note?: string | null
+          design_approval_requested_at?: string | null
+          design_approval_responded_at?: string | null
+          design_approval_status?: Database["public"]["Enums"]["design_approval_status"]
+          design_approval_token?: string | null
+          finishing?: string | null
+          fulfillment_type?: Database["public"]["Enums"]["order_fulfillment_type"]
+          id?: string
+          item_ready?: boolean
+          notes?: string | null
+          notification_preferences?: Json
+          order_number?: string
+          paper?: string | null
+          paper_size?: string | null
+          preferred_channel?: Database["public"]["Enums"]["notification_channel"]
+          preferred_language?: Database["public"]["Enums"]["order_language"]
+          priority?: Database["public"]["Enums"]["order_priority"]
+          product?: string
+          quantity?: number
+          status?: Database["public"]["Enums"]["order_status"]
+          updated_at?: string
+          whatsapp_enabled?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           auth: string
@@ -558,128 +695,6 @@ export type Database = {
           },
         ]
       }
-      orders: {
-        Row: {
-          approved: boolean
-          archived: boolean
-          armada_delivery_code: string | null
-          armada_delivery_fee: number | null
-          armada_delivery_status: string | null
-          armada_driver_name: string | null
-          armada_driver_phone: string | null
-          armada_tracking_link: string | null
-          completed_at: string | null
-          created_at: string
-          created_by: string
-          customer_mobile: string
-          customer_name: string
-          delivery_address: string | null
-          delivery_date: string
-          delivery_map_link: string | null
-          delivery_provider: Database["public"]["Enums"]["order_delivery_provider"]
-          delivery_time: string
-          finishing: string | null
-          fulfillment_type: Database["public"]["Enums"]["order_fulfillment_type"]
-          id: string
-          item_ready: boolean
-          notes: string | null
-          notification_preferences: Json
-          order_number: string
-          paper: string | null
-          paper_size: string | null
-          preferred_channel: Database["public"]["Enums"]["notification_channel"]
-          preferred_language: Database["public"]["Enums"]["order_language"]
-          priority: Database["public"]["Enums"]["order_priority"]
-          product: string
-          quantity: number
-          status: Database["public"]["Enums"]["order_status"]
-          updated_at: string
-          whatsapp_enabled: boolean
-        }
-        Insert: {
-          approved?: boolean
-          archived?: boolean
-          armada_delivery_code?: string | null
-          armada_delivery_fee?: number | null
-          armada_delivery_status?: string | null
-          armada_driver_name?: string | null
-          armada_driver_phone?: string | null
-          armada_tracking_link?: string | null
-          completed_at?: string | null
-          created_at?: string
-          created_by: string
-          customer_mobile: string
-          customer_name: string
-          delivery_address?: string | null
-          delivery_date: string
-          delivery_map_link?: string | null
-          delivery_provider?: Database["public"]["Enums"]["order_delivery_provider"]
-          delivery_time: string
-          finishing?: string | null
-          fulfillment_type?: Database["public"]["Enums"]["order_fulfillment_type"]
-          id?: string
-          item_ready?: boolean
-          notes?: string | null
-          notification_preferences?: Json
-          order_number?: string
-          paper?: string | null
-          paper_size?: string | null
-          preferred_channel?: Database["public"]["Enums"]["notification_channel"]
-          preferred_language?: Database["public"]["Enums"]["order_language"]
-          priority?: Database["public"]["Enums"]["order_priority"]
-          product: string
-          quantity: number
-          status?: Database["public"]["Enums"]["order_status"]
-          updated_at?: string
-          whatsapp_enabled?: boolean
-        }
-        Update: {
-          approved?: boolean
-          archived?: boolean
-          armada_delivery_code?: string | null
-          armada_delivery_fee?: number | null
-          armada_delivery_status?: string | null
-          armada_driver_name?: string | null
-          armada_driver_phone?: string | null
-          armada_tracking_link?: string | null
-          completed_at?: string | null
-          created_at?: string
-          created_by?: string
-          customer_mobile?: string
-          customer_name?: string
-          delivery_address?: string | null
-          delivery_date?: string
-          delivery_map_link?: string | null
-          delivery_provider?: Database["public"]["Enums"]["order_delivery_provider"]
-          delivery_time?: string
-          finishing?: string | null
-          fulfillment_type?: Database["public"]["Enums"]["order_fulfillment_type"]
-          id?: string
-          item_ready?: boolean
-          notes?: string | null
-          notification_preferences?: Json
-          order_number?: string
-          paper?: string | null
-          paper_size?: string | null
-          preferred_channel?: Database["public"]["Enums"]["notification_channel"]
-          preferred_language?: Database["public"]["Enums"]["order_language"]
-          priority?: Database["public"]["Enums"]["order_priority"]
-          product?: string
-          quantity?: number
-          status?: Database["public"]["Enums"]["order_status"]
-          updated_at?: string
-          whatsapp_enabled?: boolean
-        }
-        Relationships: [
-          {
-            foreignKeyName: "orders_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
@@ -706,6 +721,13 @@ export type Database = {
         | "armada_delivery_dispatch_failed"
         | "armada_delivery_canceled"
         | "armada_webhook_status_update"
+        | "design_approval_requested"
+        | "design_approval_responded"
+      design_approval_status:
+        | "not_sent"
+        | "pending"
+        | "approved"
+        | "changes_requested"
       employee_role: "admin" | "employee" | "supervisor" | "store" | "delivery"
       material_priority: "low" | "normal" | "urgent"
       material_request_status: "pending" | "approved" | "rejected" | "fulfilled"
@@ -758,12 +780,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -787,11 +809,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -812,11 +834,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -837,11 +859,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -854,11 +876,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -888,6 +910,14 @@ export const Constants = {
         "armada_delivery_dispatch_failed",
         "armada_delivery_canceled",
         "armada_webhook_status_update",
+        "design_approval_requested",
+        "design_approval_responded",
+      ],
+      design_approval_status: [
+        "not_sent",
+        "pending",
+        "approved",
+        "changes_requested",
       ],
       employee_role: ["admin", "employee", "supervisor", "store", "delivery"],
       material_priority: ["low", "normal", "urgent"],
@@ -951,3 +981,4 @@ export type NotificationReceiver = Database["public"]["Enums"]["notification_rec
 export type NotificationStatus = Database["public"]["Enums"]["notification_status"]
 export type NotificationChannel = Database["public"]["Enums"]["notification_channel"]
 export type AuditAction = Database["public"]["Enums"]["audit_action"]
+export type DesignApprovalStatus = Database["public"]["Enums"]["design_approval_status"]

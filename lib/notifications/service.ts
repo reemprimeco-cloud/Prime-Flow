@@ -159,6 +159,45 @@ export async function notifyOrderCreated(
 }
 
 /**
+ * Fires when a manager clicks "Send for Approval" on an order's design
+ * files (components/orders/order-detail-drawer.tsx). Deliberately bypasses
+ * the per-order notification preference toggles, same reasoning as
+ * `notifyOrderMovedBackToProduction` below: this is a manually-triggered,
+ * action-required message the customer needs to see to unblock production,
+ * not a routine status ping they can opt out of.
+ */
+export async function notifyCustomerDesignApprovalRequested(
+  order: OrderNotificationContext,
+  approvalLink: string,
+  actorId: string,
+  actorName: string
+): Promise<void> {
+  if (!order.whatsappEnabled || !order.customerMobile) return;
+
+  const vars: TemplateVariables = {
+    customerName: order.customerName,
+    orderNumber: order.orderNumber,
+    productName: order.product,
+    trackingLink: approvalLink,
+  };
+
+  await dispatch(
+    {
+      orderId: order.orderId,
+      phone: order.customerMobile,
+      receiverType: "customer",
+      templateName: "design_approval_requested",
+      language: order.language,
+      channel: order.preferredChannel,
+      body: renderTemplate("design_approval_requested", order.language, vars),
+      templateVariables: vars,
+    },
+    actorId,
+    actorName
+  );
+}
+
+/**
  * Fires when a job is moved back to in_progress after already being marked
  * ready_pickup/ready_delivery by mistake. Deliberately bypasses the
  * per-order notification preference toggles that gate every other status
@@ -250,7 +289,11 @@ interface EmployeeNotificationContext {
 }
 
 /** Which dashboard tapping the push notification should land on. */
-const ADMIN_TEMPLATES: EmployeeTemplateNameLocal[] = ["admin_order_note_added", "admin_order_status_changed"];
+const ADMIN_TEMPLATES: EmployeeTemplateNameLocal[] = [
+  "admin_order_note_added",
+  "admin_order_status_changed",
+  "design_approval_responded",
+];
 
 /** Short lock-screen headline per event — the rendered template is the body. */
 const PUSH_TITLES: Record<EmployeeTemplateNameLocal, string> = {
@@ -265,12 +308,13 @@ const PUSH_TITLES: Record<EmployeeTemplateNameLocal, string> = {
   job_ready_for_you: "Job ready for your stage",
   admin_order_note_added: "Note added",
   admin_order_status_changed: "Status changed",
+  design_approval_responded: "Design approval response",
 };
 
 async function sendEmployeeNotification(
   employee: EmployeeNotificationContext,
   templateName: EmployeeTemplateNameLocal,
-  actorId: string,
+  actorId: string | null,
   actorName: string
 ): Promise<void> {
   const vars: TemplateVariables = {
@@ -332,6 +376,7 @@ type EmployeeTemplateNameLocal = Extract<
   | "job_ready_for_you"
   | "admin_order_note_added"
   | "admin_order_status_changed"
+  | "design_approval_responded"
 >;
 
 export async function notifyEmployeeJobAssigned(
@@ -426,6 +471,15 @@ export async function notifyAdminOrderStatusChanged(
   actorName: string
 ): Promise<void> {
   await sendEmployeeNotification(employee, "admin_order_status_changed", actorId, actorName);
+}
+
+/** Fires to every active admin when a customer approves or requests changes on a design approval link. */
+export async function notifyAdminDesignApprovalResponded(
+  employee: EmployeeNotificationContext,
+  actorId: string | null,
+  actorName: string
+): Promise<void> {
+  await sendEmployeeNotification(employee, "design_approval_responded", actorId, actorName);
 }
 
 // ---------------------------------------------------------------------------

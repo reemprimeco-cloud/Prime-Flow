@@ -116,13 +116,26 @@ export async function applyOrderStatusTransition(
   const { data: current, error: fetchError } = await supabase
     .from("orders")
     .select(
-      "status, order_number, customer_name, customer_mobile, product, delivery_date, delivery_time, delivery_address, delivery_map_link, whatsapp_enabled, preferred_channel, preferred_language, notification_preferences, delivery_provider, notes"
+      "status, order_number, customer_name, customer_mobile, product, delivery_date, delivery_time, delivery_address, delivery_map_link, whatsapp_enabled, preferred_channel, preferred_language, notification_preferences, delivery_provider, notes, design_approval_status"
     )
     .eq("id", orderId)
     .single();
   if (fetchError || !current) throw new Error(fetchError?.message ?? "Order not found");
 
   assertValidTransition(current.status, status);
+
+  // Customer design approval gate -- blocks Start Production for BOTH
+  // employee and admin callers (unlike the internal `orders.approved` gate,
+  // which only blocks employees -- see updateEmployeeJobStatus). An admin
+  // who genuinely needs to skip this still can, via Override Status, which
+  // bypasses this function entirely. See docs/DESIGN_APPROVAL.md.
+  if (
+    status === "in_progress" &&
+    current.status === "new" &&
+    (current.design_approval_status === "pending" || current.design_approval_status === "changes_requested")
+  ) {
+    throw new Error("Waiting on the customer to approve the design before production can start.");
+  }
 
   const setsDeliveryProvider = status === "ready_delivery" && deliveryProviderChoice != null;
   const effectiveDeliveryProvider = setsDeliveryProvider ? deliveryProviderChoice : current.delivery_provider;

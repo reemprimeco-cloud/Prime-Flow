@@ -249,6 +249,56 @@ describe("Production Approval — updateEmployeeJobStatus", () => {
     );
   });
 
+  it("blocks Start Production while the customer hasn't approved the design yet", async () => {
+    resetSupabaseMock({
+      order_assignments: [{ data: { id: "assignment-1" }, error: null }],
+      orders: [
+        { data: { status: "new", approved: true }, error: null }, // approval pre-check
+        { data: { ...currentOrderRow("new"), design_approval_status: "pending" }, error: null }, // applyOrderStatusTransition fetch
+      ],
+    });
+
+    await expect(updateEmployeeJobStatus("order-1", "in_progress")).rejects.toThrow(
+      "Waiting on the customer to approve the design"
+    );
+    expect(mockNotifyOrderStatusChanged).not.toHaveBeenCalled();
+  });
+
+  it("blocks Start Production while the customer requested design changes", async () => {
+    resetSupabaseMock({
+      order_assignments: [{ data: { id: "assignment-1" }, error: null }],
+      orders: [
+        { data: { status: "new", approved: true }, error: null }, // approval pre-check
+        { data: { ...currentOrderRow("new"), design_approval_status: "changes_requested" }, error: null }, // applyOrderStatusTransition fetch
+      ],
+    });
+
+    await expect(updateEmployeeJobStatus("order-1", "in_progress")).rejects.toThrow(
+      "Waiting on the customer to approve the design"
+    );
+  });
+
+  it("allows Start Production once the customer has approved the design", async () => {
+    resetSupabaseMock({
+      order_assignments: [{ data: { id: "assignment-1" }, error: null }],
+      orders: [
+        { data: { status: "new", approved: true }, error: null }, // approval pre-check
+        { data: { ...currentOrderRow("new"), design_approval_status: "approved" }, error: null }, // applyOrderStatusTransition fetch
+        { data: null, error: null }, // status update
+      ],
+      order_status_history: [{ data: null, error: null }],
+      employees: [{ data: [], error: null }],
+    });
+
+    await updateEmployeeJobStatus("order-1", "in_progress");
+
+    expect(mockNotifyOrderStatusChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ toStatus: "in_progress" }),
+      "emp-1",
+      "Hassan Youssef"
+    );
+  });
+
   it("doesn't re-check approval for transitions that aren't the initial Start Production", async () => {
     resetSupabaseMock({
       order_assignments: [{ data: { id: "assignment-1" }, error: null }],
