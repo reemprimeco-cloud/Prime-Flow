@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Image from "next/image";
-import { CheckCircle2, ImageIcon, Loader2, MessageSquareWarning, ThumbsUp } from "lucide-react";
+import { CheckCircle2, ImageIcon, Loader2, MessageSquareWarning, ThumbsUp, ZoomIn } from "lucide-react";
 import { toast } from "sonner";
 
 import { respondToDesignApproval, type PublicDesignApproval } from "@/lib/actions/design-approval";
@@ -49,22 +49,40 @@ export function DesignApprovalView({ token, approval }: { token: string; approva
           No files uploaded yet.
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className={files.length === 1 ? "flex flex-col gap-2" : "grid grid-cols-2 gap-4"}>
           {files.map((file) => (
             <a
               key={file.id}
               href={file.url ?? undefined}
               target="_blank"
               rel="noreferrer"
-              className="relative aspect-square overflow-hidden rounded-xl border border-border bg-muted/40"
+              className="group flex flex-col gap-1.5"
             >
-              {file.url ? (
-                <Image src={file.url} alt={file.fileName} fill sizes="200px" className="object-cover" />
-              ) : (
-                <div className="flex size-full items-center justify-center text-muted-foreground">
-                  <ImageIcon className="size-5" />
-                </div>
-              )}
+              <span
+                className={
+                  files.length === 1
+                    ? "relative block aspect-[4/5] w-full overflow-hidden rounded-xl border border-border bg-muted/40"
+                    : "relative block aspect-square w-full overflow-hidden rounded-xl border border-border bg-muted/40"
+                }
+              >
+                {file.url ? (
+                  <Image
+                    src={file.url}
+                    alt={file.fileName}
+                    fill
+                    sizes={files.length === 1 ? "(max-width: 640px) 100vw, 480px" : "240px"}
+                    className="object-cover transition-transform group-active:scale-105"
+                  />
+                ) : (
+                  <span className="flex size-full items-center justify-center text-muted-foreground">
+                    <ImageIcon className="size-5" />
+                  </span>
+                )}
+              </span>
+              <span className="flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground">
+                <ZoomIn className="size-3.5" />
+                اضغط لتكبير الصورة
+              </span>
             </a>
           ))}
         </div>
