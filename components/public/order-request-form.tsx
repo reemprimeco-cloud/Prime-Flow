@@ -64,7 +64,7 @@ const STRINGS = {
     namePlaceholder: "مثال: أحمد العتيبي",
     mobile: "رقم الجوال",
     mobilePlaceholder: "+965 5000 1111",
-    whatToPrint: "شنو طلبكم؟",
+    whatToPrint: "شنو حابين تطبعون؟",
     product: "نوع الطلب",
     productPlaceholder: "مثال: كروت شخصية",
     quantity: "الكمية",
