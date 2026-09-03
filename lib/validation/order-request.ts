@@ -8,8 +8,6 @@ interface ValidationMessages {
   productRequired: string;
   wholeNumbers: string;
   positive: string;
-  dateRequired: string;
-  timeRequired: string;
 }
 
 export type OrderRequestLanguage = "ar" | "en";
@@ -21,8 +19,6 @@ const MESSAGES: Record<OrderRequestLanguage, ValidationMessages> = {
     productRequired: "Product is required",
     wholeNumbers: "Whole numbers only",
     positive: "Must be greater than 0",
-    dateRequired: "Delivery date is required",
-    timeRequired: "Delivery time is required",
   },
   ar: {
     nameRequired: "الاسم مطلوب",
@@ -30,8 +26,6 @@ const MESSAGES: Record<OrderRequestLanguage, ValidationMessages> = {
     productRequired: "نوع الطلب مطلوب",
     wholeNumbers: "أرقام صحيحة فقط",
     positive: "لازم يكون أكبر من 0",
-    dateRequired: "تاريخ التسليم مطلوب",
-    timeRequired: "وقت التسليم مطلوب",
   },
 };
 
@@ -86,8 +80,12 @@ export function createOrderRequestSchema(lang: OrderRequestLanguage) {
     quantity: z.coerce.number().int(m.wholeNumbers).positive(m.positive),
     finishing: z.string().trim().max(1000).optional().or(z.literal("")),
     fulfillmentType: z.enum(["pickup", "delivery"]),
-    deliveryDate: z.string().min(1, m.dateRequired),
-    deliveryTime: z.string().min(1, m.timeRequired),
+    // Left blank, the customer hasn't picked a date/time yet — the server
+    // action defaults it to ~2 business days out so the order still has a
+    // real slot to show on the calendar/TV board; staff (or the customer,
+    // when following up) can move it once they actually confirm.
+    deliveryDate: z.string().optional().or(z.literal("")),
+    deliveryTime: z.string().optional().or(z.literal("")),
     deliveryAddress: z.string().trim().max(500).optional().or(z.literal("")),
     deliveryMapLink: z.string().trim().max(1000).optional().or(z.literal("")),
     notes: z.string().trim().max(2000).optional().or(z.literal("")),

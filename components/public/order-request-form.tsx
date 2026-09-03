@@ -74,8 +74,9 @@ const STRINGS = {
     addItem: "إضافة صنف",
     item: "الصنف",
     delivery: "التسليم",
-    date: "التاريخ المفضل",
-    time: "الوقت المفضل",
+    deliveryHint: "لو ما تعرفون بعد، اتركوها فاضية وبنتفق معكم على الموعد المناسب.",
+    date: "التاريخ المفضل (اختياري)",
+    time: "الوقت المفضل (اختياري)",
     fulfillment: "استلام ولا توصيل؟",
     pickup: "استلام من المحل",
     deliveryOption: "توصيل",
@@ -115,8 +116,9 @@ const STRINGS = {
     addItem: "Add Item",
     item: "Item",
     delivery: "Delivery",
-    date: "Preferred Date",
-    time: "Preferred Time",
+    deliveryHint: "Not sure yet? Leave it blank and we'll agree on a time with you.",
+    date: "Preferred Date (optional)",
+    time: "Preferred Time (optional)",
     fulfillment: "Pickup or Delivery?",
     pickup: "Pickup",
     deliveryOption: "Delivery",
@@ -179,8 +181,8 @@ export function OrderRequestForm() {
       fd.set("quantity", String(values.quantity));
       fd.set("finishing", values.finishing ?? "");
       fd.set("fulfillmentType", values.fulfillmentType);
-      fd.set("deliveryDate", values.deliveryDate);
-      fd.set("deliveryTime", values.deliveryTime);
+      fd.set("deliveryDate", values.deliveryDate ?? "");
+      fd.set("deliveryTime", values.deliveryTime ?? "");
       fd.set("deliveryAddress", values.deliveryAddress ?? "");
       fd.set("deliveryMapLink", values.deliveryMapLink ?? "");
       fd.set("notes", values.notes ?? "");
@@ -332,6 +334,7 @@ export function OrderRequestForm() {
           <Separator />
 
           <SectionHeading icon={Truck} label={t.delivery} />
+          <p className="text-xs text-muted-foreground">{t.deliveryHint}</p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label={t.date} error={errors.deliveryDate?.message} icon={Calendar}>
               <Input type="date" {...register("deliveryDate")} aria-invalid={!!errors.deliveryDate} />

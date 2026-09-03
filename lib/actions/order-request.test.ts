@@ -95,6 +95,25 @@ describe("submitOrderRequest", () => {
     expect(mockBroadcast).toHaveBeenCalledWith("production", "order.created", { orderId: "order-1" });
   });
 
+  it("defaults delivery date and time when the customer leaves them blank", async () => {
+    resetSupabaseMock({
+      orders: [{ data: { id: "order-1", order_number: "#1080" }, error: null }],
+      order_status_history: [{ data: null, error: null }],
+    });
+    const fd = minimalRequestFormData();
+    fd.set("deliveryDate", "");
+    fd.set("deliveryTime", "");
+
+    await submitOrderRequest(fd);
+
+    expect(insertsByTable.orders[0]).toEqual(
+      expect.objectContaining({
+        delivery_date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        delivery_time: "12:00",
+      })
+    );
+  });
+
   it("rejects invalid submissions before touching the database", async () => {
     const fd = minimalRequestFormData();
     fd.delete("customerName");
