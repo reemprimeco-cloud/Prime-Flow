@@ -44,6 +44,7 @@ const ACTION_ICONS: Record<AuditAction, React.ComponentType<{ className?: string
   armada_webhook_status_update: Truck,
   design_approval_requested: Send,
   design_approval_responded: FileCheck2,
+  customer_updated: UserCog,
 };
 
 function formatDuration(minutes: number): string {

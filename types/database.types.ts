@@ -723,6 +723,7 @@ export type Database = {
         | "armada_webhook_status_update"
         | "design_approval_requested"
         | "design_approval_responded"
+        | "customer_updated"
       design_approval_status:
         | "not_sent"
         | "pending"
@@ -912,6 +913,7 @@ export const Constants = {
         "armada_webhook_status_update",
         "design_approval_requested",
         "design_approval_responded",
+        "customer_updated",
       ],
       design_approval_status: [
         "not_sent",
