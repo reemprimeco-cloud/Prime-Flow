@@ -59,6 +59,20 @@ means a manager can safely send a design approval link right after creating
 an order without any employee dashboard, or the customer, hearing about a
 job that isn't actually confirmed yet.
 
+## The 24h WhatsApp window
+
+"Send for Approval" is often the *first* message this app ever sends a
+given customer, so there's frequently no open 24h customer-service window
+yet — Twilio rejects the freeform send with error 63016 ("outside the
+allowed window") and it never arrives. `design_approval_requested` is
+registered in `CONTENT_TEMPLATES`
+(`lib/notifications/providers/twilio-whatsapp.ts`) so that, once
+`TWILIO_TEMPLATE_DESIGN_APPROVAL_REQUESTED_SID` is set to a Meta-approved
+Content SID, it bypasses the window entirely like the other templates —
+see `docs/NOTIFICATIONS.md`. Until that's approved, the workaround is
+simply having the customer message the WhatsApp business number first
+(opens a 24h window for freeform sends).
+
 ## What the public page can see
 
 `getDesignApprovalByToken` (`lib/actions/design-approval.ts`) returns a

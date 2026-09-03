@@ -106,6 +106,7 @@ TWILIO_TEMPLATE_ORDER_IN_PRODUCTION_SID=
 TWILIO_TEMPLATE_ORDER_READY_FOR_PICKUP_SID=
 TWILIO_TEMPLATE_ORDER_OUT_FOR_DELIVERY_SID=
 TWILIO_TEMPLATE_ADMIN_ORDER_STATUS_CHANGED_SID=
+TWILIO_TEMPLATE_DESIGN_APPROVAL_REQUESTED_SID=
 CRON_SECRET=                  # shared secret for /api/cron/* routes
 COMPANY_NAME=                 # optional, defaults to "Prime Printing Co."
 PICKUP_LOCATION=              # optional, defaults to a placeholder address
@@ -120,7 +121,7 @@ WhatsApp only lets a business send **freeform** text (the `body` this app sends 
 
 **Approved Message Templates are exempt.** Meta pre-approves fixed wording with numbered placeholders (`{{1}}`, `{{2}}`...) via Twilio's Content Editor (Console → Messaging → Content Editor → Create new → WhatsApp channel → Category: Utility); once approved, that exact template can be sent to anyone at any time, no window restriction.
 
-`lib/notifications/providers/twilio-whatsapp.ts`'s `CONTENT_TEMPLATES` map registers five `TemplateName`s against an env var holding their Content SID and a function mapping `TemplateVariables` onto the approved template's `{{1}}`, `{{2}}`... positions:
+`lib/notifications/providers/twilio-whatsapp.ts`'s `CONTENT_TEMPLATES` map registers six `TemplateName`s against an env var holding their Content SID and a function mapping `TemplateVariables` onto the approved template's `{{1}}`, `{{2}}`... positions:
 
 | `TemplateName` | Env var | Positions |
 |---|---|---|
@@ -129,8 +130,11 @@ WhatsApp only lets a business send **freeform** text (the `body` this app sends 
 | `order_ready_for_pickup` | `TWILIO_TEMPLATE_ORDER_READY_FOR_PICKUP_SID` | 1=orderNumber, 2=productName |
 | `order_out_for_delivery` | `TWILIO_TEMPLATE_ORDER_OUT_FOR_DELIVERY_SID` | 1=orderNumber, 2=productName, 3=deliveryDate, 4=deliveryTime |
 | `admin_order_status_changed` | `TWILIO_TEMPLATE_ADMIN_ORDER_STATUS_CHANGED_SID` | 1=employeeName, 2=orderNumber, 3=customerName, 4=statusLabel |
+| `design_approval_requested` | `TWILIO_TEMPLATE_DESIGN_APPROVAL_REQUESTED_SID` | 1=customerName, 2=orderNumber, 3=productName, 4=trackingLink |
 
-At send time, `send()` uses the Content SID + `contentVariables` instead of `body` whenever **both** an env var is set for that `templateName` **and** the payload carries `templateVariables` (present on every fresh dispatch; absent only when resending a `notification_logs` row created before the `template_variables` column existed, migration `0019_notification_template_variables.sql` — those fall back to freeform `body`, same as any template with no Content SID configured at all). Each of the five is independent: set one env var, that one notification stops being window-restricted; the rest keep sending freeform until their own SID is added.
+At send time, `send()` uses the Content SID + `contentVariables` instead of `body` whenever **both** an env var is set for that `templateName` **and** the payload carries `templateVariables` (present on every fresh dispatch; absent only when resending a `notification_logs` row created before the `template_variables` column existed, migration `0019_notification_template_variables.sql` — those fall back to freeform `body`, same as any template with no Content SID configured at all). Each of the six is independent: set one env var, that one notification stops being window-restricted; the rest keep sending freeform until their own SID is added.
+
+`design_approval_requested` is the one most likely to actually need this: unlike a status update that follows an order the customer already knows about, "Send for Approval" can be the very first message this app ever sends them, so there's often no open 24h window at all yet — see the immediate workaround below while Meta approval is pending.
 
 Submitting a Content SID before Meta approves it is safe — Twilio just rejects the send with an error (surfaces as a normal `failed` row with Twilio's error code, same handling as any other send failure) until approval comes through, then starts working with no code change needed.
 

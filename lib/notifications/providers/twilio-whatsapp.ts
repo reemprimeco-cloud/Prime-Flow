@@ -50,6 +50,15 @@ const CONTENT_TEMPLATES: Partial<Record<TemplateName, ContentTemplateConfig>> = 
     envVar: "TWILIO_TEMPLATE_ORDER_OUT_FOR_DELIVERY_SID",
     buildVariables: (v) => ({ "1": v.orderNumber, "2": v.productName ?? "", "3": v.deliveryDate ?? "", "4": v.deliveryTime ?? "" }),
   },
+  design_approval_requested: {
+    envVar: "TWILIO_TEMPLATE_DESIGN_APPROVAL_REQUESTED_SID",
+    buildVariables: (v) => ({
+      "1": v.customerName ?? "",
+      "2": v.orderNumber,
+      "3": v.productName ?? "",
+      "4": v.trackingLink ?? "",
+    }),
+  },
   admin_order_status_changed: {
     envVar: "TWILIO_TEMPLATE_ADMIN_ORDER_STATUS_CHANGED_SID",
     // Four slots, matching prime_admin_tap_notify3. This mapping and the
