@@ -17,7 +17,7 @@ export type OrderRequestLanguage = "ar" | "en";
 const MESSAGES: Record<OrderRequestLanguage, ValidationMessages> = {
   en: {
     nameRequired: "Your name is required",
-    mobileInvalid: "Enter a valid mobile number",
+    mobileInvalid: "Enter a valid 8-digit Kuwait mobile number, e.g. 5000 1111",
     productRequired: "Product is required",
     wholeNumbers: "Whole numbers only",
     positive: "Must be greater than 0",
@@ -26,7 +26,7 @@ const MESSAGES: Record<OrderRequestLanguage, ValidationMessages> = {
   },
   ar: {
     nameRequired: "الاسم مطلوب",
-    mobileInvalid: "أدخل رقم جوال صحيح",
+    mobileInvalid: "أدخل رقم جوال كويتي صحيح مكوّن من 8 أرقام، مثال: 5000 1111",
     productRequired: "نوع الطلب مطلوب",
     wholeNumbers: "أرقام صحيحة فقط",
     positive: "لازم يكون أكبر من 0",
@@ -62,7 +62,24 @@ export function createOrderRequestSchema(lang: OrderRequestLanguage) {
   const m = MESSAGES[lang];
   return z.object({
     customerName: z.string().trim().min(1, m.nameRequired).max(200),
-    customerMobile: z.string().trim().min(6, m.mobileInvalid).max(30).transform(sanitizePhoneInput),
+    // customer_mobile goes straight to Twilio's WhatsApp send as-is (see
+    // toWhatsAppAddress, lib/notifications/providers/twilio-whatsapp.ts),
+    // which needs E.164 with the country code to actually reach them. The
+    // customer just types their local 8-digit number (no country code
+    // expected of them); +965 is prepended here automatically so the
+    // number that lands in the database is always send-ready.
+    customerMobile: z
+      .string()
+      .trim()
+      .max(30)
+      .transform((val) => {
+        const cleaned = sanitizePhoneInput(val).replace(/[\s-]/g, "");
+        if (/^\+965\d{8}$/.test(cleaned)) return cleaned;
+        if (/^965\d{8}$/.test(cleaned)) return `+${cleaned}`;
+        if (/^\d{8}$/.test(cleaned)) return `+965${cleaned}`;
+        return cleaned;
+      })
+      .refine((val) => /^\+965\d{8}$/.test(val), m.mobileInvalid),
     product: z.string().trim().min(1, m.productRequired).max(200),
     paper: z.string().trim().max(200).optional().or(z.literal("")),
     paperSize: z.string().trim().max(100).optional().or(z.literal("")),
