@@ -74,24 +74,54 @@ order set to the Armada provider just falls back to the internal-staff
 notification path when it hits `ready_delivery`, same as if Armada were
 temporarily down.
 
-## Address handling — a known limitation
+## Address handling
 
-Armada's `/deliveries` endpoint wants either a `{latitude, longitude}` pin or
-structured Kuwait address fields (area/block/street/buildingNumber). Prime
-Flow only captures a free-text `delivery_address` plus an optional pasted
-Google Maps link (`delivery_map_link` — see
-`0016_order_delivery_map_link.sql`), not structured components.
-`dispatchArmadaDelivery` does its best:
+Armada computes its km-based delivery fee from a **structured Kuwait
+address** — area, block, street, and building number, with the shipping
+country fixed to Kuwait — not from a free-text address. This was confirmed
+directly by an Armada integration engineer, who specified the following as
+required to get accurate pricing/dispatch: `_shipping_block`,
+`_shipping_street`, `_shipping_building_number`, and `shipping.country` =
+`"Kuwait"`. That message described the field names for Armada's WooCommerce
+plugin (order meta keys) — a different integration surface than this app's
+direct REST client — so `lib/armada/client.ts` adapts them to this API's
+existing camelCase convention, nested under a `shipping` object
+(`{ country: "Kuwait", block, street, buildingNumber }`). **This exact REST
+payload shape hasn't been independently confirmed against Armada's REST API
+docs** (`docs.armadadelivery.com` is unreachable from this project's usual
+dev environment) — recommend one live test dispatch to confirm before
+relying on it for real pricing.
 
-- If `delivery_map_link` is a pin-share link containing `@lat,lng` or
-  `?q=lat,lng` (the common Google Maps "Share > Copy Link" formats),
-  `parseLatLngFromMapsLink` (`lib/armada/client.ts`) extracts real
-  coordinates and sends those.
-- Otherwise, the whole free-text `delivery_address` is sent as Armada's
-  single `area` field, and any order notes as `instructions` — a best-effort
-  fallback, not a structured Kuwait address. Expect Armada's driver app to
-  need the instructions text to actually find the building until Prime Flow
-  captures a real map pin or structured address fields.
+Prime Flow collects these four fields (`delivery_area`, `delivery_block`,
+`delivery_street`, `delivery_building_number` — see
+`0025_armada_structured_address.sql`) directly from whoever creates the
+order — the customer on the public order-request form
+(`components/public/order-request-form.tsx`, required there once "Delivery"
+is selected) or staff on the internal order form
+(`components/orders/order-form.tsx`) — so a delivery order already has
+everything `dispatchArmadaDelivery` needs by the time it reaches
+`ready_delivery`, with no manual re-entry. The existing free-text
+`delivery_address` and `delivery_map_link` fields stay too, for human
+readers (drivers, staff) and as a fallback.
+
+`dispatchArmadaDelivery` (`lib/armada/dispatch.ts`) picks a source in this
+order:
+
+1. **Structured address** (block + street + buildingNumber all present) —
+   sent as Armada's `shipping` object, which is what it actually prices
+   from. Always preferred when available.
+2. **Map pin** — if `delivery_map_link` is a pin-share link containing
+   `@lat,lng` or `?q=lat,lng` (the common Google Maps "Share > Copy Link"
+   formats), `parseLatLngFromMapsLink` (`lib/armada/client.ts`) extracts
+   real coordinates and sends those instead.
+3. **Free-text fallback** — for an order created before this structured
+   address existed, the whole free-text `delivery_address` is sent as
+   Armada's single `area` field — a best-effort fallback, not a structured
+   Kuwait address. Expect Armada's driver app to need the instructions text
+   to actually find the building in this case.
+
+Order notes are always sent as `instructions`, regardless of which address
+source is used.
 
 ## Payment
 

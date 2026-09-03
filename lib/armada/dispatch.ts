@@ -12,6 +12,10 @@ export interface DispatchableOrder {
   customer_mobile: string;
   delivery_address: string | null;
   delivery_map_link: string | null;
+  delivery_area: string | null;
+  delivery_block: string | null;
+  delivery_street: string | null;
+  delivery_building_number: string | null;
   notes: string | null;
 }
 
@@ -36,6 +40,12 @@ export async function dispatchArmadaDelivery(
   actorName: string
 ): Promise<{ code: string; trackingLink: string | null }> {
   const pin = parseLatLngFromMapsLink(order.delivery_map_link);
+  // Structured Kuwait fields (area/block/street/building) are what Armada
+  // actually prices delivery from — see docs/ARMADA_DELIVERY.md — so they
+  // take priority over a map pin, which in turn beats dumping the free-text
+  // address into the single `area` fallback field for an order created
+  // before this structured address existed.
+  const hasStructuredAddress = !!(order.delivery_block && order.delivery_street && order.delivery_building_number);
 
   try {
     const result = await createArmadaDelivery({
@@ -43,9 +53,12 @@ export async function dispatchArmadaDelivery(
       customerName: order.customer_name,
       customerPhone: order.customer_mobile,
       paymentType: "paid",
-      latitude: pin?.latitude ?? null,
-      longitude: pin?.longitude ?? null,
-      area: pin ? null : order.delivery_address,
+      latitude: hasStructuredAddress ? null : (pin?.latitude ?? null),
+      longitude: hasStructuredAddress ? null : (pin?.longitude ?? null),
+      area: hasStructuredAddress ? order.delivery_area : pin ? null : order.delivery_address,
+      block: hasStructuredAddress ? order.delivery_block : null,
+      street: hasStructuredAddress ? order.delivery_street : null,
+      buildingNumber: hasStructuredAddress ? order.delivery_building_number : null,
       instructions: order.notes,
     });
 

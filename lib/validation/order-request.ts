@@ -8,6 +8,10 @@ interface ValidationMessages {
   productRequired: string;
   wholeNumbers: string;
   positive: string;
+  areaRequired: string;
+  blockRequired: string;
+  streetRequired: string;
+  buildingRequired: string;
 }
 
 export type OrderRequestLanguage = "ar" | "en";
@@ -19,6 +23,10 @@ const MESSAGES: Record<OrderRequestLanguage, ValidationMessages> = {
     productRequired: "Product is required",
     wholeNumbers: "Whole numbers only",
     positive: "Must be greater than 0",
+    areaRequired: "Area is required for delivery",
+    blockRequired: "Block is required for delivery",
+    streetRequired: "Street is required for delivery",
+    buildingRequired: "Building number is required for delivery",
   },
   ar: {
     nameRequired: "الاسم مطلوب",
@@ -26,6 +34,10 @@ const MESSAGES: Record<OrderRequestLanguage, ValidationMessages> = {
     productRequired: "نوع الطلب مطلوب",
     wholeNumbers: "أرقام صحيحة فقط",
     positive: "لازم يكون أكبر من 0",
+    areaRequired: "المنطقة مطلوبة للتوصيل",
+    blockRequired: "القطعة مطلوبة للتوصيل",
+    streetRequired: "الشارع مطلوب للتوصيل",
+    buildingRequired: "رقم المبنى مطلوب للتوصيل",
   },
 };
 
@@ -83,8 +95,26 @@ export function createOrderRequestSchema(lang: OrderRequestLanguage) {
     deliveryTime: z.string().optional().or(z.literal("")),
     deliveryAddress: z.string().trim().max(500).optional().or(z.literal("")),
     deliveryMapLink: z.string().trim().max(1000).optional().or(z.literal("")),
+    // Structured Kuwait address — required (below) when fulfillmentType is
+    // "delivery". This is what Armada actually prices delivery from
+    // (area/block/street/building, not the free-text address above), per a
+    // direct confirmation from an Armada integration engineer — see
+    // lib/armada/client.ts and docs/ARMADA_DELIVERY.md. Collecting it here,
+    // from the customer directly, means a delivery order already has
+    // everything dispatchArmadaDelivery needs with no manual re-entry.
+    deliveryArea: z.string().trim().max(100).optional().or(z.literal("")),
+    deliveryBlock: z.string().trim().max(30).optional().or(z.literal("")),
+    deliveryStreet: z.string().trim().max(200).optional().or(z.literal("")),
+    deliveryBuildingNumber: z.string().trim().max(30).optional().or(z.literal("")),
     notes: z.string().trim().max(2000).optional().or(z.literal("")),
     items: z.array(buildItemSchema(m)).default([]),
+  }).superRefine((data, ctx) => {
+    if (data.fulfillmentType !== "delivery") return;
+    if (!data.deliveryArea) ctx.addIssue({ code: "custom", path: ["deliveryArea"], message: m.areaRequired });
+    if (!data.deliveryBlock) ctx.addIssue({ code: "custom", path: ["deliveryBlock"], message: m.blockRequired });
+    if (!data.deliveryStreet) ctx.addIssue({ code: "custom", path: ["deliveryStreet"], message: m.streetRequired });
+    if (!data.deliveryBuildingNumber)
+      ctx.addIssue({ code: "custom", path: ["deliveryBuildingNumber"], message: m.buildingRequired });
   });
 }
 

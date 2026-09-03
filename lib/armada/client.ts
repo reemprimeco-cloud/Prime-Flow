@@ -85,8 +85,24 @@ export interface CreateArmadaDeliveryInput {
   paymentType: "paid" | "cash";
   latitude?: number | null;
   longitude?: number | null;
-  /** Best-effort single-field address fallback when no lat/lng pin is available — see parseLatLngFromMapsLink. */
+  /** Best-effort single-field address fallback when no lat/lng pin and no structured address is available — see parseLatLngFromMapsLink. */
   area?: string | null;
+  /**
+   * Structured Kuwait address — block/street/buildingNumber — sent together
+   * (all three or none). This is what Armada actually computes the
+   * km-based delivery fee from, per a direct message from an Armada
+   * integration engineer, quoted in docs/ARMADA_DELIVERY.md. That message
+   * described WooCommerce order-meta keys (`_shipping_block` etc.) for
+   * Armada's WooCommerce plugin, a different integration surface than this
+   * direct REST client — the field names below are adapted to this API's
+   * existing camelCase convention and a nested `shipping` object (matching
+   * the `shipping.country` the engineer also specified), but haven't been
+   * independently confirmed against Armada's REST API docs. Recommend one
+   * live test dispatch to confirm before relying on this for real pricing.
+   */
+  block?: string | null;
+  street?: string | null;
+  buildingNumber?: string | null;
   instructions?: string | null;
 }
 
@@ -119,7 +135,15 @@ export async function createArmadaDelivery(order: CreateArmadaDeliveryInput): Pr
   if (order.paymentType === "cash" && order.amount != null) platformData.amount = String(order.amount);
   if (order.instructions) platformData.instructions = order.instructions;
 
-  if (order.latitude != null && order.longitude != null) {
+  if (order.block && order.street && order.buildingNumber) {
+    platformData.shipping = {
+      country: "Kuwait",
+      block: order.block,
+      street: order.street,
+      buildingNumber: order.buildingNumber,
+    };
+    if (order.area) platformData.area = order.area;
+  } else if (order.latitude != null && order.longitude != null) {
     platformData.location = { latitude: order.latitude, longitude: order.longitude };
   } else if (order.area) {
     platformData.area = order.area;

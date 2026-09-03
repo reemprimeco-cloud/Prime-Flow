@@ -27,7 +27,9 @@ export async function retryArmadaDispatch(orderId: string): Promise<void> {
 
   const { data: order, error } = await supabase
     .from("orders")
-    .select("id, order_number, status, delivery_provider, armada_delivery_code, customer_name, customer_mobile, delivery_address, delivery_map_link, notes")
+    .select(
+      "id, order_number, status, delivery_provider, armada_delivery_code, customer_name, customer_mobile, delivery_address, delivery_map_link, delivery_area, delivery_block, delivery_street, delivery_building_number, notes"
+    )
     .eq("id", orderId)
     .single();
   if (error || !order) throw new Error(error?.message ?? "Order not found");

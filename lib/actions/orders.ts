@@ -126,6 +126,10 @@ export interface OrderDetail {
   deliveryTime: string;
   deliveryAddress: string | null;
   deliveryMapLink: string | null;
+  deliveryArea: string | null;
+  deliveryBlock: string | null;
+  deliveryStreet: string | null;
+  deliveryBuildingNumber: string | null;
   notes: string | null;
   status: OrderStatus;
   fulfillmentType: OrderFulfillmentType;
@@ -698,6 +702,10 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
     deliveryTime: order.delivery_time,
     deliveryAddress: order.delivery_address,
     deliveryMapLink: order.delivery_map_link,
+    deliveryArea: order.delivery_area,
+    deliveryBlock: order.delivery_block,
+    deliveryStreet: order.delivery_street,
+    deliveryBuildingNumber: order.delivery_building_number,
     notes: order.notes,
     status: order.status,
     fulfillmentType: order.fulfillment_type,
@@ -862,6 +870,10 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
       delivery_time: input.deliveryTime,
       delivery_address: input.deliveryAddress || null,
       delivery_map_link: input.deliveryMapLink || null,
+      delivery_area: input.deliveryArea || null,
+      delivery_block: input.deliveryBlock || null,
+      delivery_street: input.deliveryStreet || null,
+      delivery_building_number: input.deliveryBuildingNumber || null,
       notes: input.notes || null,
       approved: input.approved,
       created_by: session.employeeId,
@@ -1083,6 +1095,10 @@ export async function updateOrder(orderId: string, formData: FormData): Promise<
       delivery_time: input.deliveryTime,
       delivery_address: input.deliveryAddress || null,
       delivery_map_link: input.deliveryMapLink || null,
+      delivery_area: input.deliveryArea || null,
+      delivery_block: input.deliveryBlock || null,
+      delivery_street: input.deliveryStreet || null,
+      delivery_building_number: input.deliveryBuildingNumber || null,
       notes: input.notes || null,
       approved: input.approved,
     })
@@ -1256,6 +1272,10 @@ export async function duplicateOrder(orderId: string): Promise<{ id: string }> {
       delivery_time: original.delivery_time,
       delivery_address: original.delivery_address,
       delivery_map_link: original.delivery_map_link,
+      delivery_area: original.delivery_area,
+      delivery_block: original.delivery_block,
+      delivery_street: original.delivery_street,
+      delivery_building_number: original.delivery_building_number,
       notes: original.notes,
       status: "new",
       // A duplicate is a fresh production job, not a resumption of the
@@ -1529,6 +1549,10 @@ function parseOrderForm(formData: FormData) {
     deliveryTime: formData.get("deliveryTime"),
     deliveryAddress: formData.get("deliveryAddress") || undefined,
     deliveryMapLink: formData.get("deliveryMapLink") || undefined,
+    deliveryArea: formData.get("deliveryArea") || undefined,
+    deliveryBlock: formData.get("deliveryBlock") || undefined,
+    deliveryStreet: formData.get("deliveryStreet") || undefined,
+    deliveryBuildingNumber: formData.get("deliveryBuildingNumber") || undefined,
     notes: formData.get("notes") || undefined,
     employeeIds: formData.getAll("employeeIds").map(String),
     items,

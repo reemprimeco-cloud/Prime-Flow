@@ -130,6 +130,38 @@ describe("submitOrderRequest", () => {
     expect(mockRecordAuditLog).not.toHaveBeenCalled();
   });
 
+  it("requires the structured Kuwait address (area/block/street/building) when delivery is chosen", async () => {
+    const fd = minimalRequestFormData();
+    fd.set("fulfillmentType", "delivery");
+
+    await expect(submitOrderRequest(fd)).rejects.toThrow();
+    expect(mockRecordAuditLog).not.toHaveBeenCalled();
+  });
+
+  it("accepts and persists the structured address for a delivery order", async () => {
+    resetSupabaseMock({
+      orders: [{ data: { id: "order-1", order_number: "#1080" }, error: null }],
+      order_status_history: [{ data: null, error: null }],
+    });
+    const fd = minimalRequestFormData();
+    fd.set("fulfillmentType", "delivery");
+    fd.set("deliveryArea", "Salmiya");
+    fd.set("deliveryBlock", "5");
+    fd.set("deliveryStreet", "Salem Al-Mubarak St");
+    fd.set("deliveryBuildingNumber", "12");
+
+    await submitOrderRequest(fd);
+
+    expect(insertsByTable.orders[0]).toEqual(
+      expect.objectContaining({
+        delivery_area: "Salmiya",
+        delivery_block: "5",
+        delivery_street: "Salem Al-Mubarak St",
+        delivery_building_number: "12",
+      })
+    );
+  });
+
   it("blocks writes in demo mode", async () => {
     mockIsDemoMode.mockReturnValue(true);
     await expect(submitOrderRequest(minimalRequestFormData())).rejects.toThrow("read-only demo");

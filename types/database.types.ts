@@ -533,9 +533,13 @@ export type Database = {
           customer_mobile: string
           customer_name: string
           delivery_address: string | null
+          delivery_area: string | null
+          delivery_block: string | null
+          delivery_building_number: string | null
           delivery_date: string
           delivery_map_link: string | null
           delivery_provider: Database["public"]["Enums"]["order_delivery_provider"]
+          delivery_street: string | null
           delivery_time: string
           design_approval_note: string | null
           design_approval_requested_at: string | null
@@ -575,9 +579,13 @@ export type Database = {
           customer_mobile: string
           customer_name: string
           delivery_address?: string | null
+          delivery_area?: string | null
+          delivery_block?: string | null
+          delivery_building_number?: string | null
           delivery_date: string
           delivery_map_link?: string | null
           delivery_provider?: Database["public"]["Enums"]["order_delivery_provider"]
+          delivery_street?: string | null
           delivery_time: string
           design_approval_note?: string | null
           design_approval_requested_at?: string | null
@@ -617,9 +625,13 @@ export type Database = {
           customer_mobile?: string
           customer_name?: string
           delivery_address?: string | null
+          delivery_area?: string | null
+          delivery_block?: string | null
+          delivery_building_number?: string | null
           delivery_date?: string
           delivery_map_link?: string | null
           delivery_provider?: Database["public"]["Enums"]["order_delivery_provider"]
+          delivery_street?: string | null
           delivery_time?: string
           design_approval_note?: string | null
           design_approval_requested_at?: string | null
