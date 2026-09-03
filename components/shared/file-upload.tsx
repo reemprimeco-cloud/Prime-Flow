@@ -23,6 +23,8 @@ interface FileUploadProps {
   existingFiles?: ExistingFile[];
   onRemoveExisting?: (id: string) => void;
   removingId?: string | null;
+  /** Overrides the "Click to upload..." hint under the dropzone icon — for a non-English caller (e.g. the public order request form's Arabic half). */
+  hint?: string;
 }
 
 export function FileUpload({
@@ -34,6 +36,7 @@ export function FileUpload({
   existingFiles = [],
   onRemoveExisting,
   removingId,
+  hint,
 }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -70,7 +73,9 @@ export function FileUpload({
         className="flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-border bg-muted/20 px-4 py-6 text-center transition-colors hover:border-secondary hover:bg-muted/40"
       >
         <Upload className="size-5 text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">Click to upload{multiple ? " one or more files" : ""}</span>
+        <span className="text-sm text-muted-foreground">
+          {hint ?? `Click to upload${multiple ? " one or more files" : ""}`}
+        </span>
       </button>
       <input
         ref={inputRef}

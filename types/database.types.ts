@@ -342,7 +342,7 @@ export type Database = {
           id: string
           order_id: string
           storage_path: string
-          uploaded_by: string
+          uploaded_by: string | null
         }
         Insert: {
           created_at?: string
@@ -351,7 +351,7 @@ export type Database = {
           id?: string
           order_id: string
           storage_path: string
-          uploaded_by: string
+          uploaded_by?: string | null
         }
         Update: {
           created_at?: string
@@ -360,7 +360,7 @@ export type Database = {
           id?: string
           order_id?: string
           storage_path?: string
-          uploaded_by?: string
+          uploaded_by?: string | null
         }
         Relationships: [
           {
@@ -529,7 +529,7 @@ export type Database = {
           armada_tracking_link: string | null
           completed_at: string | null
           created_at: string
-          created_by: string
+          created_by: string | null
           customer_mobile: string
           customer_name: string
           delivery_address: string | null
@@ -571,7 +571,7 @@ export type Database = {
           armada_tracking_link?: string | null
           completed_at?: string | null
           created_at?: string
-          created_by: string
+          created_by?: string | null
           customer_mobile: string
           customer_name: string
           delivery_address?: string | null
@@ -613,7 +613,7 @@ export type Database = {
           armada_tracking_link?: string | null
           completed_at?: string | null
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           customer_mobile?: string
           customer_name?: string
           delivery_address?: string | null

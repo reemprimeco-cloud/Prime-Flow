@@ -1599,10 +1599,11 @@ export async function signUrls(
   return map;
 }
 
-async function uploadOrderFiles(
+/** Also used by lib/actions/order-request.ts to attach files to a public order request. */
+export async function uploadOrderFiles(
   supabase: ServiceClient,
   orderId: string,
-  uploadedBy: string,
+  uploadedBy: string | null,
   formData: FormData
 ): Promise<void> {
   const productImages = formData.getAll("productImages").filter((f): f is File => f instanceof File && f.size > 0);
@@ -1624,7 +1625,7 @@ async function uploadSingleFile(
   fileType: OrderFileType,
   uploadKind: "image" | "design",
   orderId: string,
-  uploadedBy: string,
+  uploadedBy: string | null,
   file: File
 ): Promise<void> {
   if (file.size > MAX_FILE_SIZE_BYTES) {
