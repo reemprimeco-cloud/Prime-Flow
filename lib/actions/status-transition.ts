@@ -116,7 +116,7 @@ export async function applyOrderStatusTransition(
   const { data: current, error: fetchError } = await supabase
     .from("orders")
     .select(
-      "status, order_number, customer_name, customer_mobile, product, delivery_date, delivery_time, delivery_address, delivery_map_link, whatsapp_enabled, preferred_channel, preferred_language, notification_preferences, delivery_provider, notes, design_approval_status"
+      "status, order_number, customer_name, customer_mobile, product, delivery_date, delivery_time, delivery_address, delivery_map_link, delivery_area, delivery_block, delivery_street, delivery_building_number, whatsapp_enabled, preferred_channel, preferred_language, notification_preferences, delivery_provider, notes, design_approval_status"
     )
     .eq("id", orderId)
     .single();

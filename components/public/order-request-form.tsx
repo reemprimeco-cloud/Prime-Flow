@@ -39,7 +39,7 @@ type OrderRequestInput = z.infer<ReturnType<typeof createOrderRequestSchema>>;
 
 const emptyValues: OrderRequestValues = {
   customerName: "",
-  customerMobile: "",
+  customerMobile: "+965",
   product: "",
   paper: "",
   paperSize: "",
@@ -50,6 +50,10 @@ const emptyValues: OrderRequestValues = {
   deliveryTime: "",
   deliveryAddress: "",
   deliveryMapLink: "",
+  deliveryArea: "",
+  deliveryBlock: "",
+  deliveryStreet: "",
+  deliveryBuildingNumber: "",
   notes: "",
   items: [],
 };
@@ -64,7 +68,7 @@ const STRINGS = {
     namePlaceholder: "مثال: أحمد العتيبي",
     mobile: "رقم الجوال",
     mobilePlaceholder: "+965 5000 1111",
-    whatToPrint: "وش تبين تطبعين؟",
+    whatToPrint: "شنو حابين تطبعون؟",
     product: "نوع الطلب",
     productPlaceholder: "مثال: كروت شخصية",
     quantity: "الكمية",
@@ -74,13 +78,22 @@ const STRINGS = {
     addItem: "إضافة صنف",
     item: "الصنف",
     delivery: "التسليم",
-    date: "التاريخ المفضل",
-    time: "الوقت المفضل",
+    deliveryHint: "لو ما تعرفون بعد، اتركوها فاضية وبنتفق معكم على الموعد المناسب.",
+    date: "التاريخ المفضل (اختياري)",
+    time: "الوقت المفضل (اختياري)",
     fulfillment: "استلام ولا توصيل؟",
     pickup: "استلام من المحل",
     deliveryOption: "توصيل",
-    address: "عنوان التوصيل",
-    addressPlaceholder: "المبنى، الشارع، المنطقة",
+    address: "تفاصيل إضافية عن العنوان (اختياري)",
+    addressPlaceholder: "رقم الشقة، علامة مميزة، أي توضيح ثاني",
+    area: "المنطقة",
+    areaPlaceholder: "مثال: السالمية",
+    block: "القطعة",
+    blockPlaceholder: "مثال: 5",
+    street: "الشارع",
+    streetPlaceholder: "مثال: شارع سالم المبارك",
+    buildingNumber: "رقم المنزل / البناية",
+    buildingNumberPlaceholder: "مثال: 12",
     mapLink: "رابط الموقع (اختياري)",
     mapLinkPlaceholder: "الصقي رابط قوقل مابس",
     attachments: "المرفقات (اختياري)",
@@ -115,13 +128,22 @@ const STRINGS = {
     addItem: "Add Item",
     item: "Item",
     delivery: "Delivery",
-    date: "Preferred Date",
-    time: "Preferred Time",
+    deliveryHint: "Not sure yet? Leave it blank and we'll agree on a time with you.",
+    date: "Preferred Date (optional)",
+    time: "Preferred Time (optional)",
     fulfillment: "Pickup or Delivery?",
     pickup: "Pickup",
     deliveryOption: "Delivery",
-    address: "Delivery Address",
-    addressPlaceholder: "Building, street, area",
+    address: "Additional Address Details (optional)",
+    addressPlaceholder: "Apartment number, landmark, anything else",
+    area: "Area",
+    areaPlaceholder: "e.g. Salmiya",
+    block: "Block",
+    blockPlaceholder: "e.g. 5",
+    street: "Street",
+    streetPlaceholder: "e.g. Salem Al-Mubarak St",
+    buildingNumber: "Building / House No.",
+    buildingNumberPlaceholder: "e.g. 12",
     mapLink: "Map Location Link (optional)",
     mapLinkPlaceholder: "Paste a Google Maps link",
     attachments: "Attachments (optional)",
@@ -179,10 +201,14 @@ export function OrderRequestForm() {
       fd.set("quantity", String(values.quantity));
       fd.set("finishing", values.finishing ?? "");
       fd.set("fulfillmentType", values.fulfillmentType);
-      fd.set("deliveryDate", values.deliveryDate);
-      fd.set("deliveryTime", values.deliveryTime);
+      fd.set("deliveryDate", values.deliveryDate ?? "");
+      fd.set("deliveryTime", values.deliveryTime ?? "");
       fd.set("deliveryAddress", values.deliveryAddress ?? "");
       fd.set("deliveryMapLink", values.deliveryMapLink ?? "");
+      fd.set("deliveryArea", values.deliveryArea ?? "");
+      fd.set("deliveryBlock", values.deliveryBlock ?? "");
+      fd.set("deliveryStreet", values.deliveryStreet ?? "");
+      fd.set("deliveryBuildingNumber", values.deliveryBuildingNumber ?? "");
       fd.set("notes", values.notes ?? "");
       fd.set("items", JSON.stringify(values.items));
       fd.set("preferredLanguage", lang);
@@ -332,6 +358,7 @@ export function OrderRequestForm() {
           <Separator />
 
           <SectionHeading icon={Truck} label={t.delivery} />
+          <p className="text-xs text-muted-foreground">{t.deliveryHint}</p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label={t.date} error={errors.deliveryDate?.message} icon={Calendar}>
               <Input type="date" {...register("deliveryDate")} aria-invalid={!!errors.deliveryDate} />
@@ -362,6 +389,22 @@ export function OrderRequestForm() {
             </Field>
             {fulfillmentType === "delivery" && (
               <>
+                <Field label={t.area} error={errors.deliveryArea?.message}>
+                  <Input {...register("deliveryArea")} aria-invalid={!!errors.deliveryArea} placeholder={t.areaPlaceholder} />
+                </Field>
+                <Field label={t.block} error={errors.deliveryBlock?.message}>
+                  <Input {...register("deliveryBlock")} aria-invalid={!!errors.deliveryBlock} placeholder={t.blockPlaceholder} />
+                </Field>
+                <Field label={t.street} error={errors.deliveryStreet?.message}>
+                  <Input {...register("deliveryStreet")} aria-invalid={!!errors.deliveryStreet} placeholder={t.streetPlaceholder} />
+                </Field>
+                <Field label={t.buildingNumber} error={errors.deliveryBuildingNumber?.message}>
+                  <Input
+                    {...register("deliveryBuildingNumber")}
+                    aria-invalid={!!errors.deliveryBuildingNumber}
+                    placeholder={t.buildingNumberPlaceholder}
+                  />
+                </Field>
                 <Field label={t.address} className="sm:col-span-2" icon={MapPin}>
                   <Input {...register("deliveryAddress")} placeholder={t.addressPlaceholder} />
                 </Field>

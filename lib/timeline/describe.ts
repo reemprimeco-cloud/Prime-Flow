@@ -68,6 +68,8 @@ export function describeAuditEntry(action: AuditAction, oldValue: unknown, newVa
       const status = typeof next.status === "string" ? next.status : "";
       return status === "approved" ? "Customer approved the design" : "Customer requested design changes";
     }
+    case "customer_updated":
+      return "Customer name/mobile number corrected";
     default:
       return action;
   }

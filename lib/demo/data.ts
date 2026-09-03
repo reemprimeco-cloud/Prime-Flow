@@ -37,6 +37,7 @@ import type { EmployeeWorkload } from "@/lib/actions/workload";
 import type { CalendarOrder } from "@/lib/actions/calendar";
 import type { SearchResult } from "@/lib/actions/search";
 import type { DiagnosticsSnapshot } from "@/lib/actions/diagnostics";
+import type { CustomerListItem } from "@/lib/actions/customers";
 import { describeAuditEntry } from "@/lib/timeline/describe";
 import { DELAYABLE_STATUSES, EMPLOYEE_ACTIVE_STATUSES, type TvColumnKey } from "@/types/domain";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/notifications/constants";
@@ -335,6 +336,28 @@ export function getDemoCustomerSuggestions(term: string): CustomerSuggestion[] {
   return suggestions;
 }
 
+export function getDemoCustomers(): CustomerListItem[] {
+  const now = new Date();
+  const byMobile = new Map<string, CustomerListItem>();
+  for (const seed of ORDER_SEEDS) {
+    const existing = byMobile.get(seed.customerMobile);
+    if (existing) {
+      existing.orderCount += 1;
+      continue;
+    }
+    byMobile.set(seed.customerMobile, {
+      customerMobile: seed.customerMobile,
+      customerName: seed.customerName,
+      orderCount: 1,
+      lastOrderAt: subHours(now, seed.assignedHoursAgo).toISOString(),
+      preferredLanguage: seed.preferredLanguage,
+      whatsappEnabled: seed.whatsappEnabled,
+      preferredChannel: "whatsapp",
+    });
+  }
+  return Array.from(byMobile.values()).sort((a, b) => b.lastOrderAt.localeCompare(a.lastOrderAt));
+}
+
 function isCurrentMonth(date: Date, now: Date) {
   return date >= startOfMonth(now);
 }
@@ -435,6 +458,10 @@ export function getDemoOrderDetail(orderId: string): OrderDetail {
     deliveryTime: order.deliveryTime,
     deliveryAddress: null,
     deliveryMapLink: null,
+    deliveryArea: null,
+    deliveryBlock: null,
+    deliveryStreet: null,
+    deliveryBuildingNumber: null,
     notes: order.notes,
     status: order.status,
     approved: order.approved,

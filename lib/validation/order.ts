@@ -41,6 +41,13 @@ export const orderFormSchema = z.object({
   deliveryTime: z.string().min(1, "Delivery time is required"),
   deliveryAddress: z.string().trim().max(500).optional().or(z.literal("")),
   deliveryMapLink: z.string().trim().max(1000).optional().or(z.literal("")),
+  // Structured Kuwait address — what Armada actually prices delivery from
+  // (area/block/street/building), separate from the free-text address above
+  // which stays for human readers (drivers, staff). See lib/armada/client.ts.
+  deliveryArea: z.string().trim().max(100).optional().or(z.literal("")),
+  deliveryBlock: z.string().trim().max(30).optional().or(z.literal("")),
+  deliveryStreet: z.string().trim().max(200).optional().or(z.literal("")),
+  deliveryBuildingNumber: z.string().trim().max(30).optional().or(z.literal("")),
   notes: z.string().trim().max(2000).optional().or(z.literal("")),
   employeeIds: z.array(z.string().uuid()).default([]),
   items: z.array(orderItemSchema).default([]),

@@ -75,6 +75,10 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
       deliveryTime: "",
       deliveryAddress: "",
       deliveryMapLink: "",
+      deliveryArea: "",
+      deliveryBlock: "",
+      deliveryStreet: "",
+      deliveryBuildingNumber: "",
       notes: "",
       employeeIds: [],
       items: [],
@@ -104,6 +108,10 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
     deliveryTime: order.deliveryTime.slice(0, 5),
     deliveryAddress: order.deliveryAddress ?? "",
     deliveryMapLink: order.deliveryMapLink ?? "",
+    deliveryArea: order.deliveryArea ?? "",
+    deliveryBlock: order.deliveryBlock ?? "",
+    deliveryStreet: order.deliveryStreet ?? "",
+    deliveryBuildingNumber: order.deliveryBuildingNumber ?? "",
     notes: order.notes ?? "",
     employeeIds: order.assignedEmployees.map((e) => e.id),
     items: order.items.map((item) => ({
@@ -260,6 +268,10 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
         formData.set("deliveryTime", values.deliveryTime);
         formData.set("deliveryAddress", values.deliveryAddress ?? "");
         formData.set("deliveryMapLink", values.deliveryMapLink ?? "");
+        formData.set("deliveryArea", values.deliveryArea ?? "");
+        formData.set("deliveryBlock", values.deliveryBlock ?? "");
+        formData.set("deliveryStreet", values.deliveryStreet ?? "");
+        formData.set("deliveryBuildingNumber", values.deliveryBuildingNumber ?? "");
         formData.set("notes", values.notes ?? "");
         formData.set("items", JSON.stringify(values.items));
         values.employeeIds.forEach((id) => formData.append("employeeIds", id));
@@ -620,8 +632,20 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                 </Field>
                 {fulfillmentType === "delivery" && (
                   <>
-                    <Field label="Delivery Address" className="sm:col-span-2">
-                      <Input {...register("deliveryAddress")} placeholder="Building, street, area" />
+                    <Field label="Area" error={errors.deliveryArea?.message}>
+                      <Input {...register("deliveryArea")} placeholder="e.g. Salmiya" />
+                    </Field>
+                    <Field label="Block" error={errors.deliveryBlock?.message}>
+                      <Input {...register("deliveryBlock")} placeholder="e.g. 5" />
+                    </Field>
+                    <Field label="Street" error={errors.deliveryStreet?.message}>
+                      <Input {...register("deliveryStreet")} placeholder="e.g. Salem Al-Mubarak St" />
+                    </Field>
+                    <Field label="Building / House No." error={errors.deliveryBuildingNumber?.message}>
+                      <Input {...register("deliveryBuildingNumber")} placeholder="e.g. 12" />
+                    </Field>
+                    <Field label="Additional Address Details (optional)" className="sm:col-span-2">
+                      <Input {...register("deliveryAddress")} placeholder="Apartment number, landmark, anything else" />
                     </Field>
                     <Field label="Map Location Link (optional)" className="sm:col-span-2">
                       <Input

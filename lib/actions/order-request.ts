@@ -12,6 +12,22 @@ import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/notifications/constants"
 
 const DEMO_WRITE_ERROR = "This is a read-only demo — writes are disabled.";
 
+// Kuwait's weekend is Friday/Saturday, not Saturday/Sunday.
+const KUWAIT_WEEKEND_DAYS = [5, 6]; // Date#getDay(): 5 = Friday, 6 = Saturday
+
+/** Default delivery date when the customer leaves it blank: ~2 business days out. */
+function defaultDeliveryDate(): string {
+  const date = new Date();
+  let businessDaysAdded = 0;
+  while (businessDaysAdded < 2) {
+    date.setDate(date.getDate() + 1);
+    if (!KUWAIT_WEEKEND_DAYS.includes(date.getDay())) businessDaysAdded += 1;
+  }
+  return date.toISOString().slice(0, 10);
+}
+
+const DEFAULT_DELIVERY_TIME = "12:00";
+
 /**
  * PUBLIC — no auth, meant to be linked from a WhatsApp Business auto-reply
  * (Meta's own canned-message/quick-reply feature on the WhatsApp Business
@@ -56,6 +72,10 @@ export async function submitOrderRequest(formData: FormData): Promise<{ orderNum
     deliveryTime: formData.get("deliveryTime"),
     deliveryAddress: formData.get("deliveryAddress") || undefined,
     deliveryMapLink: formData.get("deliveryMapLink") || undefined,
+    deliveryArea: formData.get("deliveryArea") || undefined,
+    deliveryBlock: formData.get("deliveryBlock") || undefined,
+    deliveryStreet: formData.get("deliveryStreet") || undefined,
+    deliveryBuildingNumber: formData.get("deliveryBuildingNumber") || undefined,
     notes: formData.get("notes") || undefined,
     items,
   });
@@ -63,6 +83,8 @@ export async function submitOrderRequest(formData: FormData): Promise<{ orderNum
     throw new Error(parsed.error.issues[0]?.message ?? "Invalid order request");
   }
   const input = parsed.data;
+  const deliveryDate = input.deliveryDate || defaultDeliveryDate();
+  const deliveryTime = input.deliveryTime || DEFAULT_DELIVERY_TIME;
 
   const supabase = createServiceClient();
 
@@ -82,10 +104,14 @@ export async function submitOrderRequest(formData: FormData): Promise<{ orderNum
       finishing: input.finishing || null,
       fulfillment_type: input.fulfillmentType,
       priority: "normal",
-      delivery_date: input.deliveryDate,
-      delivery_time: input.deliveryTime,
+      delivery_date: deliveryDate,
+      delivery_time: deliveryTime,
       delivery_address: input.deliveryAddress || null,
       delivery_map_link: input.deliveryMapLink || null,
+      delivery_area: input.deliveryArea || null,
+      delivery_block: input.deliveryBlock || null,
+      delivery_street: input.deliveryStreet || null,
+      delivery_building_number: input.deliveryBuildingNumber || null,
       notes: input.notes || null,
       approved: false,
       created_by: null,
@@ -125,7 +151,7 @@ export async function submitOrderRequest(formData: FormData): Promise<{ orderNum
     entityType: "order",
     entityId: order.id,
     orderId: order.id,
-    newValue: { orderNumber: order.order_number, product: input.product, deliveryDate: input.deliveryDate },
+    newValue: { orderNumber: order.order_number, product: input.product, deliveryDate },
   });
 
   await broadcast(CHANNELS.production, "order.created", { orderId: order.id });
