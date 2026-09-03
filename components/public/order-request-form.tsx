@@ -39,7 +39,7 @@ type OrderRequestInput = z.infer<ReturnType<typeof createOrderRequestSchema>>;
 
 const emptyValues: OrderRequestValues = {
   customerName: "",
-  customerMobile: "",
+  customerMobile: "+965",
   product: "",
   paper: "",
   paperSize: "",
@@ -63,7 +63,7 @@ const STRINGS = {
     yourName: "الاسم الكامل",
     namePlaceholder: "مثال: أحمد العتيبي",
     mobile: "رقم الجوال",
-    mobilePlaceholder: "5000 1111",
+    mobilePlaceholder: "+965 5000 1111",
     whatToPrint: "شنو طلبكم؟",
     product: "نوع الطلب",
     productPlaceholder: "مثال: كروت شخصية",
@@ -105,7 +105,7 @@ const STRINGS = {
     yourName: "Your Name",
     namePlaceholder: "e.g. Ahmad Al-Otaibi",
     mobile: "Mobile Number",
-    mobilePlaceholder: "5000 1111",
+    mobilePlaceholder: "+965 5000 1111",
     whatToPrint: "What do you need printed?",
     product: "Product",
     productPlaceholder: "e.g. Business Cards",

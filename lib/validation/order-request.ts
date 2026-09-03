@@ -15,14 +15,14 @@ export type OrderRequestLanguage = "ar" | "en";
 const MESSAGES: Record<OrderRequestLanguage, ValidationMessages> = {
   en: {
     nameRequired: "Your name is required",
-    mobileInvalid: "Enter a valid 8-digit Kuwait mobile number, e.g. 5000 1111",
+    mobileInvalid: "Enter a Kuwait mobile number starting with +965, e.g. +965 5000 1111",
     productRequired: "Product is required",
     wholeNumbers: "Whole numbers only",
     positive: "Must be greater than 0",
   },
   ar: {
     nameRequired: "الاسم مطلوب",
-    mobileInvalid: "أدخل رقم جوال كويتي صحيح مكوّن من 8 أرقام، مثال: 5000 1111",
+    mobileInvalid: "أدخل رقم جوال كويتي يبدأ بـ +965، مثال: 965 5000 1111+",
     productRequired: "نوع الطلب مطلوب",
     wholeNumbers: "أرقام صحيحة فقط",
     positive: "لازم يكون أكبر من 0",
@@ -56,23 +56,18 @@ export function createOrderRequestSchema(lang: OrderRequestLanguage) {
   const m = MESSAGES[lang];
   return z.object({
     customerName: z.string().trim().min(1, m.nameRequired).max(200),
-    // customer_mobile goes straight to Twilio's WhatsApp send as-is (see
-    // toWhatsAppAddress, lib/notifications/providers/twilio-whatsapp.ts),
-    // which needs E.164 with the country code to actually reach them. The
-    // customer just types their local 8-digit number (no country code
-    // expected of them); +965 is prepended here automatically so the
-    // number that lands in the database is always send-ready.
+    // Required with the +965 country code, typed by the customer — not
+    // auto-added. customer_mobile goes straight to Twilio's WhatsApp send
+    // as-is (see toWhatsAppAddress, lib/notifications/providers/twilio-whatsapp.ts),
+    // which needs E.164 with the country code to actually reach them, and a
+    // silently-added prefix turned out to leave some customers unreachable
+    // (bad input slipping past auto-normalization) — so the country code is
+    // spelled out and required up front instead.
     customerMobile: z
       .string()
       .trim()
       .max(30)
-      .transform((val) => {
-        const cleaned = sanitizePhoneInput(val).replace(/[\s-]/g, "");
-        if (/^\+965\d{8}$/.test(cleaned)) return cleaned;
-        if (/^965\d{8}$/.test(cleaned)) return `+${cleaned}`;
-        if (/^\d{8}$/.test(cleaned)) return `+965${cleaned}`;
-        return cleaned;
-      })
+      .transform((val) => sanitizePhoneInput(val).replace(/[\s-]/g, ""))
       .refine((val) => /^\+965\d{8}$/.test(val), m.mobileInvalid),
     product: z.string().trim().min(1, m.productRequired).max(200),
     paper: z.string().trim().max(200).optional().or(z.literal("")),

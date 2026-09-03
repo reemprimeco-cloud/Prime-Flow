@@ -122,26 +122,11 @@ describe("submitOrderRequest", () => {
     expect(mockRecordAuditLog).not.toHaveBeenCalled();
   });
 
-  it("auto-prepends +965 to a plain local mobile number", async () => {
-    resetSupabaseMock({
-      orders: [{ data: { id: "order-1", order_number: "#1080" }, error: null }],
-      order_status_history: [{ data: null, error: null }],
-    });
+  it("rejects a mobile number without the +965 country code", async () => {
     const fd = minimalRequestFormData();
     fd.set("customerMobile", "55011111");
 
-    await submitOrderRequest(fd);
-
-    expect(insertsByTable.orders[0]).toEqual(
-      expect.objectContaining({ customer_mobile: "+96555011111" })
-    );
-  });
-
-  it("rejects a mobile number with the wrong number of digits", async () => {
-    const fd = minimalRequestFormData();
-    fd.set("customerMobile", "550111");
-
-    await expect(submitOrderRequest(fd)).rejects.toThrow();
+    await expect(submitOrderRequest(fd)).rejects.toThrow("+965");
     expect(mockRecordAuditLog).not.toHaveBeenCalled();
   });
 
