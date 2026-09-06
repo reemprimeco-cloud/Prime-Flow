@@ -31,7 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileUpload } from "@/components/shared/file-upload";
-import { DESIGN_FILE_ACCEPT, PRODUCT_IMAGE_ACCEPT } from "@/lib/files/constants";
+import { DESIGN_FILE_ACCEPT, MAX_TOTAL_UPLOAD_BYTES, PRODUCT_IMAGE_ACCEPT } from "@/lib/files/constants";
 import { cn } from "@/lib/utils";
 
 type OrderRequestValues = z.input<ReturnType<typeof createOrderRequestSchema>>;
@@ -108,6 +108,8 @@ const STRINGS = {
     receivedBody: "شكراً لك! فريقنا بيراجع طلبك ويأكده معك عبر واتساب قريباً.",
     another: "إرسال طلب ثاني",
     genericError: "صار خطأ، حاولي مرة ثانية.",
+    filesTooLarge: "حجم الملفات المرفقة كبير — قلّلي عدد الملفات أو حجمها وحاولي مرة ثانية، أو ابعتيه لنا عبر واتساب أو الإيميل.",
+    tooLargeHint: "تقدرين ترسلينه لنا عبر واتساب أو الإيميل.",
   },
   en: {
     dir: "ltr" as const,
@@ -158,6 +160,8 @@ const STRINGS = {
     receivedBody: "Thanks! Our team will review your request and confirm your order over WhatsApp shortly.",
     another: "Submit another request",
     genericError: "Something went wrong. Please try again.",
+    filesTooLarge: "Attached files are too large together — remove or shrink a file and try again, or send it to us over WhatsApp or email.",
+    tooLargeHint: "You can send it to us over WhatsApp or email.",
   },
 } satisfies Record<OrderRequestLanguage, Record<string, string>>;
 
@@ -190,6 +194,12 @@ export function OrderRequestForm() {
   });
 
   const onSubmit = async (values: OrderRequestInput) => {
+    const totalBytes = [...productImages, ...designFiles].reduce((sum, file) => sum + file.size, 0);
+    if (totalBytes > MAX_TOTAL_UPLOAD_BYTES) {
+      toast.error(t.filesTooLarge);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const fd = new FormData();
@@ -419,8 +429,22 @@ export function OrderRequestForm() {
 
           <SectionHeading icon={Paperclip} label={t.attachments} />
           <div className="flex flex-col gap-4">
-            <FileUpload label={t.productImages} accept={PRODUCT_IMAGE_ACCEPT} files={productImages} onChange={setProductImages} hint={t.uploadHint} />
-            <FileUpload label={t.designFiles} accept={DESIGN_FILE_ACCEPT} files={designFiles} onChange={setDesignFiles} hint={t.uploadHint} />
+            <FileUpload
+              label={t.productImages}
+              accept={PRODUCT_IMAGE_ACCEPT}
+              files={productImages}
+              onChange={setProductImages}
+              hint={t.uploadHint}
+              tooLargeHint={t.tooLargeHint}
+            />
+            <FileUpload
+              label={t.designFiles}
+              accept={DESIGN_FILE_ACCEPT}
+              files={designFiles}
+              onChange={setDesignFiles}
+              hint={t.uploadHint}
+              tooLargeHint={t.tooLargeHint}
+            />
           </div>
 
           <Separator />

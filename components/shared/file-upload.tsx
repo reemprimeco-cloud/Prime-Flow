@@ -25,6 +25,8 @@ interface FileUploadProps {
   removingId?: string | null;
   /** Overrides the "Click to upload..." hint under the dropzone icon — for a non-English caller (e.g. the public order request form's Arabic half). */
   hint?: string;
+  /** Extra sentence appended to the "file too large" toast — e.g. pointing a public customer at WhatsApp/email as a fallback, since staff on the internal order form don't need that suggestion. */
+  tooLargeHint?: string;
 }
 
 export function FileUpload({
@@ -37,6 +39,7 @@ export function FileUpload({
   onRemoveExisting,
   removingId,
   hint,
+  tooLargeHint,
 }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -48,11 +51,11 @@ export function FileUpload({
     const accepted = picked.filter((f) => f.size <= MAX_FILE_SIZE_BYTES);
     if (tooLarge.length > 0) {
       const maxMb = (MAX_FILE_SIZE_BYTES / (1024 * 1024)).toFixed(0);
-      toast.error(
+      const base =
         tooLarge.length === 1
           ? `"${tooLarge[0].name}" is too large — max ${maxMb}MB per file.`
-          : `${tooLarge.length} files are too large — max ${maxMb}MB per file.`
-      );
+          : `${tooLarge.length} files are too large — max ${maxMb}MB per file.`;
+      toast.error(tooLargeHint ? `${base} ${tooLargeHint}` : base);
     }
     if (accepted.length === 0) return;
 
