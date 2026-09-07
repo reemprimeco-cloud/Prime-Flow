@@ -329,46 +329,54 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                 )}
               </DetailSection>
 
-              {(order.productImages.length > 0 || order.designFiles.length > 0) && (
-                <DetailSection title="Design Approval">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Badge
-                      variant={
-                        order.designApprovalStatus === "approved"
-                          ? "success"
-                          : order.designApprovalStatus === "changes_requested"
-                            ? "destructive"
-                            : order.designApprovalStatus === "pending"
-                              ? "warning"
-                              : "muted"
-                      }
-                    >
-                      {DESIGN_APPROVAL_STATUS_LABELS[order.designApprovalStatus]}
-                    </Badge>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={designApprovalPending}
-                      onClick={handleSendDesignApproval}
-                      className="gap-2"
-                    >
-                      {designApprovalPending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
-                      {order.designApprovalStatus === "not_sent" ? "Send for Approval" : "Resend Link"}
-                    </Button>
-                  </div>
-                  {order.designApprovalStatus === "changes_requested" && order.designApprovalNote && (
-                    <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-foreground">
-                      &ldquo;{order.designApprovalNote}&rdquo;
-                    </p>
-                  )}
-                  {order.designApprovalStatus === "pending" && (
-                    <p className="text-xs text-muted-foreground">
-                      Start Production is blocked until the customer responds.
-                    </p>
-                  )}
-                </DetailSection>
-              )}
+              {(() => {
+                const hasFiles = order.productImages.length > 0 || order.designFiles.length > 0;
+                return (
+                  <DetailSection title="Design Approval">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Badge
+                        variant={
+                          order.designApprovalStatus === "approved"
+                            ? "success"
+                            : order.designApprovalStatus === "changes_requested"
+                              ? "destructive"
+                              : order.designApprovalStatus === "pending"
+                                ? "warning"
+                                : "muted"
+                        }
+                      >
+                        {DESIGN_APPROVAL_STATUS_LABELS[order.designApprovalStatus]}
+                      </Badge>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={!hasFiles || designApprovalPending}
+                        onClick={handleSendDesignApproval}
+                        className="gap-2"
+                      >
+                        {designApprovalPending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
+                        {order.designApprovalStatus === "not_sent" ? "Send for Approval" : "Resend Link"}
+                      </Button>
+                    </div>
+                    {!hasFiles && (
+                      <p className="text-xs text-muted-foreground">
+                        Upload a product image or design file below first — the customer needs something to review.
+                      </p>
+                    )}
+                    {order.designApprovalStatus === "changes_requested" && order.designApprovalNote && (
+                      <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-foreground">
+                        &ldquo;{order.designApprovalNote}&rdquo;
+                      </p>
+                    )}
+                    {order.designApprovalStatus === "pending" && (
+                      <p className="text-xs text-muted-foreground">
+                        Start Production is blocked until the customer responds.
+                      </p>
+                    )}
+                  </DetailSection>
+                );
+              })()}
 
               <DetailSection title="Product Images">
                 {order.productImages.length === 0 ? (
