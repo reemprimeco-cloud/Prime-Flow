@@ -137,6 +137,22 @@ describe("Order Creation — createOrder", () => {
     expect(mockBroadcast).toHaveBeenCalledWith("production", "order.created", { orderId: "order-1" });
   });
 
+  it("defaults delivery date and time to 48 hours from now when left blank", async () => {
+    resetSupabaseMock({
+      orders: [{ data: { id: "order-1", order_number: "#1050" }, error: null }],
+    });
+    const fd = minimalOrderFormData();
+    fd.set("deliveryDate", "");
+    fd.set("deliveryTime", "");
+
+    await createOrder(fd);
+
+    const insertCall = recordedOrdersCalls.find((c) => c.method === "insert");
+    const payload = insertCall?.args[0] as { delivery_date: string; delivery_time: string };
+    expect(payload.delivery_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(payload.delivery_time).toMatch(/^\d{2}:\d{2}$/);
+  });
+
   it("rejects when required fields are missing (server-side Zod validation, not just the client form)", async () => {
     const fd = minimalOrderFormData();
     fd.delete("customerName");

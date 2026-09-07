@@ -835,11 +835,24 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
 const DEMO_WRITE_ERROR = "This is a read-only demo — writes are disabled.";
 
+// Kuwait is UTC+3 with no daylight saving — same fixed-offset approach as
+// getTodayBoundsInKuwait (lib/utils/date.ts).
+const KUWAIT_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+/** Default delivery date/time when a manager leaves them blank on the order form: 48 hours from now, in Kuwait local time. */
+function defaultDeliveryDateTime(): { date: string; time: string } {
+  const kuwaitNow = new Date(Date.now() + 48 * 60 * 60 * 1000 + KUWAIT_OFFSET_MS);
+  return { date: kuwaitNow.toISOString().slice(0, 10), time: kuwaitNow.toISOString().slice(11, 16) };
+}
+
 export async function createOrder(formData: FormData): Promise<{ id: string }> {
   const session = await requireAdmin();
   if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
   const supabase = createServiceClient();
   const input = parseOrderForm(formData);
+  const fallbackDelivery = defaultDeliveryDateTime();
+  const deliveryDate = input.deliveryDate || fallbackDelivery.date;
+  const deliveryTime = input.deliveryTime || fallbackDelivery.time;
 
   // An item can be assigned to an employee who wasn't separately checked in
   // the "Assign Employees" list — folding item-level assignees into the
@@ -866,8 +879,8 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
       fulfillment_type: input.fulfillmentType,
       delivery_provider: input.deliveryProvider,
       priority: input.priority,
-      delivery_date: input.deliveryDate,
-      delivery_time: input.deliveryTime,
+      delivery_date: deliveryDate,
+      delivery_time: deliveryTime,
       delivery_address: input.deliveryAddress || null,
       delivery_map_link: input.deliveryMapLink || null,
       delivery_area: input.deliveryArea || null,
@@ -955,8 +968,8 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
         customerName: input.customerName,
         customerMobile: input.customerMobile,
         product: input.product,
-        deliveryDate: input.deliveryDate,
-        deliveryTime: input.deliveryTime,
+        deliveryDate,
+        deliveryTime,
         whatsappEnabled: input.whatsappEnabled,
         preferredChannel: input.preferredChannel,
         language: input.preferredLanguage,
@@ -977,8 +990,8 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
           orderId: order.id,
           orderNumber: order.order_number,
           product: input.product,
-          deliveryDate: input.deliveryDate,
-          deliveryTime: input.deliveryTime,
+          deliveryDate,
+          deliveryTime,
         };
         if (input.priority === "urgent") {
           await notifyEmployeeHighPriorityAssigned(context, session.employeeId, session.fullName);
@@ -1067,6 +1080,9 @@ export async function updateOrder(orderId: string, formData: FormData): Promise<
   if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
   const supabase = createServiceClient();
   const input = parseOrderForm(formData);
+  const fallbackDelivery = defaultDeliveryDateTime();
+  const deliveryDate = input.deliveryDate || fallbackDelivery.date;
+  const deliveryTime = input.deliveryTime || fallbackDelivery.time;
 
   // Whether this edit is the one that actually clears the order's approval
   // gate -- see sendOrderApprovedNotifications above for why that moment
@@ -1091,8 +1107,8 @@ export async function updateOrder(orderId: string, formData: FormData): Promise<
       fulfillment_type: input.fulfillmentType,
       delivery_provider: input.deliveryProvider,
       priority: input.priority,
-      delivery_date: input.deliveryDate,
-      delivery_time: input.deliveryTime,
+      delivery_date: deliveryDate,
+      delivery_time: deliveryTime,
       delivery_address: input.deliveryAddress || null,
       delivery_map_link: input.deliveryMapLink || null,
       delivery_area: input.deliveryArea || null,
@@ -1191,8 +1207,8 @@ export async function updateOrder(orderId: string, formData: FormData): Promise<
           orderId,
           orderNumber,
           product: input.product,
-          deliveryDate: input.deliveryDate,
-          deliveryTime: input.deliveryTime,
+          deliveryDate,
+          deliveryTime,
         };
 
         if (input.priority === "urgent") {
