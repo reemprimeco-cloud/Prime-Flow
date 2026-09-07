@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -20,15 +21,22 @@ const DEMO_EMPLOYEE_SESSION: SessionPayload = {
   role: "employee",
 };
 
-/** Reads and verifies the session cookie for the current request. Null if absent/invalid. */
-export async function getSession(): Promise<SessionPayload | null> {
+/**
+ * Reads and verifies the session cookie for the current request. Null if
+ * absent/invalid. Wrapped in React's `cache()` so the cookie read + JWT
+ * verify runs once per request no matter how many times it's called —
+ * every layout and page on a route calls one of the requireX functions
+ * below, and without this each of those redundantly re-verified the same
+ * token.
+ */
+export const getSession = cache(async (): Promise<SessionPayload | null> => {
   if (isDemoMode()) return DEMO_ADMIN_SESSION;
 
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   return verifySession(token);
-}
+});
 
 /** For Server Components/Actions on manager-only routes. Redirects otherwise. */
 export async function requireAdmin(): Promise<SessionPayload> {
