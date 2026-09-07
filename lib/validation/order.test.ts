@@ -85,9 +85,9 @@ describe("Order Creation — orderFormSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects a missing delivery date or time", () => {
-    expect(orderFormSchema.safeParse(validOrder({ deliveryDate: "" })).success).toBe(false);
-    expect(orderFormSchema.safeParse(validOrder({ deliveryTime: "" })).success).toBe(false);
+  it("allows a missing delivery date or time — the server defaults to 48h from now", () => {
+    expect(orderFormSchema.safeParse(validOrder({ deliveryDate: "" })).success).toBe(true);
+    expect(orderFormSchema.safeParse(validOrder({ deliveryTime: "" })).success).toBe(true);
   });
 
   it("rejects a non-UUID employee id", () => {

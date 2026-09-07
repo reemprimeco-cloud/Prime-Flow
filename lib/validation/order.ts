@@ -37,8 +37,10 @@ export const orderFormSchema = z.object({
   deliveryProvider: z.enum(["internal", "armada"]).default("internal"),
   priority: z.enum(["normal", "urgent"]),
   approved: z.boolean().default(false),
-  deliveryDate: z.string().min(1, "Delivery date is required"),
-  deliveryTime: z.string().min(1, "Delivery time is required"),
+  // Left blank, the server defaults both to 48 hours from now — see
+  // defaultDeliveryDateTime in lib/actions/orders.ts.
+  deliveryDate: z.string().optional().or(z.literal("")),
+  deliveryTime: z.string().optional().or(z.literal("")),
   deliveryAddress: z.string().trim().max(500).optional().or(z.literal("")),
   deliveryMapLink: z.string().trim().max(1000).optional().or(z.literal("")),
   // Structured Kuwait address — what Armada actually prices delivery from

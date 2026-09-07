@@ -264,8 +264,8 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
         formData.set("deliveryProvider", values.deliveryProvider ?? "internal");
         formData.set("priority", values.priority);
         formData.set("approved", String(values.approved));
-        formData.set("deliveryDate", values.deliveryDate);
-        formData.set("deliveryTime", values.deliveryTime);
+        formData.set("deliveryDate", values.deliveryDate ?? "");
+        formData.set("deliveryTime", values.deliveryTime ?? "");
         formData.set("deliveryAddress", values.deliveryAddress ?? "");
         formData.set("deliveryMapLink", values.deliveryMapLink ?? "");
         formData.set("deliveryArea", values.deliveryArea ?? "");
@@ -584,10 +584,10 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
             <section className="flex flex-col gap-4">
               <h3 className="text-sm font-bold text-muted-foreground">Delivery</h3>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Delivery Date" error={errors.deliveryDate?.message}>
+                <Field label="Delivery Date (optional — defaults to 48h from now)" error={errors.deliveryDate?.message}>
                   <Input type="date" {...register("deliveryDate")} aria-invalid={!!errors.deliveryDate} />
                 </Field>
-                <Field label="Delivery Time" error={errors.deliveryTime?.message}>
+                <Field label="Delivery Time (optional — defaults to 48h from now)" error={errors.deliveryTime?.message}>
                   <Input type="time" {...register("deliveryTime")} aria-invalid={!!errors.deliveryTime} />
                 </Field>
                 <Field label="Fulfillment">
