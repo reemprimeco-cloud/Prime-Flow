@@ -170,6 +170,29 @@ export function JobCard({
 
       <MaterialRequestBadge types={job.pendingMaterialTypes} />
 
+      {job.productImages.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Product Images
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {job.productImages.map((file) => (
+              <a
+                key={file.id}
+                href={file.url ?? undefined}
+                download={file.fileName}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 rounded-lg border border-secondary/30 bg-secondary/10 px-3 py-1.5 text-xs font-semibold text-secondary hover:bg-secondary/15"
+              >
+                <Download className="size-3.5 shrink-0" />
+                {file.fileName}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
       {job.designFiles.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
