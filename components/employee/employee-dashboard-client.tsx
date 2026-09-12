@@ -13,6 +13,7 @@ import {
   type EmployeeJobItem,
   type MyJobsResult,
 } from "@/lib/actions/employee-jobs";
+import { requestDesignApproval } from "@/lib/actions/design-approval";
 import { useRealtimeChannel } from "@/lib/realtime/use-realtime-channel";
 import { CHANNELS } from "@/lib/realtime/constants";
 import { EmployeeTopBar } from "@/components/employee/employee-top-bar";
@@ -56,6 +57,7 @@ export function EmployeeDashboardClient({ initialJobs, fullName }: EmployeeDashb
   });
 
   const [actioningId, setActioningId] = useState<string | null>(null);
+  const [approvalTargetId, setApprovalTargetId] = useState<string | null>(null);
   const [noteTarget, setNoteTarget] = useState<EmployeeJobItem | null>(null);
   const [materialTarget, setMaterialTarget] = useState<EmployeeJobItem | null>(null);
   const [itemsTarget, setItemsTarget] = useState<EmployeeJobItem | null>(null);
@@ -87,6 +89,17 @@ export function EmployeeDashboardClient({ initialJobs, fullName }: EmployeeDashb
       })
       .catch((error) => toast.error(error instanceof Error ? error.message : "Failed to update status"))
       .finally(() => setActioningId(null));
+  };
+
+  const handleRequestApproval = (job: EmployeeJobItem) => {
+    setApprovalTargetId(job.id);
+    requestDesignApproval(job.id)
+      .then(() => {
+        toast.success("Approval link sent to the customer");
+        queryClient.invalidateQueries({ queryKey: ["my-jobs"] });
+      })
+      .catch((error) => toast.error(error instanceof Error ? error.message : "Failed to send the approval link"))
+      .finally(() => setApprovalTargetId(null));
   };
 
   const handleHandOff = (job: EmployeeJobItem) => {
@@ -134,6 +147,9 @@ export function EmployeeDashboardClient({ initialJobs, fullName }: EmployeeDashb
                 onAddNote={() => setNoteTarget(job)}
                 onRequestMaterial={() => setMaterialTarget(job)}
                 onOpenItems={() => setItemsTarget(job)}
+                canRequestDesignApproval={data.canRequestDesignApproval}
+                designApprovalPending={approvalTargetId === job.id}
+                onRequestApproval={() => handleRequestApproval(job)}
               />
             ))}
           </div>
@@ -160,6 +176,9 @@ export function EmployeeDashboardClient({ initialJobs, fullName }: EmployeeDashb
                 isNext={index === 0}
                 pending={actioningId === job.id}
                 onStart={() => handleStatusChange(job, "in_progress")}
+                canRequestDesignApproval={data.canRequestDesignApproval}
+                designApprovalPending={approvalTargetId === job.id}
+                onRequestApproval={() => handleRequestApproval(job)}
               />
             ))}
           </div>
