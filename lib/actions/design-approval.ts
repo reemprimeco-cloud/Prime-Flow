@@ -4,7 +4,7 @@ import crypto from "node:crypto";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
-import { requireAdmin } from "@/lib/auth/guards";
+import { requireSession } from "@/lib/auth/guards";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendOrderApprovedNotifications, signUrls } from "@/lib/actions/orders";
 import { broadcast, CHANNELS } from "@/lib/realtime/channels";
@@ -46,18 +46,34 @@ async function buildApprovalLink(token: string): Promise<string> {
 }
 
 /**
- * Admin action — "Send for Approval" on the order detail drawer
- * (components/orders/order-detail-drawer.tsx). Always issues a fresh token,
- * so a previously-sent link stops working once a new one goes out (and any
- * stale note/response from a prior round is cleared). WhatsApps the
- * customer a link to app/approve/[token]; once they respond, Start
- * Production stays blocked until it's "approved" — see the gate in
- * lib/actions/status-transition.ts.
+ * "Send for Approval" on the order detail drawer
+ * (components/orders/order-detail-drawer.tsx) and, for employees granted the
+ * permission, the employee dashboard (components/employee/job-card.tsx /
+ * queue-card.tsx). Admins can always do this; a non-admin employee needs
+ * employees.can_request_design_approval set (see the employee edit form) —
+ * e.g. a graphic designer who should be able to get sign-off before
+ * production starts without needing admin access to the whole dashboard.
+ * Always issues a fresh token, so a previously-sent link stops working once
+ * a new one goes out (and any stale note/response from a prior round is
+ * cleared). WhatsApps the customer a link to app/approve/[token]; once they
+ * respond, Start Production stays blocked until it's "approved" — see the
+ * gate in lib/actions/status-transition.ts.
  */
 export async function requestDesignApproval(orderId: string): Promise<void> {
-  const session = await requireAdmin();
+  const session = await requireSession();
   if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
   const supabase = createServiceClient();
+
+  if (session.role !== "admin") {
+    const { data: actingEmployee } = await supabase
+      .from("employees")
+      .select("can_request_design_approval")
+      .eq("id", session.employeeId)
+      .maybeSingle();
+    if (!actingEmployee?.can_request_design_approval) {
+      throw new Error("You don't have permission to request customer design approval.");
+    }
+  }
 
   const { data: order, error } = await supabase
     .from("orders")

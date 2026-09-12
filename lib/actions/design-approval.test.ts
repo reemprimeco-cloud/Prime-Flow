@@ -14,7 +14,7 @@ vi.mock("@/lib/demo/data", () => ({ getDemoDesignApprovalByToken: vi.fn(() => nu
 vi.mock("@/lib/audit/log", () => ({ recordAuditLog: mockRecordAuditLog }));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 vi.mock("next/headers", () => ({ headers: vi.fn(async () => new Map()) }));
-vi.mock("@/lib/auth/guards", () => ({ requireAdmin: vi.fn() }));
+vi.mock("@/lib/auth/guards", () => ({ requireAdmin: vi.fn(), requireSession: vi.fn() }));
 vi.mock("@/lib/realtime/channels", () => ({
   broadcast: mockBroadcast,
   CHANNELS: { production: "production" },
@@ -61,7 +61,23 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-import { respondToDesignApproval } from "@/lib/actions/design-approval";
+import { requestDesignApproval, respondToDesignApproval } from "@/lib/actions/design-approval";
+import { requireSession } from "@/lib/auth/guards";
+
+const mockRequireSession = vi.mocked(requireSession);
+
+function requestableOrderRow(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    order_number: "#1050",
+    customer_name: "Layla Hassan",
+    customer_mobile: "+96555044444",
+    product: "Business Cards",
+    whatsapp_enabled: true,
+    preferred_channel: "whatsapp",
+    preferred_language: "en",
+    ...overrides,
+  };
+}
 
 function orderRow(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -138,5 +154,58 @@ describe("respondToDesignApproval", () => {
   it("blocks writes in demo mode", async () => {
     mockIsDemoMode.mockReturnValue(true);
     await expect(respondToDesignApproval("tok", "approved")).rejects.toThrow("read-only demo");
+  });
+});
+
+describe("requestDesignApproval", () => {
+  it("lets an admin send the approval link without checking employees.can_request_design_approval", async () => {
+    mockRequireSession.mockResolvedValue({ employeeId: "admin-1", username: "rana", fullName: "Rana Al-Fadhli", role: "admin" });
+    resetSupabaseMock({
+      orders: [
+        { data: requestableOrderRow(), error: null },
+        { data: null, error: null },
+      ],
+    });
+
+    await requestDesignApproval("order-1");
+
+    expect(tableCallCounts.employees ?? 0).toBe(0);
+  });
+
+  it("rejects a non-admin employee without the permission flag", async () => {
+    mockRequireSession.mockResolvedValue({ employeeId: "emp-1", username: "hamdy", fullName: "Hamdy", role: "employee" });
+    resetSupabaseMock({
+      employees: [{ data: { can_request_design_approval: false }, error: null }],
+    });
+
+    await expect(requestDesignApproval("order-1")).rejects.toThrow("don't have permission");
+  });
+
+  it("lets a non-admin employee with the permission flag send the approval link", async () => {
+    mockRequireSession.mockResolvedValue({ employeeId: "emp-1", username: "hamdy", fullName: "Hamdy", role: "employee" });
+    resetSupabaseMock({
+      employees: [{ data: { can_request_design_approval: true }, error: null }],
+      orders: [
+        { data: requestableOrderRow(), error: null },
+        { data: null, error: null },
+      ],
+    });
+
+    await expect(requestDesignApproval("order-1")).resolves.toBeUndefined();
+  });
+
+  it("rejects a non-admin employee with no employees row found", async () => {
+    mockRequireSession.mockResolvedValue({ employeeId: "emp-1", username: "hamdy", fullName: "Hamdy", role: "employee" });
+    resetSupabaseMock({
+      employees: [{ data: null, error: null }],
+    });
+
+    await expect(requestDesignApproval("order-1")).rejects.toThrow("don't have permission");
+  });
+
+  it("blocks writes in demo mode", async () => {
+    mockRequireSession.mockResolvedValue({ employeeId: "admin-1", username: "rana", fullName: "Rana Al-Fadhli", role: "admin" });
+    mockIsDemoMode.mockReturnValue(true);
+    await expect(requestDesignApproval("order-1")).rejects.toThrow("read-only demo");
   });
 });

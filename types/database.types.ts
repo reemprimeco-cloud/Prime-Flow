@@ -76,6 +76,7 @@ export type Database = {
       employees: {
         Row: {
           active: boolean
+          can_request_design_approval: boolean
           created_at: string
           full_name: string
           id: string
@@ -87,6 +88,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          can_request_design_approval?: boolean
           created_at?: string
           full_name: string
           id?: string
@@ -98,6 +100,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          can_request_design_approval?: boolean
           created_at?: string
           full_name?: string
           id?: string

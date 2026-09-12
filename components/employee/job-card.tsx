@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CountdownTimer, useCountdownColor } from "@/components/orders/countdown-timer";
+import { DesignApprovalControl } from "@/components/employee/design-approval-control";
 import { MaterialRequestBadge } from "@/components/orders/material-request-badge";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { StatusActions } from "@/components/orders/status-actions";
@@ -33,6 +34,10 @@ interface JobCardProps {
   onAddNote: () => void;
   onRequestMaterial: () => void;
   onOpenItems: () => void;
+  /** Whether the *signed-in* employee (not this specific job) has permission to send the customer a design-approval link. */
+  canRequestDesignApproval: boolean;
+  designApprovalPending: boolean;
+  onRequestApproval: () => void;
 }
 
 export function JobCard({
@@ -44,6 +49,9 @@ export function JobCard({
   onAddNote,
   onRequestMaterial,
   onOpenItems,
+  canRequestDesignApproval,
+  designApprovalPending,
+  onRequestApproval,
 }: JobCardProps) {
   const countdownColor = useCountdownColor(job.deliveryDate, job.deliveryTime);
   const heroImage = job.productImages[0];
@@ -170,6 +178,10 @@ export function JobCard({
 
       <MaterialRequestBadge types={job.pendingMaterialTypes} />
 
+      {canRequestDesignApproval && (
+        <DesignApprovalControl job={job} pending={designApprovalPending} onRequest={onRequestApproval} />
+      )}
+
       {job.productImages.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -223,7 +235,13 @@ export function JobCard({
           isOutsourced={isOutsourced}
           pending={pending}
           onChange={onStatusChange}
-          suppressDoneAction={hasMultipleItems}
+          // A mid-chain hand-off employee (canHandOff — someone else still
+          // has a later stage to do) must not be able to jump straight to
+          // the customer-facing "done" action themselves: that's how a
+          // customer got a premature "ready for pickup" WhatsApp message
+          // while the order still had another employee's stage left to go.
+          // Their only "done" action here is "Ready for Next" below.
+          suppressDoneAction={hasMultipleItems || job.canHandOff}
           size="default"
         />
         {job.canHandOff && (
