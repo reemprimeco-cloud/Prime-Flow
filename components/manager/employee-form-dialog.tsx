@@ -33,6 +33,7 @@ interface EmployeeFormValues {
   role: EmployeeRole;
   phone?: string;
   isOutsourced: boolean;
+  canRequestDesignApproval: boolean;
 }
 
 interface EmployeeFormDialogProps {
@@ -49,6 +50,7 @@ function defaultValues(employee?: EmployeeListItem | null): EmployeeFormValues {
     role: employee?.role ?? "employee",
     phone: employee?.phone ?? "",
     isOutsourced: employee?.isOutsourced ?? false,
+    canRequestDesignApproval: employee?.canRequestDesignApproval ?? false,
   };
 }
 
@@ -77,6 +79,7 @@ export function EmployeeFormDialog({ open, onOpenChange, employee }: EmployeeFor
           role: employeeRoleSchema,
           phone: z.string().trim().max(30).optional().or(z.literal("")),
           isOutsourced: z.boolean(),
+          canRequestDesignApproval: z.boolean(),
         })
         .superRefine((data, ctx) => {
           if (isEdit) return;
@@ -113,6 +116,7 @@ export function EmployeeFormDialog({ open, onOpenChange, employee }: EmployeeFor
           role: values.role,
           phone: values.phone,
           isOutsourced: values.isOutsourced,
+          canRequestDesignApproval: values.canRequestDesignApproval,
         });
       } else {
         // superRefine above already guarantees non-empty username/password
@@ -124,6 +128,7 @@ export function EmployeeFormDialog({ open, onOpenChange, employee }: EmployeeFor
           role: values.role,
           phone: values.phone,
           isOutsourced: values.isOutsourced,
+          canRequestDesignApproval: values.canRequestDesignApproval,
         });
       }
     },
@@ -200,6 +205,23 @@ export function EmployeeFormDialog({ open, onOpenChange, employee }: EmployeeFor
               name="isOutsourced"
               render={({ field }) => (
                 <Switch id="isOutsourced" checked={field.value} onCheckedChange={field.onChange} />
+              )}
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border p-3">
+            <div>
+              <Label htmlFor="canRequestDesignApproval">Can send design approval to customer</Label>
+              <p className="text-xs text-muted-foreground">
+                Lets this employee request the customer&apos;s design approval before production starts —
+                normally admin-only (e.g. a graphic designer).
+              </p>
+            </div>
+            <Controller
+              control={control}
+              name="canRequestDesignApproval"
+              render={({ field }) => (
+                <Switch id="canRequestDesignApproval" checked={field.value} onCheckedChange={field.onChange} />
               )}
             />
           </div>

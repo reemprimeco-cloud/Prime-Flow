@@ -25,7 +25,14 @@ import {
   PRIMARY_ITEM_ID,
   PRIORITY_SORT_WEIGHT,
 } from "@/types/domain";
-import type { MaterialType, OrderDeliveryProvider, OrderFulfillmentType, OrderPriority, OrderStatus } from "@/types/database.types";
+import type {
+  DesignApprovalStatus,
+  MaterialType,
+  OrderDeliveryProvider,
+  OrderFulfillmentType,
+  OrderPriority,
+  OrderStatus,
+} from "@/types/database.types";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
 
@@ -65,6 +72,8 @@ export interface EmployeeJobItem {
   managerNotes: string | null;
   productImages: { id: string; fileName: string; url: string | null }[];
   designFiles: { id: string; fileName: string; url: string | null }[];
+  designApprovalStatus: DesignApprovalStatus;
+  designApprovalNote: string | null;
   pendingMaterialTypes: MaterialType[];
   assignedAt: string;
   /** True when this job is part of a sequential hand-off chain and someone else picks it up after this employee. Drives the "Ready for Next" button. */
@@ -84,6 +93,8 @@ export interface MyJobsResult {
   completedToday: number;
   /** Whether the *acting* employee (not each job) is an outsourced worker — drives which "done" action their job cards show. */
   isOutsourced: boolean;
+  /** Whether the *acting* employee can send the customer a design-approval link — normally admin-only, granted per-employee (e.g. a graphic designer). See lib/actions/design-approval.ts. */
+  canRequestDesignApproval: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -101,9 +112,14 @@ export async function getMyJobs(): Promise<MyJobsResult> {
       .from("order_assignments")
       .select("order_id, assigned_at, sequence, handed_off_at")
       .eq("employee_id", session.employeeId),
-    supabase.from("employees").select("is_outsourced").eq("id", session.employeeId).maybeSingle(),
+    supabase
+      .from("employees")
+      .select("is_outsourced, can_request_design_approval")
+      .eq("id", session.employeeId)
+      .maybeSingle(),
   ]);
   const isOutsourced = employeeRow?.is_outsourced ?? false;
+  const canRequestDesignApproval = session.role === "admin" || (employeeRow?.can_request_design_approval ?? false);
 
   const completedToday = await countCompletedToday(supabase, session.employeeId);
 
@@ -111,7 +127,7 @@ export async function getMyJobs(): Promise<MyJobsResult> {
   // it's already excluded here rather than filtered out later.
   const myAssignments = (assignments ?? []).filter((a) => !a.handed_off_at);
   const orderIds = myAssignments.map((a) => a.order_id);
-  if (orderIds.length === 0) return { active: [], queue: [], completedToday, isOutsourced };
+  if (orderIds.length === 0) return { active: [], queue: [], completedToday, isOutsourced, canRequestDesignApproval };
 
   const assignedAtByOrder = new Map(myAssignments.map((a) => [a.order_id, a.assigned_at]));
   const mySequenceByOrder = new Map(myAssignments.map((a) => [a.order_id, a.sequence]));
@@ -119,13 +135,13 @@ export async function getMyJobs(): Promise<MyJobsResult> {
   const { data: orders, error } = await supabase
     .from("orders")
     .select(
-      "id, order_number, customer_name, customer_mobile, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, delivery_address, delivery_map_link, status, fulfillment_type, notes, item_ready, approved"
+      "id, order_number, customer_name, customer_mobile, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, delivery_address, delivery_map_link, status, fulfillment_type, notes, item_ready, approved, design_approval_status, design_approval_note"
     )
     .in("id", orderIds)
     .eq("archived", false)
     .not("status", "in", "(collected,delivered,completed)");
   if (error) throw new Error(error.message);
-  if (!orders || orders.length === 0) return { active: [], queue: [], completedToday, isOutsourced };
+  if (!orders || orders.length === 0) return { active: [], queue: [], completedToday, isOutsourced, canRequestDesignApproval };
 
   const jobOrderIds = orders.map((o) => o.id);
   const [{ data: fileRows }, { data: materialRows }, { data: allAssignmentRows }, { data: itemRows }] = await Promise.all([
@@ -194,7 +210,7 @@ export async function getMyJobs(): Promise<MyJobsResult> {
   }
 
   const visibleOrders = orders.filter((o) => !lockedOrderIds.has(o.id));
-  if (visibleOrders.length === 0) return { active: [], queue: [], completedToday, isOutsourced };
+  if (visibleOrders.length === 0) return { active: [], queue: [], completedToday, isOutsourced, canRequestDesignApproval };
 
   const nextEmployeeNamesById = await fetchEmployeeNames(supabase, [...new Set(nextEmployeeIdByOrder.values())]);
 
@@ -259,6 +275,8 @@ export async function getMyJobs(): Promise<MyJobsResult> {
         fileName: f.fileName,
         url: designUrls.get(f.storagePath) ?? null,
       })),
+      designApprovalStatus: o.design_approval_status,
+      designApprovalNote: o.design_approval_note,
       pendingMaterialTypes: pendingTypesByOrder.get(o.id) ?? [],
       assignedAt: assignedAtByOrder.get(o.id) ?? new Date(0).toISOString(),
       canHandOff: nextEmployeeId != null,
@@ -276,7 +294,7 @@ export async function getMyJobs(): Promise<MyJobsResult> {
     .filter((j) => j.status === "new")
     .sort((a, b) => byPriorityThenDelivery(a, b) || a.assignedAt.localeCompare(b.assignedAt));
 
-  return { active, queue, completedToday, isOutsourced };
+  return { active, queue, completedToday, isOutsourced, canRequestDesignApproval };
 }
 
 function byPriorityThenDelivery(a: EmployeeJobItem, b: EmployeeJobItem): number {

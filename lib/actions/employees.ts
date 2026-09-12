@@ -30,6 +30,8 @@ export interface EmployeeListItem {
   phone: string | null;
   active: boolean;
   isOutsourced: boolean;
+  /** Lets this employee send the customer a design-approval link before production starts — normally admin-only. See lib/actions/design-approval.ts. */
+  canRequestDesignApproval: boolean;
   createdAt: string;
 }
 
@@ -40,7 +42,7 @@ export async function listEmployees(): Promise<EmployeeListItem[]> {
 
   const { data, error } = await supabase
     .from("employees")
-    .select("id, username, full_name, role, phone, active, is_outsourced, created_at")
+    .select("id, username, full_name, role, phone, active, is_outsourced, can_request_design_approval, created_at")
     .order("full_name");
 
   if (error) throw new Error(error.message);
@@ -53,6 +55,7 @@ export async function listEmployees(): Promise<EmployeeListItem[]> {
     phone: row.phone,
     active: row.active,
     isOutsourced: row.is_outsourced,
+    canRequestDesignApproval: row.can_request_design_approval,
     createdAt: row.created_at,
   }));
 }
@@ -129,6 +132,7 @@ export async function createEmployee(input: CreateEmployeeInput): Promise<{ id: 
       role: data.role,
       phone: data.phone || null,
       is_outsourced: data.isOutsourced,
+      can_request_design_approval: data.canRequestDesignApproval,
     })
     .select("id")
     .single();
@@ -172,6 +176,7 @@ export async function updateEmployee(employeeId: string, input: UpdateEmployeeIn
       role: data.role,
       phone: data.phone || null,
       is_outsourced: data.isOutsourced,
+      can_request_design_approval: data.canRequestDesignApproval,
     })
     .eq("id", employeeId);
   if (error) throw new Error(error.message);

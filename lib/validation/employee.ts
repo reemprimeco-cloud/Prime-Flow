@@ -21,6 +21,7 @@ export const createEmployeeSchema = z.object({
   role: employeeRoleSchema,
   phone: z.string().trim().max(30).transform(sanitizePhoneInput).optional().or(z.literal("")),
   isOutsourced: z.boolean().default(false),
+  canRequestDesignApproval: z.boolean().default(false),
 });
 
 export const updateEmployeeSchema = z.object({
@@ -28,6 +29,7 @@ export const updateEmployeeSchema = z.object({
   role: employeeRoleSchema,
   phone: z.string().trim().max(30).transform(sanitizePhoneInput).optional().or(z.literal("")),
   isOutsourced: z.boolean().default(false),
+  canRequestDesignApproval: z.boolean().default(false),
 });
 
 export const resetPasswordSchema = z.object({
