@@ -378,6 +378,17 @@ async function signUrls(
 const DEMO_WRITE_ERROR = "This is a read-only demo — writes are disabled.";
 
 /**
+ * Requested 2026-09-13: pause the admin_order_status_changed WhatsApp/push
+ * alert specifically for status changes an EMPLOYEE makes from their own
+ * dashboard (updateEmployeeJobStatus / toggleJobItemReady /
+ * submitMaterialRequestForJob, all routed through notifyAdmins below) — the
+ * note-added alert and the WooCommerce-triggered admin_order_status_changed
+ * (app/api/webhooks/woocommerce/route.ts) are untouched. Temporary — flip
+ * back to false to restore it.
+ */
+const PAUSE_EMPLOYEE_STATUS_CHANGE_ADMIN_ALERTS = true;
+
+/**
  * Keeps the manager in the loop on the shop floor without them having to
  * watch the dashboard — every active admin gets a WhatsApp message whenever
  * an employee adds a note or moves an order's status. Admins aren't tracked
@@ -393,6 +404,8 @@ async function notifyAdmins(
   actorId: string,
   actorName: string
 ): Promise<void> {
+  if (templateName === "admin_order_status_changed" && PAUSE_EMPLOYEE_STATUS_CHANGE_ADMIN_ALERTS) return;
+
   const { data: admins } = await supabase.from("employees").select("id, phone").eq("role", "admin").eq("active", true);
   if (!admins || admins.length === 0) return;
 
