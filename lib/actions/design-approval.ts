@@ -4,7 +4,7 @@ import crypto from "node:crypto";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
-import { requireSession } from "@/lib/auth/guards";
+import { requireAdmin, requireSession } from "@/lib/auth/guards";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendOrderApprovedNotifications, signUrls } from "@/lib/actions/orders";
 import { broadcast, CHANNELS } from "@/lib/realtime/channels";
@@ -127,6 +127,63 @@ export async function requestDesignApproval(orderId: string): Promise<void> {
     entityId: orderId,
     orderId,
     newValue: { orderNumber: order.order_number },
+  });
+
+  await broadcast(CHANNELS.production, "order.updated", { orderId });
+  revalidatePath("/dashboard");
+}
+
+/**
+ * Admin-only: records the customer's approval when it arrived outside the
+ * link — typically a "yes" on WhatsApp — so Start Production is unblocked
+ * for everyone (the gate in lib/actions/status-transition.ts applies to
+ * admins too, and Override Status skips the gate but leaves the order
+ * showing "Awaiting Customer Approval" forever). Mirrors what the customer's
+ * own Approve click does (respondToDesignApproval): flips the design status
+ * AND orders.approved, firing the deferred "order confirmed" notifications
+ * if this is the moment the order clears approval. Once approved, the
+ * customer's link becomes inert on its own (respondToDesignApproval only
+ * acts while pending). No-op if already approved.
+ */
+export async function markDesignApprovedManually(orderId: string): Promise<void> {
+  const session = await requireAdmin();
+  if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
+  const supabase = createServiceClient();
+
+  const { data: order, error } = await supabase
+    .from("orders")
+    .select("order_number, design_approval_status, approved")
+    .eq("id", orderId)
+    .single();
+  if (error || !order) throw new Error(error?.message ?? "Order not found");
+  if (order.design_approval_status === "approved") return;
+
+  const justApproved = !order.approved;
+  const note = `Approved by ${session.fullName} — customer confirmed outside the link (e.g. WhatsApp)`;
+
+  const { error: updateError } = await supabase
+    .from("orders")
+    .update({
+      design_approval_status: "approved",
+      design_approval_note: note,
+      design_approval_responded_at: new Date().toISOString(),
+      approved: true,
+    })
+    .eq("id", orderId);
+  if (updateError) throw new Error(updateError.message);
+
+  if (justApproved) {
+    await sendOrderApprovedNotifications(supabase, orderId, session.employeeId, session.fullName);
+  }
+
+  await recordAuditLog({
+    actorId: session.employeeId,
+    actorName: session.fullName,
+    action: "design_approval_responded",
+    entityType: "order",
+    entityId: orderId,
+    orderId,
+    newValue: { status: "approved", manual: true, orderNumber: order.order_number },
   });
 
   await broadcast(CHANNELS.production, "order.updated", { orderId });
