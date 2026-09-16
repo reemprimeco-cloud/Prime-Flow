@@ -61,10 +61,12 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-import { requestDesignApproval, respondToDesignApproval } from "@/lib/actions/design-approval";
-import { requireSession } from "@/lib/auth/guards";
+import { markDesignApprovedManually, requestDesignApproval, respondToDesignApproval } from "@/lib/actions/design-approval";
+import { requireAdmin, requireSession } from "@/lib/auth/guards";
 
 const mockRequireSession = vi.mocked(requireSession);
+const mockRequireAdmin = vi.mocked(requireAdmin);
+const ADMIN_SESSION = { employeeId: "admin-1", username: "rana", fullName: "Rana Al-Fadhli", role: "admin" as const };
 
 function requestableOrderRow(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -207,5 +209,58 @@ describe("requestDesignApproval", () => {
     mockRequireSession.mockResolvedValue({ employeeId: "admin-1", username: "rana", fullName: "Rana Al-Fadhli", role: "admin" });
     mockIsDemoMode.mockReturnValue(true);
     await expect(requestDesignApproval("order-1")).rejects.toThrow("read-only demo");
+  });
+});
+
+describe("markDesignApprovedManually", () => {
+  it("flips the design status to approved and, when the order was still unapproved, fires the deferred notification burst", async () => {
+    mockRequireAdmin.mockResolvedValue(ADMIN_SESSION);
+    resetSupabaseMock({
+      orders: [
+        { data: { order_number: "#1100", design_approval_status: "pending", approved: false }, error: null },
+        { data: null, error: null }, // update
+      ],
+    });
+
+    await markDesignApprovedManually("order-1");
+
+    expect(mockSendOrderApprovedNotifications).toHaveBeenCalledWith(expect.anything(), "order-1", "admin-1", "Rana Al-Fadhli");
+    expect(mockRecordAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "design_approval_responded", newValue: expect.objectContaining({ status: "approved", manual: true }) })
+    );
+    expect(mockBroadcast).toHaveBeenCalledWith("production", "order.updated", { orderId: "order-1" });
+  });
+
+  it("doesn't re-fire the notification burst when the order was already approved for production", async () => {
+    mockRequireAdmin.mockResolvedValue(ADMIN_SESSION);
+    resetSupabaseMock({
+      orders: [
+        { data: { order_number: "#1100", design_approval_status: "changes_requested", approved: true }, error: null },
+        { data: null, error: null },
+      ],
+    });
+
+    await markDesignApprovedManually("order-1");
+
+    expect(mockSendOrderApprovedNotifications).not.toHaveBeenCalled();
+    expect(mockRecordAuditLog).toHaveBeenCalledTimes(1);
+  });
+
+  it("is a no-op when the design is already approved", async () => {
+    mockRequireAdmin.mockResolvedValue(ADMIN_SESSION);
+    resetSupabaseMock({
+      orders: [{ data: { order_number: "#1100", design_approval_status: "approved", approved: true }, error: null }],
+    });
+
+    await markDesignApprovedManually("order-1");
+
+    expect(mockRecordAuditLog).not.toHaveBeenCalled();
+    expect(mockBroadcast).not.toHaveBeenCalled();
+  });
+
+  it("blocks writes in demo mode", async () => {
+    mockRequireAdmin.mockResolvedValue(ADMIN_SESSION);
+    mockIsDemoMode.mockReturnValue(true);
+    await expect(markDesignApprovedManually("order-1")).rejects.toThrow("read-only demo");
   });
 });

@@ -4,12 +4,12 @@ import { useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { format, parseISO } from "date-fns";
-import { ExternalLink, FileText, ImageIcon, Loader2, MapPin, MessageSquareText, Pencil, Send, ShieldAlert, Truck, Undo2 } from "lucide-react";
+import { CheckCircle2, ExternalLink, FileText, ImageIcon, Loader2, MapPin, MessageSquareText, Pencil, Send, ShieldAlert, Truck, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { getOrderDetail, updateOrderStatus } from "@/lib/actions/orders";
 import { cancelArmadaDeliveryAction, retryArmadaDispatch } from "@/lib/actions/armada";
-import { requestDesignApproval } from "@/lib/actions/design-approval";
+import { markDesignApprovedManually, requestDesignApproval } from "@/lib/actions/design-approval";
 import { buildGoogleMapsLink } from "@/lib/utils/maps";
 import { formatDeliveryTime } from "@/lib/utils/countdown";
 import { useRealtimeChannel } from "@/lib/realtime/use-realtime-channel";
@@ -31,6 +31,7 @@ import { StatusActions } from "@/components/orders/status-actions";
 import { CountdownTimer } from "@/components/orders/countdown-timer";
 import { OrderTimeline } from "@/components/orders/order-timeline";
 import { OverrideStatusDialog } from "@/components/orders/override-status-dialog";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import {
   DELAYABLE_STATUSES,
   DESIGN_APPROVAL_STATUS_LABELS,
@@ -51,6 +52,7 @@ interface OrderDetailDrawerProps {
 export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: OrderDetailDrawerProps) {
   const queryClient = useQueryClient();
   const [overrideOpen, setOverrideOpen] = useState(false);
+  const [manualApproveOpen, setManualApproveOpen] = useState(false);
   const [statusPending, setStatusPending] = useState(false);
   const [armadaActionPending, startArmadaAction] = useTransition();
   const [designApprovalPending, startDesignApprovalAction] = useTransition();
@@ -116,6 +118,20 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
         refreshOrder();
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Failed to send the approval link");
+      }
+    });
+  };
+
+  const handleManualApprove = () => {
+    if (!order) return;
+    startDesignApprovalAction(async () => {
+      try {
+        await markDesignApprovedManually(order.id);
+        toast.success("Design marked as approved — production can start");
+        setManualApproveOpen(false);
+        refreshOrder();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to mark the design as approved");
       }
     });
   };
@@ -369,10 +385,23 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                         &ldquo;{order.designApprovalNote}&rdquo;
                       </p>
                     )}
-                    {order.designApprovalStatus === "pending" && (
-                      <p className="text-xs text-muted-foreground">
-                        Start Production is blocked until the customer responds.
-                      </p>
+                    {(order.designApprovalStatus === "pending" || order.designApprovalStatus === "changes_requested") && (
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs text-muted-foreground">
+                          Start Production is blocked until the customer approves — via the link, or confirmed to you directly.
+                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={designApprovalPending}
+                          onClick={() => setManualApproveOpen(true)}
+                          className="gap-2"
+                        >
+                          <CheckCircle2 className="size-3.5" />
+                          Customer approved via WhatsApp
+                        </Button>
+                      </div>
                     )}
                   </DetailSection>
                 );
@@ -508,6 +537,17 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
             }}
           />
         )}
+
+        <ConfirmDialog
+          open={manualApproveOpen}
+          onOpenChange={setManualApproveOpen}
+          title="Mark design as approved?"
+          description="Use this when the customer confirmed the design to you directly (e.g. on WhatsApp) instead of through the link. It's recorded under your name, and Start Production is unblocked."
+          confirmLabel="Mark approved"
+          destructive={false}
+          pending={designApprovalPending}
+          onConfirm={handleManualApprove}
+        />
       </SheetContent>
     </Sheet>
   );
