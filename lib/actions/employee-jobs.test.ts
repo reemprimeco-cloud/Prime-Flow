@@ -335,7 +335,7 @@ describe("Material Requests — submitMaterialRequestForJob", () => {
     await expect(submitMaterialRequestForJob("order-1", MATERIAL_REQUEST_INPUT)).rejects.toThrow("read-only demo");
   });
 
-  it("moves an in_progress order to waiting_materials and notifies admins with what's needed", async () => {
+  it("moves an in_progress order to waiting_materials (admin status-changed alert paused — see PAUSE_EMPLOYEE_STATUS_CHANGE_ADMIN_ALERTS)", async () => {
     resetSupabaseMock({
       order_assignments: [{ data: { id: "assignment-1" }, error: null }],
       material_requests: [{ data: null, error: null }], // insert
@@ -345,16 +345,11 @@ describe("Material Requests — submitMaterialRequestForJob", () => {
         { data: null, error: null }, // status update
       ],
       order_status_history: [{ data: null, error: null }],
-      employees: [{ data: [{ id: "admin-1", phone: "+96500000000" }], error: null }], // notifyAdmins lookup
     });
 
     await submitMaterialRequestForJob("order-1", MATERIAL_REQUEST_INPUT);
 
-    expect(mockNotifyAdminOrderStatusChanged).toHaveBeenCalledWith(
-      expect.objectContaining({ orderNumber: "#1050", statusLabel: "Waiting for Materials" }),
-      "emp-1",
-      "Hassan Youssef"
-    );
+    expect(mockNotifyAdminOrderStatusChanged).not.toHaveBeenCalled();
     expect(mockBroadcast).toHaveBeenCalledWith("material-requests", "material_request.created", { orderId: "order-1" });
   });
 
