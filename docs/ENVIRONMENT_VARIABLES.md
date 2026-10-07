@@ -37,6 +37,7 @@ Leaving `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`, or both of `TWILIO_MESSAGING_S
 | `ARMADA_ENV` | Server only | `"production"` (default) or `"staging"` — selects Armada's API base URL. |
 | `QUICKBOOKS_CLIENT_ID` / `QUICKBOOKS_CLIENT_SECRET` | Server only | The Intuit Developer app's **Production** keys (Keys & credentials). Both blank = integration off: the Connect button is hidden and `/api/webhooks/quickbooks` returns 403. The OAuth tokens themselves live in the `integration_tokens` table (they rotate), written by the one-time Connect flow on the Diagnostics page. See `QUICKBOOKS.md`. |
 | `QUICKBOOKS_WEBHOOK_VERIFIER` | Server only | The "Verifier Token" from the Intuit app's Webhooks page. Signs every delivery to `/api/webhooks/quickbooks` (`intuit-signature` header, HMAC-SHA256); the route **fails closed** without it. |
+| `QUICKBOOKS_REDIRECT_URI` | Server only | Optional. The exact OAuth redirect URI registered under the Intuit app's Production Redirect URIs, e.g. `https://flow.primekw.net/api/integrations/quickbooks/callback`. When blank it is derived from the request host. Set it if Intuit reports `redirect_uri is invalid`. |
 | `QUICKBOOKS_ENV` | Server only | `"production"` (default) or `"sandbox"` — selects the QuickBooks API base URL. Sandbox pairs with the app's Development keys. |
 
 | Variable | Where it's used | Default if unset |
