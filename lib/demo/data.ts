@@ -610,6 +610,7 @@ export function getDemoDiagnostics(): DiagnosticsSnapshot {
     notificationQueueFailed: 1,
     twilioConfigured: false,
     activeUsersApprox: 2,
+    quickbooks: { configured: false, connected: false, realmId: null, refreshExpiresAt: null },
     timestamp: new Date().toISOString(),
   };
 }

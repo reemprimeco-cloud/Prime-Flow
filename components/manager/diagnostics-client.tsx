@@ -6,12 +6,14 @@ import {
   AlertCircle,
   CheckCircle2,
   Database,
+  Link2,
   MessageCircle,
   Radio,
   Users,
   XCircle,
   Zap,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { getDiagnosticsSnapshot, type DiagnosticsSnapshot } from "@/lib/actions/diagnostics";
 import { useRealtimeChannel } from "@/lib/realtime/use-realtime-channel";
@@ -19,6 +21,7 @@ import { getChannelStatus } from "@/lib/realtime/manager";
 import { CHANNELS } from "@/lib/realtime/constants";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 function useRealtimeStatus(): string {
   const [status, setStatus] = useState("SUBSCRIBING");
@@ -74,6 +77,28 @@ export function DiagnosticsClient({ initialSnapshot }: { initialSnapshot: Diagno
 
   const snapshot = query.data ?? initialSnapshot;
 
+  // The QuickBooks OAuth callback lands back here with ?quickbooks=connected|error.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("quickbooks");
+    if (!result) return;
+    if (result === "connected") toast.success("QuickBooks connected — paid invoices will now import as orders");
+    else toast.error(params.get("message") || "QuickBooks connection failed");
+    window.history.replaceState({}, "", window.location.pathname);
+    query.refetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const qb = snapshot.quickbooks;
+  const qbStatus: "ok" | "warning" | "error" = !qb.configured ? "warning" : qb.connected ? "ok" : "error";
+  const qbDetail = !qb.configured
+    ? "Not configured"
+    : qb.connected
+      ? `Connected · company ${qb.realmId}`
+      : qb.realmId
+        ? "Connection expired — reconnect"
+        : "Not connected";
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -128,6 +153,25 @@ export function DiagnosticsClient({ initialSnapshot }: { initialSnapshot: Diagno
           status="ok"
           detail={String(snapshot.activeUsersApprox)}
         />
+      </Card>
+
+      <Card className="flex flex-col gap-3 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-base font-bold">Integrations</h2>
+        </div>
+        <StatusRow icon={Link2} label="QuickBooks Online" status={qbStatus} detail={qbDetail} />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            {qb.configured
+              ? "Paid invoices import onto the board as new, unapproved orders. Connecting is a one-time step; reconnect if it expires."
+              : "Set QUICKBOOKS_CLIENT_ID / QUICKBOOKS_CLIENT_SECRET on the host, then connect here. See docs/QUICKBOOKS.md."}
+          </p>
+          {qb.configured && (
+            <Button asChild variant={qb.connected ? "outline" : "primary"} size="sm">
+              <a href="/api/integrations/quickbooks/connect">{qb.connected ? "Reconnect QuickBooks" : "Connect QuickBooks"}</a>
+            </Button>
+          )}
+        </div>
       </Card>
 
       <Card className="p-5 text-sm text-muted-foreground">
