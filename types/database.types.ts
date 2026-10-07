@@ -563,6 +563,8 @@ export type Database = {
           priority: Database["public"]["Enums"]["order_priority"]
           product: string
           quantity: number
+          source: string | null
+          source_ref: string | null
           status: Database["public"]["Enums"]["order_status"]
           updated_at: string
           whatsapp_enabled: boolean
@@ -609,6 +611,8 @@ export type Database = {
           priority?: Database["public"]["Enums"]["order_priority"]
           product: string
           quantity: number
+          source?: string | null
+          source_ref?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           updated_at?: string
           whatsapp_enabled?: boolean
@@ -655,6 +659,8 @@ export type Database = {
           priority?: Database["public"]["Enums"]["order_priority"]
           product?: string
           quantity?: number
+          source?: string | null
+          source_ref?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           updated_at?: string
           whatsapp_enabled?: boolean
@@ -663,6 +669,47 @@ export type Database = {
           {
             foreignKeyName: "orders_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integration_tokens: {
+        Row: {
+          access_expires_at: string
+          access_token: string
+          connected_by: string | null
+          provider: string
+          realm_id: string
+          refresh_expires_at: string
+          refresh_token: string
+          updated_at: string
+        }
+        Insert: {
+          access_expires_at: string
+          access_token: string
+          connected_by?: string | null
+          provider: string
+          realm_id: string
+          refresh_expires_at: string
+          refresh_token: string
+          updated_at?: string
+        }
+        Update: {
+          access_expires_at?: string
+          access_token?: string
+          connected_by?: string | null
+          provider?: string
+          realm_id?: string
+          refresh_expires_at?: string
+          refresh_token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_tokens_connected_by_fkey"
+            columns: ["connected_by"]
             isOneToOne: false
             referencedRelation: "employees"
             referencedColumns: ["id"]

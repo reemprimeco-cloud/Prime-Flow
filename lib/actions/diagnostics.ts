@@ -4,6 +4,17 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { createServiceClient } from "@/lib/supabase/server";
 import { isDemoMode } from "@/lib/demo/mode";
 import { getDemoDiagnostics } from "@/lib/demo/data";
+import { isQuickBooksConfigured } from "@/lib/quickbooks/client";
+
+export interface QuickBooksStatus {
+  /** Client ID + secret are set in the environment. */
+  configured: boolean;
+  /** An admin has completed the Connect flow and a token pair is stored. */
+  connected: boolean;
+  realmId: string | null;
+  /** When the stored refresh token lapses (~100 days after the last import) — past this, Connect has to be clicked again. */
+  refreshExpiresAt: string | null;
+}
 
 export interface DiagnosticsSnapshot {
   databaseConnected: boolean;
@@ -12,6 +23,7 @@ export interface DiagnosticsSnapshot {
   notificationQueueFailed: number;
   twilioConfigured: boolean;
   activeUsersApprox: number;
+  quickbooks: QuickBooksStatus;
   timestamp: string;
 }
 
@@ -33,10 +45,11 @@ export async function getDiagnosticsSnapshot(): Promise<DiagnosticsSnapshot> {
 
   const fifteenMinutesAgo = new Date(Date.now() - 15 * 60_000).toISOString();
 
-  const [{ count: pendingCount }, { count: failedCount }, { data: recentActors }] = await Promise.all([
+  const [{ count: pendingCount }, { count: failedCount }, { data: recentActors }, { data: quickbooksTokens }] = await Promise.all([
     supabase.from("notification_logs").select("id", { count: "exact", head: true }).eq("status", "pending"),
     supabase.from("notification_logs").select("id", { count: "exact", head: true }).eq("status", "failed"),
     supabase.from("audit_logs").select("actor_id").gte("created_at", fifteenMinutesAgo).not("actor_id", "is", null),
+    supabase.from("integration_tokens").select("realm_id, refresh_expires_at").eq("provider", "quickbooks").maybeSingle(),
   ]);
 
   const activeUsersApprox = new Set((recentActors ?? []).map((r) => r.actor_id)).size;
@@ -52,6 +65,12 @@ export async function getDiagnosticsSnapshot(): Promise<DiagnosticsSnapshot> {
         (process.env.TWILIO_MESSAGING_SERVICE_SID || process.env.TWILIO_WHATSAPP_NUMBER)
     ),
     activeUsersApprox,
+    quickbooks: {
+      configured: isQuickBooksConfigured(),
+      connected: !!quickbooksTokens && new Date(quickbooksTokens.refresh_expires_at).getTime() > Date.now(),
+      realmId: quickbooksTokens?.realm_id ?? null,
+      refreshExpiresAt: quickbooksTokens?.refresh_expires_at ?? null,
+    },
     timestamp: new Date().toISOString(),
   };
 }
