@@ -263,6 +263,13 @@ export async function fetchInvoice(supabase: ServiceClient, invoiceId: string): 
   return body?.Invoice ?? null;
 }
 
+/** Look an invoice up by the number printed on it (DocNumber), which is what a person has — the webhook's `Id` is internal. */
+export async function findInvoiceByDocNumber(supabase: ServiceClient, docNumber: string): Promise<QboInvoice | null> {
+  const query = `select * from Invoice where DocNumber = '${docNumber.replace(/'/g, "\\'")}' maxresults 1`;
+  const body = await apiGet<{ QueryResponse?: { Invoice?: QboInvoice[] } }>(supabase, `/query?query=${encodeURIComponent(query)}`);
+  return body?.QueryResponse?.Invoice?.[0] ?? null;
+}
+
 export async function fetchCustomer(supabase: ServiceClient, customerId: string): Promise<QboCustomer | null> {
   const body = await apiGet<{ Customer?: QboCustomer }>(supabase, `/customer/${encodeURIComponent(customerId)}`);
   return body?.Customer ?? null;
