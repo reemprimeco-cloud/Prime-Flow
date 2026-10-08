@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { OrderCard } from "@/components/orders/order-card";
 import type { DashboardBoardResult, OrderListItem } from "@/lib/actions/orders";
-import type { OrderStatus } from "@/types/database.types";
+import type { OrderDeliveryProvider, OrderStatus } from "@/types/database.types";
 
 interface DashboardBoardProps {
   board: DashboardBoardResult;
@@ -15,8 +15,9 @@ interface DashboardBoardProps {
   onEdit: (order: OrderListItem) => void;
   onDuplicate: (order: OrderListItem) => void;
   onDelete: (order: OrderListItem) => void;
-  onQuickStatusChange: (order: OrderListItem, status: OrderStatus) => void;
+  onQuickStatusChange: (order: OrderListItem, status: OrderStatus, deliveryProvider?: OrderDeliveryProvider) => void;
   quickActionPendingId: string | null;
+  onAssign: (order: OrderListItem) => void;
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
 }
@@ -45,6 +46,7 @@ export function DashboardBoard({
   onDelete,
   onQuickStatusChange,
   quickActionPendingId,
+  onAssign,
   selectedIds,
   onToggleSelect,
 }: DashboardBoardProps) {
@@ -80,6 +82,7 @@ export function DashboardBoard({
                     onToggleSelect={onToggleSelect}
                     onQuickStatusChange={onQuickStatusChange}
                     quickActionPending={quickActionPendingId === order.id}
+                    onAssign={onAssign}
                   />
                 ))}
               </div>

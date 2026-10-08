@@ -1453,6 +1453,95 @@ export async function updateOrderStatus(
 }
 
 /**
+ * Quick "Assign" from a dashboard card: replaces the order's assignee list
+ * with `employeeIds` (in hand-off order) without going through the full edit
+ * form. Same diff, audit trail, and employee pings as updateOrder's
+ * assignment block; nothing else on the order changes.
+ */
+export async function setOrderAssignments(orderId: string, employeeIds: string[]): Promise<void> {
+  const session = await requireAdmin();
+  if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
+  const supabase = createServiceClient();
+
+  const orderedIds = [...new Set(employeeIds)];
+  const [{ data: order, error: orderError }, { data: existingAssignments }] = await Promise.all([
+    supabase.from("orders").select("order_number, product, priority, approved, delivery_date, delivery_time").eq("id", orderId).single(),
+    supabase.from("order_assignments").select("employee_id").eq("order_id", orderId),
+  ]);
+  if (orderError || !order) throw new Error(orderError?.message ?? "Order not found");
+
+  const existingIds = new Set((existingAssignments ?? []).map((a) => a.employee_id));
+  const nextIds = new Set(orderedIds);
+  const toRemove = [...existingIds].filter((id) => !nextIds.has(id));
+  const toAdd = orderedIds.filter((id) => !existingIds.has(id));
+
+  if (toRemove.length > 0) {
+    const { error } = await supabase.from("order_assignments").delete().eq("order_id", orderId).in("employee_id", toRemove);
+    if (error) throw new Error(error.message);
+    for (const employeeId of toRemove) {
+      await recordAuditLog({
+        actorId: session.employeeId,
+        actorName: session.fullName,
+        action: "employee_unassigned",
+        entityType: "order_assignment",
+        entityId: employeeId,
+        orderId,
+        oldValue: { employeeId, quickAssign: true },
+      });
+    }
+  }
+  if (toAdd.length > 0) {
+    const { error } = await supabase
+      .from("order_assignments")
+      .insert(toAdd.map((employeeId) => ({ order_id: orderId, employee_id: employeeId })));
+    if (error) throw new Error(error.message);
+    for (const employeeId of toAdd) {
+      await recordAuditLog({
+        actorId: session.employeeId,
+        actorName: session.fullName,
+        action: "employee_assigned",
+        entityType: "order_assignment",
+        entityId: employeeId,
+        orderId,
+        newValue: { employeeId, quickAssign: true },
+      });
+    }
+
+    // Unapproved orders ping nobody yet (see createOrder); the approval
+    // itself fires everyone assigned at that point.
+    if (order.approved) {
+      const isReassignment = toRemove.length > 0;
+      const assignedEmployees = await fetchEmployeePhones(supabase, toAdd);
+      for (const employeeId of toAdd) {
+        const employee = assignedEmployees.get(employeeId);
+        if (!employee) continue;
+        const context = {
+          employeeId,
+          employeePhone: employee.phone,
+          orderId,
+          orderNumber: order.order_number,
+          product: order.product,
+          deliveryDate: order.delivery_date,
+          deliveryTime: order.delivery_time,
+        };
+        if (order.priority === "urgent") {
+          await notifyEmployeeHighPriorityAssigned(context, session.employeeId, session.fullName);
+        } else if (isReassignment) {
+          await notifyEmployeeJobReassigned(context, session.employeeId, session.fullName);
+        } else {
+          await notifyEmployeeJobAssigned(context, session.employeeId, session.fullName);
+        }
+      }
+    }
+  }
+
+  await syncAssignmentSequences(supabase, orderId, orderedIds, orderedIds);
+
+  await broadcast(CHANNELS.production, "order.updated", { orderId });
+  revalidatePath("/dashboard");
+}
+
+/**
  * Manager override — deliberately bypasses the status engine's transition
  * graph (lib/status/engine.ts). That graph exists to stop an *employee*
  * from skipping steps by mistake; a manager correcting a stuck or
