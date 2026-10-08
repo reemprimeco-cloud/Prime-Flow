@@ -121,9 +121,7 @@ describe("mapInvoiceToOrder", () => {
       items: [{ product: "Gift Box Stickers", quantity: 50, finishing: null }],
       deliveryTime: "17:00",
     });
-    expect(mapped.notes).toContain("invoice #2518");
-    expect(mapped.notes).toContain("KWD 45.5");
-    expect(mapped.notes).toContain('Customer memo: "Match the brand blue."');
+    expect(mapped.notes).toBe("QuickBooks invoice #2518: PAID");
   });
 
   it("treats a Ship To address with no ship method as a delivery, and no address as pickup", () => {
@@ -132,6 +130,26 @@ describe("mapInvoiceToOrder", () => {
       deliveryAddress: "Block 9, Street 908, Abdullah Mubarak, Kuwait",
     });
     expect(mapInvoiceToOrder({ ...PAID_INVOICE, ShipAddr: undefined }, CUSTOMER)).toMatchObject({ fulfillmentType: "pickup", deliveryAddress: null });
+  });
+
+  it("treats an address holding only the customer's name and phone as no address (pickup)", () => {
+    const invoice = { ...PAID_INVOICE, CustomerRef: { value: "1", name: "ايمان الساعي" }, ShipAddr: { Line1: "ايمان الساعي", Line2: "9751 8893" } };
+    expect(mapInvoiceToOrder(invoice, null)).toMatchObject({ fulfillmentType: "pickup", deliveryAddress: null });
+
+    const withArea = { ...invoice, ShipAddr: { Line1: "ايمان الساعي", Line2: "SOK - Inda", Line3: "6766 6393" } };
+    expect(mapInvoiceToOrder(withArea, null)).toMatchObject({ fulfillmentType: "delivery", deliveryAddress: "SOK - Inda" });
+  });
+
+  it("strips the QuickBooks category prefix from sub-item names and drops a terms-and-conditions memo", () => {
+    const line = PAID_INVOICE.Line![0];
+    const invoice = {
+      ...PAID_INVOICE,
+      Line: [{ ...line, SalesItemLineDetail: { ...line.SalesItemLineDetail, ItemRef: { value: "9", name: "packaging:Paper Bag" } } }],
+      CustomerMemo: { value: "الشروط والأحكام: ".padEnd(400, "قد يحدث فرق في الألوان بين البروفة والطباعة النهائية. ") },
+    };
+    const mapped = mapInvoiceToOrder(invoice, CUSTOMER);
+    expect(mapped?.product).toBe("Paper Bag");
+    expect(mapped?.notes).toBe("QuickBooks invoice #2518: PAID");
   });
 
   it("a shipping line forces delivery and isn't imported as a product; a pickup ship method forces pickup", () => {
@@ -149,7 +167,6 @@ describe("mapInvoiceToOrder", () => {
   it("falls back to a placeholder when the customer has no phone, and uses a future ShipDate as the delivery date", () => {
     const mapped = mapInvoiceToOrder({ ...PAID_INVOICE, ShipDate: "2099-01-15" }, { Id: "77", DisplayName: "No Phone" })!;
     expect(mapped).toMatchObject({ customerMobile: "N/A", whatsappEnabled: false, deliveryDate: "2099-01-15" });
-    expect(mapped.notes).not.toContain("delivery date/time");
   });
 
   it("returns null for an invoice with no product lines", () => {
@@ -202,7 +219,7 @@ describe("importInvoice", () => {
     await importInvoice(createServiceClient(), "123", "6107");
 
     expect(insertedRows.orders?.[0]).toMatchObject({ source: "quickbooks", source_ref: "6107" });
-    expect((insertedRows.orders?.[0] as { notes: string }).notes).toContain("NOT PAID (balance KWD 45.5)");
+    expect((insertedRows.orders?.[0] as { notes: string }).notes).toBe("QuickBooks invoice #2518: NOT PAID — balance KWD 45.5");
     expect(mockNotifyAdminOrderStatusChanged).toHaveBeenCalled();
   });
 

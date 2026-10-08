@@ -53,11 +53,18 @@ export interface MappedOrder {
 const SHIPPING_ITEM_ID = "SHIPPING_ITEM_ID";
 const DELIVERY_TIME = "17:00";
 
-function buildAddress(address: QboAddress | undefined): string {
+/**
+ * QuickBooks seeds every address block with the customer's name (line 1) and
+ * often their phone; neither is an address. Drop them so an address that holds
+ * nothing else reads as empty — and so pickup orders aren't mistaken for deliveries.
+ */
+function buildAddress(address: QboAddress | undefined, customerName = ""): string {
   if (!address) return "";
+  const name = customerName.trim().toLowerCase();
+  const isPhoneLike = (part: string) => /^[+\d][\d\s()-]{5,}$/.test(part);
   return [address.Line1, address.Line2, address.Line3, address.Line4, address.Line5, address.City, address.CountrySubDivisionCode, address.PostalCode, address.Country]
-    .map((part) => part?.trim())
-    .filter(Boolean)
+    .map((part) => part?.trim() ?? "")
+    .filter((part) => part && part.toLowerCase() !== name && !isPhoneLike(part))
     .join(", ");
 }
 
@@ -85,7 +92,9 @@ export function mapInvoiceToOrder(invoice: QboInvoice, customer: QboCustomer | n
 
   const toItem = (line: (typeof productLines)[number]) => {
     const detail = line.SalesItemLineDetail;
-    const product = detail?.ItemRef?.name?.trim() || line.Description?.trim() || "QuickBooks item";
+    // Sub-items come through as "Category:Item" (e.g. "packaging:Paper Bag");
+    // the board wants the item alone.
+    const product = detail?.ItemRef?.name?.split(":").pop()?.trim() || line.Description?.trim() || "QuickBooks item";
     const description = line.Description?.trim() || null;
     return {
       product,
@@ -98,33 +107,30 @@ export function mapInvoiceToOrder(invoice: QboInvoice, customer: QboCustomer | n
   };
   const [primary, ...rest] = productLines.map(toItem);
 
+  const rawPhone = sanitizePhoneInput(customer?.Mobile?.FreeFormNumber ?? customer?.PrimaryPhone?.FreeFormNumber ?? "");
+  const docNumber = invoice.DocNumber ?? invoice.Id;
+  const customerName = invoice.CustomerRef?.name?.trim() || customer?.DisplayName?.trim() || `QuickBooks Invoice #${docNumber}`;
+
   const hasShippingLine = lines.some(isShippingLine);
   const shipMethod = invoice.ShipMethodRef?.name ?? "";
-  const shipAddress = buildAddress(invoice.ShipAddr);
+  const shipAddress = buildAddress(invoice.ShipAddr, customerName);
   // QuickBooks copies the customer's default shipping address onto every
   // invoice, so an address alone doesn't prove it's a delivery — a shipping
   // line or a non-pickup ship method does. With neither, fall back to the
   // address being there at all; the notes tell the manager to confirm.
   const isDelivery = hasShippingLine || (shipMethod ? !/pick\s*-?\s*up|استلام/i.test(shipMethod) : shipAddress.length > 0);
 
-  const rawPhone = sanitizePhoneInput(customer?.Mobile?.FreeFormNumber ?? customer?.PrimaryPhone?.FreeFormNumber ?? "");
-  const docNumber = invoice.DocNumber ?? invoice.Id;
-  const customerName = invoice.CustomerRef?.name?.trim() || customer?.DisplayName?.trim() || `QuickBooks Invoice #${docNumber}`;
-
   const today = format(new Date(), "yyyy-MM-dd");
   const shipDate = invoice.ShipDate && /^\d{4}-\d{2}-\d{2}$/.test(invoice.ShipDate) && invoice.ShipDate >= today ? invoice.ShipDate : null;
   const deliveryDate = shipDate ?? format(addDays(new Date(), 2), "yyyy-MM-dd");
 
+  // The notes carry one thing: the invoice and whether it's paid. The specs
+  // live in `finishing`, the memo is the template's terms, and the rest the
+  // manager sees on the order itself.
   const balance = invoice.Balance ?? 0;
   const currency = invoice.CurrencyRef?.value ?? "KWD";
-  const paymentState = balance > 0 ? `NOT PAID (balance ${currency} ${balance})` : "paid";
-  const noteLines = [
-    `Imported from QuickBooks invoice #${docNumber}${invoice.TxnDate ? ` (dated ${invoice.TxnDate})` : ""} — ${paymentState}.`,
-    `Confirm ${shipDate ? "" : "delivery date/time, "}${isDelivery ? "delivery address, " : ""}fulfillment type, and print specs (paper, size, finishing) before approving.`,
-  ];
-  if (invoice.TotalAmt != null) noteLines.push(`Invoice total: ${currency} ${invoice.TotalAmt}`);
-  if (invoice.CustomerMemo?.value?.trim()) noteLines.push(`Customer memo: "${invoice.CustomerMemo.value.trim()}"`);
-  if (rest.length > 0) noteLines.push(`Additional items also imported below (${rest.length}).`);
+  const paymentState = balance > 0 ? `NOT PAID — balance ${currency} ${balance}` : "PAID";
+  const notes = `QuickBooks invoice #${docNumber}: ${paymentState}`;
 
   return {
     customerName,
@@ -135,10 +141,10 @@ export function mapInvoiceToOrder(invoice: QboInvoice, customer: QboCustomer | n
     finishing: primary.finishing,
     items: rest,
     fulfillmentType: isDelivery ? "delivery" : "pickup",
-    deliveryAddress: isDelivery ? shipAddress || buildAddress(customer?.ShipAddr) || buildAddress(invoice.BillAddr) || null : null,
+    deliveryAddress: isDelivery ? shipAddress || buildAddress(customer?.ShipAddr, customerName) || buildAddress(invoice.BillAddr, customerName) || null : null,
     deliveryDate,
     deliveryTime: DELIVERY_TIME,
-    notes: noteLines.join(" "),
+    notes,
   };
 }
 

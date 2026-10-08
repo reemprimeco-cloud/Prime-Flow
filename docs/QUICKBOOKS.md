@@ -1,13 +1,13 @@
 # QuickBooks Online integration
 
-Every QuickBooks Online invoice becomes a new order on the board as soon as it is created, the same way a WooCommerce order does (`ARCHITECTURE.md`). Payment is not a gate: the shop invoices from QuickBooks and its payment-gateway integration settles the balance later. The order's notes say whether the invoice was paid or carry the outstanding balance, so the manager sees it before approving.
+Every QuickBooks Online invoice becomes a new order on the board as soon as it is created, the same way a WooCommerce order does (`ARCHITECTURE.md`). Payment is not a gate: the shop invoices from QuickBooks and its payment-gateway integration settles the balance later. The order's notes hold only the invoice number and its payment state (`PAID`, or `NOT PAID — balance KWD 15`); the line description goes to the order's details/finishing field and the invoice memo (the template's terms) is dropped.
 
 ## Flow
 
 1. Intuit's webhook (`app/api/webhooks/quickbooks/route.ts`) is told an Invoice was created/updated — the payload carries only ids, never the invoice itself. The route verifies the `intuit-signature` HMAC against `QUICKBOOKS_WEBHOOK_VERIFIER`, acknowledges immediately, and runs the import after the response (`after()`) — Intuit expects a 2xx within a few seconds and retries otherwise.
 2. `lib/quickbooks/import.ts` fetches the invoice. Already imported (`orders.source_ref` = invoice id) → ignored; QuickBooks sends an update event for every change (sent, paid, closed, edited), so this is the common path.
 3. The customer record is fetched for the phone number (an invoice carries addresses but not a phone). `mapInvoiceToOrder` builds the order — pure, unit-tested.
-4. The order lands as `new`, `approved: false`, with `notes` spelling out what still needs confirming before approval. Admins get the same "needs specs, assignment, and approval" alert a WooCommerce import sends.
+4. The order lands as `new`, `approved: false`, its `notes` naming the invoice and whether it is paid. Admins get the same "needs specs, assignment, and approval" alert a WooCommerce import sends.
 
 ## Manual import
 
