@@ -182,7 +182,7 @@ describe("findReferencedOrderNumbers", () => {
 });
 
 describe("importInvoice", () => {
-  it("imports a paid invoice as a new unapproved order tagged with the invoice id, and alerts admins", async () => {
+  it("imports a paid invoice as a new unapproved order tagged with the invoice id", async () => {
     resetSupabaseMock(withAdminAndInsert());
 
     await importInvoice(createServiceClient(), "123", "6107");
@@ -204,11 +204,8 @@ describe("importInvoice", () => {
     expect(insertedRows.order_items?.[0]).toEqual([{ order_id: "order-new", product: "Gift Box Stickers", quantity: 50, finishing: null, sort_order: 0 }]);
     expect(insertedRows.order_status_history?.[0]).toMatchObject({ order_id: "order-new", from_status: null, to_status: "new" });
     expect(mockRecordAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "order_created", actorName: "QuickBooks Import", newValue: expect.objectContaining({ source: "quickbooks", invoiceId: "6107" }) }));
-    expect(mockNotifyAdminOrderStatusChanged).toHaveBeenCalledWith(
-      expect.objectContaining({ employeeId: "admin-1", orderNumber: "#1120", employeeName: "QuickBooks", statusLabel: "Paid — needs specs, assignment, and approval" }),
-      "admin-1",
-      "QuickBooks Import"
-    );
+    // No admin WhatsApp/push for imports — the board update is the signal.
+    expect(mockNotifyAdminOrderStatusChanged).not.toHaveBeenCalled();
     expect(mockBroadcast).toHaveBeenCalledWith("production", "order.created", { orderId: "order-new" });
   });
 
@@ -220,7 +217,6 @@ describe("importInvoice", () => {
 
     expect(insertedRows.orders?.[0]).toMatchObject({ source: "quickbooks", source_ref: "6107" });
     expect((insertedRows.orders?.[0] as { notes: string }).notes).toBe("QuickBooks invoice #2518: NOT PAID — balance KWD 45.5");
-    expect(mockNotifyAdminOrderStatusChanged).toHaveBeenCalled();
   });
 
   it("does nothing when the invoice was already imported", async () => {

@@ -5,7 +5,7 @@ import { addDays, format } from "date-fns";
 import { createServiceClient } from "@/lib/supabase/server";
 import { broadcast, CHANNELS } from "@/lib/realtime/channels";
 import { recordAuditLog } from "@/lib/audit/log";
-import { notifyAdminOrderStatusChanged, notifyOrderCreated } from "@/lib/notifications/service";
+import { notifyOrderCreated } from "@/lib/notifications/service";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/notifications/constants";
 import { sanitizePhoneInput } from "@/lib/utils/phone";
 import { fetchCustomer, fetchInvoice, loadTokens, type QboAddress, type QboCustomer, type QboInvoice } from "@/lib/quickbooks/client";
@@ -307,24 +307,9 @@ export async function importInvoice(supabase: ServiceClient, realmId: string, in
     "QuickBooks Import"
   );
 
-  for (const admin of admins ?? []) {
-    await notifyAdminOrderStatusChanged(
-      {
-        employeeId: admin.id,
-        employeePhone: admin.phone,
-        orderId: newOrder.id,
-        orderNumber: newOrder.order_number,
-        customerName: mapped.customerName,
-        product: mapped.product,
-        deliveryDate: mapped.deliveryDate,
-        deliveryTime: mapped.deliveryTime,
-        employeeName: "QuickBooks",
-        statusLabel: "Paid — needs specs, assignment, and approval",
-      },
-      importingAdmin.id,
-      "QuickBooks Import"
-    );
-  }
+  // No "Hi Admin, here's an update" WhatsApp/push for imports: the order
+  // appears on the board (realtime broadcast below) and the admin is the one
+  // invoicing in QuickBooks, so the alert only repeated what they just did.
 
   await broadcast(CHANNELS.production, "order.created", { orderId: newOrder.id });
   return { status: "imported", orderNumber: newOrder.order_number };
