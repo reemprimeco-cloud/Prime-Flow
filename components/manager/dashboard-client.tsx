@@ -31,13 +31,15 @@ import { QuickActions } from "@/components/manager/quick-actions";
 import { OrderFilters as OrderFiltersBar } from "@/components/manager/order-filters";
 import { ViewToggle, type OrderView } from "@/components/manager/view-toggle";
 import { OrderCard } from "@/components/orders/order-card";
+import { QuickAssignDialog } from "@/components/orders/quick-assign-dialog";
 import { OrderListView } from "@/components/orders/order-list-view";
 import { DashboardBoard } from "@/components/manager/dashboard-board";
 import { BulkActionsBar } from "@/components/manager/bulk-actions-bar";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import type { OrderStatus } from "@/types/database.types";
+import { ORDER_STATUS_LABELS } from "@/types/domain";
+import type { OrderDeliveryProvider, OrderStatus } from "@/types/database.types";
 
 // Both dialogs carry real weight (RHF + Zod + file upload UI) and stay
 // hidden until the user opens them — no reason to ship that JS on first paint.
@@ -142,6 +144,7 @@ export function DashboardClient({
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [quickActionPendingId, setQuickActionPendingId] = useState<string | null>(null);
+  const [assignTarget, setAssignTarget] = useState<OrderListItem | null>(null);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -173,16 +176,16 @@ export function DashboardClient({
     setDetailOpen(true);
   }, []);
 
-  // "Picked Up" / "Delivered" quick action directly on a card, for
-  // ready_pickup/ready_delivery orders — closes the order out without
+  // Quick status actions directly on a card (Start Production, Ready for
+  // Pickup/Delivery, Picked Up, Delivered) — the routine moves without
   // opening the full detail drawer. Admin-only path (updateOrderStatus),
   // not gated the way the employee's equivalent action is.
   const handleQuickStatusChange = useCallback(
-    (order: OrderListItem, status: OrderStatus) => {
+    (order: OrderListItem, status: OrderStatus, deliveryProvider?: OrderDeliveryProvider) => {
       setQuickActionPendingId(order.id);
-      updateOrderStatus(order.id, status)
+      updateOrderStatus(order.id, status, deliveryProvider)
         .then(() => {
-          toast.success(`${order.orderNumber} marked ${status === "delivered" ? "Delivered" : "Collected"}`);
+          toast.success(`${order.orderNumber} → ${ORDER_STATUS_LABELS[status]}`);
           refreshLists();
         })
         .catch((error) => toast.error(error instanceof Error ? error.message : "Failed to update order"))
@@ -292,6 +295,7 @@ export function DashboardClient({
             onDelete={setDeleteTarget}
             onQuickStatusChange={handleQuickStatusChange}
             quickActionPendingId={quickActionPendingId}
+            onAssign={setAssignTarget}
             selectedIds={selectedIds}
             onToggleSelect={toggleSelect}
           />
@@ -324,6 +328,7 @@ export function DashboardClient({
               onToggleSelect={toggleSelect}
               onQuickStatusChange={handleQuickStatusChange}
               quickActionPending={quickActionPendingId === order.id}
+              onAssign={setAssignTarget}
             />
           ))}
         </div>
@@ -366,6 +371,13 @@ export function DashboardClient({
         onOpenChange={setFormOpen}
         order={editingOrder}
         employees={employees}
+        onSaved={refreshLists}
+      />
+
+      <QuickAssignDialog
+        order={assignTarget}
+        employees={employees}
+        onOpenChange={(open) => !open && setAssignTarget(null)}
         onSaved={refreshLists}
       />
 

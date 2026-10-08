@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import Image from "next/image";
-import { ImageIcon, MoreVertical, Copy, Pencil, Trash2, Eye, CalendarClock, Store, Truck, ShieldAlert, FileClock } from "lucide-react";
+import { ImageIcon, MoreVertical, Copy, Pencil, Trash2, Eye, CalendarClock, Store, Truck, ShieldAlert, FileClock, Users } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 import { Card } from "@/components/ui/card";
@@ -24,7 +24,7 @@ import { formatDeliveryTime } from "@/lib/utils/countdown";
 import { cn } from "@/lib/utils";
 import { DELAYABLE_STATUSES } from "@/types/domain";
 import type { OrderListItem } from "@/lib/actions/orders";
-import type { OrderStatus } from "@/types/database.types";
+import type { OrderDeliveryProvider, OrderStatus } from "@/types/database.types";
 
 const ACCENT_BORDER = {
   green: "before:bg-success",
@@ -42,14 +42,24 @@ interface OrderCardProps {
   selected?: boolean;
   onToggleSelect?: (id: string) => void;
   /**
-   * Compact "mark done" quick action (Picked Up / Delivered) shown directly
-   * on the card for ready_pickup/ready_delivery orders, so a manager doesn't
-   * have to open the full detail drawer just to close out an order. Omit to
-   * hide it entirely (e.g. read-only contexts).
+   * Quick actions straight on the card, so a manager doesn't have to open
+   * the detail drawer for the routine moves: Start Production (new),
+   * Ready for Pickup/Delivery (in progress), Picked Up / Delivered (ready).
+   * Omit to hide them entirely (e.g. read-only contexts).
    */
-  onQuickStatusChange?: (order: OrderListItem, status: OrderStatus) => void;
+  onQuickStatusChange?: (order: OrderListItem, status: OrderStatus, deliveryProvider?: OrderDeliveryProvider) => void;
   quickActionPending?: boolean;
+  /** "Assign" quick action — opens the employee picker for this order. */
+  onAssign?: (order: OrderListItem) => void;
 }
+
+/** Which transitions get a button on the card, per current status. The rest stay in the drawer. */
+const QUICK_TARGETS: Partial<Record<OrderStatus, OrderStatus[]>> = {
+  new: ["in_progress"],
+  in_progress: ["ready_pickup", "ready_delivery"],
+  ready_pickup: ["collected"],
+  ready_delivery: ["delivered"],
+};
 
 export const OrderCard = memo(function OrderCard({
   order,
@@ -61,7 +71,9 @@ export const OrderCard = memo(function OrderCard({
   onToggleSelect,
   onQuickStatusChange,
   quickActionPending,
+  onAssign,
 }: OrderCardProps) {
+  const quickTargets = onQuickStatusChange ? QUICK_TARGETS[order.status] : undefined;
   const isInFlight = DELAYABLE_STATUSES.includes(order.status);
   const countdownColor = useCountdownColor(order.deliveryDate, order.deliveryTime);
 
@@ -203,17 +215,32 @@ export const OrderCard = memo(function OrderCard({
         )}
       </div>
 
-      {onQuickStatusChange && (order.status === "ready_pickup" || order.status === "ready_delivery") && (
-        <div onClick={(e) => e.stopPropagation()}>
-          <StatusActions
-            status={order.status}
-            fulfillmentType={order.fulfillmentType}
-            isOutsourced={false}
-            pending={!!quickActionPending}
-            onChange={(status) => onQuickStatusChange(order, status)}
-            only={["collected", "delivered"]}
-            size="sm"
-          />
+      {(quickTargets || onAssign) && (
+        <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          {quickTargets && onQuickStatusChange && (
+            <StatusActions
+              status={order.status}
+              fulfillmentType={order.fulfillmentType}
+              isOutsourced={false}
+              pending={!!quickActionPending}
+              onChange={(status, provider) => onQuickStatusChange(order, status, provider)}
+              only={quickTargets}
+              size="sm"
+            />
+          )}
+          {onAssign && (order.status === "new" || order.status === "in_progress" || order.status === "waiting_materials") && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!!quickActionPending}
+              onClick={() => onAssign(order)}
+              className="gap-1"
+            >
+              <Users className="size-3.5" />
+              {order.assignedEmployees.length > 0 ? "Reassign" : "Assign"}
+            </Button>
+          )}
         </div>
       )}
     </Card>

@@ -78,7 +78,7 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-import { createOrder, getCompletedOrders, getOrders, updateOrder, updateOrderStatus } from "@/lib/actions/orders";
+import { createOrder, getCompletedOrders, getOrders, setOrderAssignments, updateOrder, updateOrderStatus } from "@/lib/actions/orders";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/notifications/constants";
 
 const ADMIN_SESSION = { employeeId: "admin-1", username: "admin", fullName: "Rana Al-Fadhli", role: "admin" as const };
@@ -332,5 +332,45 @@ describe("Completed Orders — dashboard board vs. Reports tab", () => {
       method: "in",
       args: ["status", ["collected", "delivered", "completed"]],
     });
+  });
+});
+
+describe("Dashboard quick action — setOrderAssignments", () => {
+  it("diffs the assignee list: removes who was dropped, adds who was ticked, pings the new ones as a reassignment", async () => {
+    const { notifyEmployeeJobReassigned, notifyEmployeeJobAssigned } = await import("@/lib/notifications/service");
+    resetSupabaseMock({
+      orders: [{ data: { order_number: "#1132", product: "Vinyl Stickers", priority: "normal", approved: true, delivery_date: "2026-10-10", delivery_time: "17:00" }, error: null }],
+      order_assignments: [{ data: [{ employee_id: "emp-a" }], error: null }],
+      employees: [{ data: [{ id: "emp-b", phone: "+96511111111" }, { id: "emp-c", phone: "+96522222222" }], error: null }],
+    });
+
+    await setOrderAssignments("order-1", ["emp-b", "emp-c"]);
+
+    expect(mockRecordAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "employee_unassigned", entityId: "emp-a", orderId: "order-1" }));
+    expect(mockRecordAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "employee_assigned", entityId: "emp-b" }));
+    expect(mockRecordAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "employee_assigned", entityId: "emp-c" }));
+    expect(notifyEmployeeJobReassigned).toHaveBeenCalledTimes(2);
+    expect(notifyEmployeeJobAssigned).not.toHaveBeenCalled();
+    expect(mockBroadcast).toHaveBeenCalledWith("production", "order.updated", { orderId: "order-1" });
+  });
+
+  it("doesn't ping anyone while the order is still unapproved", async () => {
+    const { notifyEmployeeJobAssigned } = await import("@/lib/notifications/service");
+    resetSupabaseMock({
+      orders: [{ data: { order_number: "#1133", product: "Flyers", priority: "normal", approved: false, delivery_date: "2026-10-10", delivery_time: "17:00" }, error: null }],
+      order_assignments: [{ data: [], error: null }],
+    });
+
+    await setOrderAssignments("order-2", ["emp-b"]);
+
+    expect(mockRecordAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "employee_assigned", entityId: "emp-b" }));
+    expect(notifyEmployeeJobAssigned).not.toHaveBeenCalled();
+  });
+
+  it("requires admin auth and blocks demo mode", async () => {
+    mockRequireAdmin.mockRejectedValueOnce(new Error("Unauthorized"));
+    await expect(setOrderAssignments("order-1", ["emp-b"])).rejects.toThrow("Unauthorized");
+    mockIsDemoMode.mockReturnValue(true);
+    await expect(setOrderAssignments("order-1", ["emp-b"])).rejects.toThrow(/demo/i);
   });
 });
