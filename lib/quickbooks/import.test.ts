@@ -66,7 +66,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 import { createServiceClient } from "@/lib/supabase/server";
-import { findReferencedOrderNumbers, importInvoiceIfPaid, mapInvoiceToOrder, processQuickBooksWebhook } from "@/lib/quickbooks/import";
+import { findReferencedOrderNumbers, importInvoice, mapInvoiceToOrder, processQuickBooksWebhook } from "@/lib/quickbooks/import";
 import type { QboCustomer, QboInvoice } from "@/lib/quickbooks/client";
 
 const PAID_INVOICE: QboInvoice = {
@@ -164,11 +164,11 @@ describe("findReferencedOrderNumbers", () => {
   });
 });
 
-describe("importInvoiceIfPaid", () => {
+describe("importInvoice", () => {
   it("imports a paid invoice as a new unapproved order tagged with the invoice id, and alerts admins", async () => {
     resetSupabaseMock(withAdminAndInsert());
 
-    await importInvoiceIfPaid(createServiceClient(), "123", "6107");
+    await importInvoice(createServiceClient(), "123", "6107");
 
     expect(mockFetchInvoice).toHaveBeenCalledWith(expect.anything(), "6107");
     expect(mockFetchCustomer).toHaveBeenCalledWith(expect.anything(), "77");
@@ -195,20 +195,21 @@ describe("importInvoiceIfPaid", () => {
     expect(mockBroadcast).toHaveBeenCalledWith("production", "order.created", { orderId: "order-new" });
   });
 
-  it("does nothing while the invoice still has a balance", async () => {
+  it("imports an unpaid invoice too, flagging the outstanding balance in the notes", async () => {
     resetSupabaseMock(withAdminAndInsert());
     mockFetchInvoice.mockResolvedValue({ ...PAID_INVOICE, Balance: 45.5 });
 
-    await importInvoiceIfPaid(createServiceClient(), "123", "6107");
+    await importInvoice(createServiceClient(), "123", "6107");
 
-    expect(insertedRows.orders).toBeUndefined();
-    expect(mockNotifyAdminOrderStatusChanged).not.toHaveBeenCalled();
+    expect(insertedRows.orders?.[0]).toMatchObject({ source: "quickbooks", source_ref: "6107" });
+    expect((insertedRows.orders?.[0] as { notes: string }).notes).toContain("NOT PAID (balance KWD 45.5)");
+    expect(mockNotifyAdminOrderStatusChanged).toHaveBeenCalled();
   });
 
   it("does nothing when the invoice was already imported", async () => {
     resetSupabaseMock({ orders: [{ data: { order_number: "#1120" }, error: null }] });
 
-    await importInvoiceIfPaid(createServiceClient(), "123", "6107");
+    await importInvoice(createServiceClient(), "123", "6107");
 
     expect(mockFetchInvoice).not.toHaveBeenCalled();
     expect(insertedRows.orders).toBeUndefined();
@@ -223,18 +224,18 @@ describe("importInvoiceIfPaid", () => {
     });
     mockFetchInvoice.mockResolvedValue({ ...PAID_INVOICE, CustomerMemo: { value: "Website order #1106" } });
 
-    await importInvoiceIfPaid(createServiceClient(), "123", "6107");
+    await importInvoice(createServiceClient(), "123", "6107");
 
     expect(insertedRows.orders).toBeUndefined();
   });
 
   it("ignores webhooks for a company other than the connected one, and when nothing is connected", async () => {
     resetSupabaseMock(withAdminAndInsert());
-    await importInvoiceIfPaid(createServiceClient(), "999", "6107");
+    await importInvoice(createServiceClient(), "999", "6107");
     expect(mockFetchInvoice).not.toHaveBeenCalled();
 
     mockLoadTokens.mockResolvedValue(null);
-    await importInvoiceIfPaid(createServiceClient(), "123", "6107");
+    await importInvoice(createServiceClient(), "123", "6107");
     expect(mockFetchInvoice).not.toHaveBeenCalled();
   });
 
@@ -247,7 +248,7 @@ describe("importInvoiceIfPaid", () => {
       employees: [{ data: [{ id: "admin-1", full_name: "Reem", phone: null }], error: null }],
     });
 
-    await importInvoiceIfPaid(createServiceClient(), "123", "6107");
+    await importInvoice(createServiceClient(), "123", "6107");
 
     expect(mockRecordAuditLog).not.toHaveBeenCalled();
     expect(mockNotifyAdminOrderStatusChanged).not.toHaveBeenCalled();

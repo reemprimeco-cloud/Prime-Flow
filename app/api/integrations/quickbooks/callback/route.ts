@@ -48,7 +48,9 @@ export async function GET(request: Request) {
       actorName: session.fullName,
       action: "employee_updated",
       entityType: "integration",
-      entityId: "quickbooks",
+      // entity_id is a uuid column — the admin who connected is the entity;
+      // the provider lives in new_value.
+      entityId: session.employeeId,
       newValue: { provider: "quickbooks", realmId, connected: true },
     });
   } catch (error) {

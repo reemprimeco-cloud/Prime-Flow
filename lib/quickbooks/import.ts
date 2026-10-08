@@ -11,15 +11,16 @@ import { sanitizePhoneInput } from "@/lib/utils/phone";
 import { fetchCustomer, fetchInvoice, loadTokens, type QboAddress, type QboCustomer, type QboInvoice } from "@/lib/quickbooks/client";
 
 /**
- * Turns a PAID QuickBooks invoice into an order on the board — the
+ * Turns a QuickBooks invoice into an order on the board — the
  * QuickBooks counterpart of app/api/webhooks/woocommerce/route.ts, and it
  * lands the same way: `new`, `approved: false`, with `notes` spelling out
  * what the manager still has to confirm before approving. Nothing an
  * employee can act on until then. See docs/QUICKBOOKS.md.
  *
- * "Paid" is the gate (invoice Balance == 0): the shop's payment gateway
- * closes the invoice after the customer pays, and that's the moment the job
- * is real — an invoice that was only created and sent may never be paid.
+ * Every invoice is imported as soon as QuickBooks reports it, paid or not
+ * (the shop's call: the job starts on the invoice, and the payment gateway
+ * settles the balance later). The notes carry the payment state so the
+ * manager sees an outstanding balance before approving.
  */
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
@@ -114,11 +115,14 @@ export function mapInvoiceToOrder(invoice: QboInvoice, customer: QboCustomer | n
   const shipDate = invoice.ShipDate && /^\d{4}-\d{2}-\d{2}$/.test(invoice.ShipDate) && invoice.ShipDate >= today ? invoice.ShipDate : null;
   const deliveryDate = shipDate ?? format(addDays(new Date(), 2), "yyyy-MM-dd");
 
+  const balance = invoice.Balance ?? 0;
+  const currency = invoice.CurrencyRef?.value ?? "KWD";
+  const paymentState = balance > 0 ? `NOT PAID (balance ${currency} ${balance})` : "paid";
   const noteLines = [
-    `Imported from QuickBooks invoice #${docNumber}${invoice.TxnDate ? ` (dated ${invoice.TxnDate})` : ""} — paid.`,
+    `Imported from QuickBooks invoice #${docNumber}${invoice.TxnDate ? ` (dated ${invoice.TxnDate})` : ""} — ${paymentState}.`,
     `Confirm ${shipDate ? "" : "delivery date/time, "}${isDelivery ? "delivery address, " : ""}fulfillment type, and print specs (paper, size, finishing) before approving.`,
   ];
-  if (invoice.TotalAmt != null) noteLines.push(`Invoice total: ${invoice.CurrencyRef?.value ?? "KWD"} ${invoice.TotalAmt}`);
+  if (invoice.TotalAmt != null) noteLines.push(`Invoice total: ${currency} ${invoice.TotalAmt}`);
   if (invoice.CustomerMemo?.value?.trim()) noteLines.push(`Customer memo: "${invoice.CustomerMemo.value.trim()}"`);
   if (rest.length > 0) noteLines.push(`Additional items also imported below (${rest.length}).`);
 
@@ -146,7 +150,7 @@ export async function processQuickBooksWebhook(payload: QuickBooksWebhookPayload
       if (entity.name !== "Invoice" || !entity.id || !realmId) continue;
       if (entity.operation !== "Create" && entity.operation !== "Update") continue;
       try {
-        await importInvoiceIfPaid(createServiceClient(), realmId, entity.id);
+        await importInvoice(createServiceClient(), realmId, entity.id);
       } catch (error) {
         console.error(`[quickbooks] import failed for invoice ${entity.id}`, error);
       }
@@ -154,7 +158,7 @@ export async function processQuickBooksWebhook(payload: QuickBooksWebhookPayload
   }
 }
 
-export async function importInvoiceIfPaid(supabase: ServiceClient, realmId: string, invoiceId: string): Promise<void> {
+export async function importInvoice(supabase: ServiceClient, realmId: string, invoiceId: string): Promise<void> {
   const tokens = await loadTokens(supabase);
   if (!tokens) {
     console.warn(`[quickbooks] webhook received but QuickBooks isn't connected — skipping invoice ${invoiceId}`);
@@ -178,7 +182,6 @@ export async function importInvoiceIfPaid(supabase: ServiceClient, realmId: stri
 
   const invoice = await fetchInvoice(supabase, invoiceId);
   if (!invoice) return;
-  if ((invoice.Balance ?? 0) > 0) return; // not paid yet — the paid event comes later
 
   const referenced = findReferencedOrderNumbers(invoice);
   if (referenced.length > 0) {
