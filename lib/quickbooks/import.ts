@@ -158,15 +158,20 @@ export async function processQuickBooksWebhook(payload: QuickBooksWebhookPayload
   }
 }
 
-export async function importInvoice(supabase: ServiceClient, realmId: string, invoiceId: string): Promise<void> {
+export type ImportInvoiceResult =
+  | { status: "imported"; orderNumber: string }
+  | { status: "already_imported"; orderNumber: string }
+  | { status: "skipped"; reason: string };
+
+export async function importInvoice(supabase: ServiceClient, realmId: string, invoiceId: string): Promise<ImportInvoiceResult> {
   const tokens = await loadTokens(supabase);
   if (!tokens) {
     console.warn(`[quickbooks] webhook received but QuickBooks isn't connected — skipping invoice ${invoiceId}`);
-    return;
+    return { status: "skipped", reason: "QuickBooks is not connected" };
   }
   if (tokens.realmId !== realmId) {
     console.warn(`[quickbooks] ignoring webhook for a different company (${realmId})`);
-    return;
+    return { status: "skipped", reason: "Invoice belongs to a different QuickBooks company" };
   }
 
   // Cheapest check first: this invoice already produced an order. QuickBooks
@@ -178,17 +183,18 @@ export async function importInvoice(supabase: ServiceClient, realmId: string, in
     .eq("source", "quickbooks")
     .eq("source_ref", invoiceId)
     .maybeSingle();
-  if (existing) return;
+  if (existing) return { status: "already_imported", orderNumber: existing.order_number };
 
   const invoice = await fetchInvoice(supabase, invoiceId);
-  if (!invoice) return;
+  if (!invoice) return { status: "skipped", reason: "Invoice not found in QuickBooks" };
 
   const referenced = findReferencedOrderNumbers(invoice);
   if (referenced.length > 0) {
     const { data: known } = await supabase.from("orders").select("order_number").in("order_number", referenced);
     if (known && known.length > 0) {
-      console.info(`[quickbooks] invoice ${invoiceId} references existing order ${known.map((o) => o.order_number).join(", ")} — not importing`);
-      return;
+      const numbers = known.map((o) => o.order_number).join(", ");
+      console.info(`[quickbooks] invoice ${invoiceId} references existing order ${numbers} — not importing`);
+      return { status: "skipped", reason: `Invoice memo references existing order ${numbers}` };
     }
   }
 
@@ -196,7 +202,7 @@ export async function importInvoice(supabase: ServiceClient, realmId: string, in
   const mapped = mapInvoiceToOrder(invoice, customer);
   if (!mapped) {
     console.warn(`[quickbooks] invoice ${invoiceId} has no product lines — skipping import`);
-    return;
+    return { status: "skipped", reason: "Invoice has no product lines" };
   }
 
   const { data: admins } = await supabase
@@ -208,7 +214,7 @@ export async function importInvoice(supabase: ServiceClient, realmId: string, in
   const importingAdmin = admins?.[0];
   if (!importingAdmin) {
     console.error(`[quickbooks] no active admin on file to attribute invoice ${invoiceId} to — skipping import`);
-    return;
+    return { status: "skipped", reason: "No active admin to attribute the order to" };
   }
 
   const { data: newOrder, error } = await supabase
@@ -240,9 +246,12 @@ export async function importInvoice(supabase: ServiceClient, realmId: string, in
   if (error || !newOrder) {
     // 23505 = the unique (source, source_ref) index: a second delivery for
     // the same invoice raced past the check above. Already imported — done.
-    if (error?.code === "23505") return;
+    if (error?.code === "23505") {
+      const { data: raced } = await supabase.from("orders").select("order_number").eq("source", "quickbooks").eq("source_ref", invoiceId).maybeSingle();
+      return { status: "already_imported", orderNumber: raced?.order_number ?? "?" };
+    }
     console.error(`[quickbooks] failed to create order for invoice ${invoiceId}`, error);
-    return;
+    return { status: "skipped", reason: error?.message ?? "Could not create the order" };
   }
 
   if (mapped.items.length > 0) {
@@ -312,4 +321,5 @@ export async function importInvoice(supabase: ServiceClient, realmId: string, in
   }
 
   await broadcast(CHANNELS.production, "order.created", { orderId: newOrder.id });
+  return { status: "imported", orderNumber: newOrder.order_number };
 }

@@ -16,12 +16,14 @@ import {
 import { toast } from "sonner";
 
 import { getDiagnosticsSnapshot, type DiagnosticsSnapshot } from "@/lib/actions/diagnostics";
+import { importQuickBooksInvoiceByNumber } from "@/lib/actions/quickbooks";
 import { useRealtimeChannel } from "@/lib/realtime/use-realtime-channel";
 import { getChannelStatus } from "@/lib/realtime/manager";
 import { CHANNELS } from "@/lib/realtime/constants";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 function useRealtimeStatus(): string {
   const [status, setStatus] = useState("SUBSCRIBING");
@@ -67,6 +69,29 @@ function StatusRow({
 
 export function DiagnosticsClient({ initialSnapshot }: { initialSnapshot: DiagnosticsSnapshot }) {
   const realtimeStatus = useRealtimeStatus();
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [importing, setImporting] = useState(false);
+
+  async function handleManualImport() {
+    const number = invoiceNumber.trim();
+    if (!number || importing) return;
+    setImporting(true);
+    try {
+      const result = await importQuickBooksInvoiceByNumber(number);
+      if (result.status === "imported") {
+        toast.success(`Invoice #${number} imported as order ${result.orderNumber}`);
+        setInvoiceNumber("");
+      } else if (result.status === "already_imported") {
+        toast.info(`Invoice #${number} is already order ${result.orderNumber}`);
+      } else if (result.status === "skipped") {
+        toast.warning(`Invoice #${number} not imported: ${result.reason}`);
+      } else {
+        toast.error(result.message);
+      }
+    } finally {
+      setImporting(false);
+    }
+  }
 
   const query = useQuery({
     queryKey: ["diagnostics"],
@@ -163,7 +188,7 @@ export function DiagnosticsClient({ initialSnapshot }: { initialSnapshot: Diagno
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
             {qb.configured
-              ? "Paid invoices import onto the board as new, unapproved orders. Connecting is a one-time step; reconnect if it expires."
+              ? "Invoices import onto the board as new, unapproved orders as soon as QuickBooks reports them. Connecting is a one-time step; reconnect if it expires."
               : "Set QUICKBOOKS_CLIENT_ID / QUICKBOOKS_CLIENT_SECRET on the host, then connect here. See docs/QUICKBOOKS.md."}
           </p>
           {qb.configured && (
@@ -172,6 +197,30 @@ export function DiagnosticsClient({ initialSnapshot }: { initialSnapshot: Diagno
             </Button>
           )}
         </div>
+        {qb.connected && (
+          <form
+            className="flex flex-wrap items-end gap-2 border-t border-border pt-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void handleManualImport();
+            }}
+          >
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-muted-foreground">Import an invoice the webhook missed (by invoice number)</span>
+              <Input
+                value={invoiceNumber}
+                onChange={(event) => setInvoiceNumber(event.target.value)}
+                placeholder="e.g. 2810"
+                inputMode="numeric"
+                className="w-40"
+                disabled={importing}
+              />
+            </label>
+            <Button type="submit" variant="outline" size="sm" disabled={importing || !invoiceNumber.trim()}>
+              {importing ? "Importing…" : "Import invoice"}
+            </Button>
+          </form>
+        )}
       </Card>
 
       <Card className="p-5 text-sm text-muted-foreground">

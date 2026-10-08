@@ -9,6 +9,10 @@ Every QuickBooks Online invoice becomes a new order on the board as soon as it i
 3. The customer record is fetched for the phone number (an invoice carries addresses but not a phone). `mapInvoiceToOrder` builds the order — pure, unit-tested.
 4. The order lands as `new`, `approved: false`, with `notes` spelling out what still needs confirming before approval. Admins get the same "needs specs, assignment, and approval" alert a WooCommerce import sends.
 
+## Manual import
+
+The Diagnostics page (Integrations card) has an "Import invoice" box: type the invoice number as printed and the app looks it up by `DocNumber`, then runs the same import. For invoices the webhook missed — created before the integration went live, or while it was down. Read-only on the QuickBooks side: nothing on the invoice changes, so the payment gateway does not re-send the customer a link (editing an invoice to re-fire the webhook would). `lib/actions/quickbooks.ts`.
+
 ## Field mapping
 
 | Order | Invoice |
