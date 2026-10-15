@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CountdownTimer, useCountdownColor } from "@/components/orders/countdown-timer";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
+import { summarizePrintSettings } from "@/lib/print-settings";
 import { EmployeeChips } from "@/components/orders/employee-chips";
 import { MaterialRequestBadge } from "@/components/orders/material-request-badge";
 import { StatusActions } from "@/components/orders/status-actions";
@@ -176,6 +177,11 @@ export const OrderCard = memo(function OrderCard({
           </div>
         )}
         {order.finishing && <div className="line-clamp-2">{order.finishing}</div>}
+        {summarizePrintSettings(order.printSettings) && (
+          <div className="truncate font-semibold">
+            <span className="text-destructive">Fiery:</span> {summarizePrintSettings(order.printSettings)}
+          </div>
+        )}
       </div>
 
       <EmployeeChips employees={order.assignedEmployees} />

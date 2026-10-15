@@ -34,6 +34,8 @@ import type {
   OrderStatus,
 } from "@/types/database.types";
 
+import { parsePrintSettings, type PrintSettings } from "@/lib/print-settings";
+
 type ServiceClient = ReturnType<typeof createServiceClient>;
 
 // ---------------------------------------------------------------------------
@@ -47,6 +49,7 @@ export interface JobItemReadiness {
   paperSize: string | null;
   quantity: number;
   finishing: string | null;
+  printSettings: PrintSettings | null;
   isReady: boolean;
 }
 
@@ -60,6 +63,8 @@ export interface EmployeeJobItem {
   paperSize: string | null;
   quantity: number;
   finishing: string | null;
+  /** Fiery job properties the operator sets before printing — see lib/print-settings. */
+  printSettings: PrintSettings | null;
   priority: OrderPriority;
   deliveryDate: string;
   deliveryTime: string;
@@ -135,7 +140,7 @@ export async function getMyJobs(): Promise<MyJobsResult> {
   const { data: orders, error } = await supabase
     .from("orders")
     .select(
-      "id, order_number, customer_name, customer_mobile, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, delivery_address, delivery_map_link, status, fulfillment_type, notes, item_ready, approved, design_approval_status, design_approval_note"
+      "id, order_number, customer_name, customer_mobile, product, paper, paper_size, quantity, finishing, print_settings, priority, delivery_date, delivery_time, delivery_address, delivery_map_link, status, fulfillment_type, notes, item_ready, approved, design_approval_status, design_approval_note"
     )
     .in("id", orderIds)
     .eq("archived", false)
@@ -153,7 +158,7 @@ export async function getMyJobs(): Promise<MyJobsResult> {
     supabase.from("order_assignments").select("order_id, employee_id, sequence, handed_off_at").in("order_id", jobOrderIds),
     supabase
       .from("order_items")
-      .select("id, order_id, product, paper, paper_size, quantity, finishing, is_ready")
+      .select("id, order_id, product, paper, paper_size, quantity, finishing, print_settings, is_ready")
       .in("order_id", jobOrderIds)
       .order("sort_order"),
   ]);
@@ -168,6 +173,7 @@ export async function getMyJobs(): Promise<MyJobsResult> {
       paperSize: row.paper_size,
       quantity: row.quantity,
       finishing: row.finishing,
+      printSettings: parsePrintSettings(row.print_settings),
       isReady: row.is_ready,
     });
     additionalItemsByOrder.set(row.order_id, list);
@@ -256,6 +262,7 @@ export async function getMyJobs(): Promise<MyJobsResult> {
       paperSize: o.paper_size,
       quantity: o.quantity,
       finishing: o.finishing,
+      printSettings: parsePrintSettings(o.print_settings),
       priority: o.priority,
       deliveryDate: o.delivery_date,
       deliveryTime: o.delivery_time,
