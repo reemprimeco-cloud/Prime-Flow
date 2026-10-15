@@ -51,6 +51,6 @@ the manager adds them when editing the order.
 
 ## Rolling back
 
-The production state before this update is tagged `pre-fiery-print-settings`
-(commit `7523e87`). Reverting the merge commit restores it; the two jsonb
-columns can stay in place harmlessly.
+The production state before this update is kept on the branch
+`pre-fiery-print-settings` (commit `7523e87`). Reverting the merge commit
+restores it; the two jsonb columns can stay in place harmlessly.
