@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { printSettingsSchema } from "@/lib/print-settings";
 import { sanitizePhoneInput } from "@/lib/utils/phone";
 
 const notificationPreferencesSchema = z.object({
@@ -17,6 +18,7 @@ const orderItemSchema = z.object({
   quantity: z.coerce.number().int("Whole numbers only").positive("Must be greater than 0"),
   finishing: z.string().trim().max(1000).optional().or(z.literal("")),
   employeeId: z.string().uuid().optional().or(z.literal("")),
+  printSettings: printSettingsSchema.optional(),
 });
 
 export type OrderItemInput = z.infer<typeof orderItemSchema>;
@@ -33,6 +35,8 @@ export const orderFormSchema = z.object({
   paperSize: z.string().trim().max(100).optional().or(z.literal("")),
   quantity: z.coerce.number().int("Whole numbers only").positive("Must be greater than 0"),
   finishing: z.string().trim().max(1000).optional().or(z.literal("")),
+  // Fiery job properties for item 1 — see lib/print-settings. Items 2+ carry their own.
+  printSettings: printSettingsSchema.optional(),
   fulfillmentType: z.enum(["pickup", "delivery"]),
   deliveryProvider: z.enum(["internal", "armada"]).default("internal"),
   priority: z.enum(["normal", "urgent"]),

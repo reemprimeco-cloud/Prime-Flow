@@ -11,6 +11,7 @@ import { CountdownTimer, useCountdownColor } from "@/components/orders/countdown
 import { DesignApprovalControl } from "@/components/employee/design-approval-control";
 import { MaterialRequestBadge } from "@/components/orders/material-request-badge";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
+import { PrintSettingsCard } from "@/components/orders/print-settings-summary";
 import { StatusActions } from "@/components/orders/status-actions";
 import { cn } from "@/lib/utils";
 import { buildGoogleMapsLink } from "@/lib/utils/maps";
@@ -127,6 +128,10 @@ export function JobCard({
         {job.paper && <Spec label="Paper" value={job.paper} />}
         {job.paperSize && <Spec label="Size" value={job.paperSize} />}
       </div>
+
+      {/* The Fiery job properties the operator sets before printing — above
+          the free-text details so they're read first, not found afterwards. */}
+      <PrintSettingsCard settings={job.printSettings} />
 
       {job.finishing && (
         <div>

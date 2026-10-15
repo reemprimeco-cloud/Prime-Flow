@@ -32,6 +32,26 @@ describe("Order Creation — orderFormSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts Fiery print settings on the order and on an item", () => {
+    const printSettings = { preset: "Gradebooklet", mediaType: "Heavy 6 (257-300 g/m2)", paperSource: "drawer_3", sides: "duplex_short", colorMode: "grayscale" };
+    const result = orderFormSchema.safeParse(
+      validOrder({
+        printSettings,
+        items: [{ product: "Flyers", quantity: 300, printSettings: { ...printSettings, mixedMedia: [{ kind: "front_cover", mediaType: "Labels (151-180 g/m2)" }] } }],
+      })
+    );
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.printSettings?.paperSource).toBe("drawer_3");
+      expect(result.data.items[0].printSettings?.mixedMedia?.[0].kind).toBe("front_cover");
+    }
+  });
+
+  it("rejects print settings with an unknown tray", () => {
+    const result = orderFormSchema.safeParse(validOrder({ printSettings: { paperSource: "drawer_7" } }));
+    expect(result.success).toBe(false);
+  });
+
   it("accepts an order with optional fields omitted/empty", () => {
     const result = orderFormSchema.safeParse(
       validOrder({ paper: "", paperSize: "", finishing: "", notes: "" })

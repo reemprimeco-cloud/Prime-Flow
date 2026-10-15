@@ -392,6 +392,7 @@ export type Database = {
           order_id: string
           paper: string | null
           paper_size: string | null
+          print_settings: Json | null
           product: string
           quantity: number
           sort_order: number
@@ -405,6 +406,7 @@ export type Database = {
           order_id: string
           paper?: string | null
           paper_size?: string | null
+          print_settings?: Json | null
           product: string
           quantity: number
           sort_order?: number
@@ -418,6 +420,7 @@ export type Database = {
           order_id?: string
           paper?: string | null
           paper_size?: string | null
+          print_settings?: Json | null
           product?: string
           quantity?: number
           sort_order?: number
@@ -558,6 +561,7 @@ export type Database = {
           order_number: string
           paper: string | null
           paper_size: string | null
+          print_settings: Json | null
           preferred_channel: Database["public"]["Enums"]["notification_channel"]
           preferred_language: Database["public"]["Enums"]["order_language"]
           priority: Database["public"]["Enums"]["order_priority"]
@@ -606,6 +610,7 @@ export type Database = {
           order_number?: string
           paper?: string | null
           paper_size?: string | null
+          print_settings?: Json | null
           preferred_channel?: Database["public"]["Enums"]["notification_channel"]
           preferred_language?: Database["public"]["Enums"]["order_language"]
           priority?: Database["public"]["Enums"]["order_priority"]
@@ -654,6 +659,7 @@ export type Database = {
           order_number?: string
           paper?: string | null
           paper_size?: string | null
+          print_settings?: Json | null
           preferred_channel?: Database["public"]["Enums"]["notification_channel"]
           preferred_language?: Database["public"]["Enums"]["order_language"]
           priority?: Database["public"]["Enums"]["order_priority"]
