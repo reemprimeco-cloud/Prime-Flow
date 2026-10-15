@@ -7,6 +7,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { isDemoMode } from "@/lib/demo/mode";
 import { broadcast, CHANNELS } from "@/lib/realtime/channels";
 import { recordAuditLog } from "@/lib/audit/log";
+import { deleteOrder } from "@/lib/actions/orders";
 import { notifyEmployeeJobAssigned, notifyOrderStatusChanged } from "@/lib/notifications/service";
 import { normalizeNotificationPreferences } from "@/lib/notifications/constants";
 import type { OrderPriority } from "@/types/database.types";
@@ -192,5 +193,40 @@ export async function bulkSendNotifications(orderIds: string[]): Promise<BulkRes
     succeeded++;
   }
 
+  return { requested: orderIds.length, succeeded, skipped: orderIds.length - succeeded };
+}
+
+/**
+ * Deletes every selected order, one at a time through the single-order
+ * action so each one gets the same file clean-up, audit entry and
+ * employee "job cancelled" message as a delete from the card menu. One
+ * failure doesn't stop the rest: it's counted as skipped and reported.
+ */
+export async function bulkDeleteOrders(orderIds: string[]): Promise<BulkResult> {
+  const session = await requireAdmin();
+  if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
+  if (orderIds.length === 0) return { requested: 0, succeeded: 0, skipped: 0 };
+
+  let succeeded = 0;
+  for (const orderId of orderIds) {
+    try {
+      await deleteOrder(orderId);
+      succeeded += 1;
+    } catch (error) {
+      console.error(`[bulkDeleteOrders] failed to delete ${orderId}:`, error);
+    }
+  }
+
+  await recordAuditLog({
+    actorId: session.employeeId,
+    actorName: session.fullName,
+    action: "order_deleted",
+    entityType: "order",
+    entityId: null,
+    orderId: null,
+    oldValue: { bulk: true, orderIds, succeeded },
+  });
+
+  revalidatePath("/dashboard");
   return { requested: orderIds.length, succeeded, skipped: orderIds.length - succeeded };
 }
