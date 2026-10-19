@@ -4,10 +4,10 @@ import { useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { format, parseISO } from "date-fns";
-import { CheckCircle2, ExternalLink, FileText, ImageIcon, Loader2, MapPin, MessageSquareText, Pencil, Send, ShieldAlert, Truck, Undo2 } from "lucide-react";
+import { CheckCircle2, ExternalLink, FileClock, FileText, ImageIcon, Loader2, MapPin, MessageSquareText, Pencil, Send, ShieldAlert, ShieldCheck, Truck, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { getOrderDetail, updateOrderStatus } from "@/lib/actions/orders";
+import { approveOrder, getOrderDetail, updateOrderStatus } from "@/lib/actions/orders";
 import { cancelArmadaDeliveryAction, retryArmadaDispatch } from "@/lib/actions/armada";
 import { markDesignApprovedManually, requestDesignApproval } from "@/lib/actions/design-approval";
 import { buildGoogleMapsLink } from "@/lib/utils/maps";
@@ -41,6 +41,7 @@ import {
   MATERIAL_TYPE_LABELS,
   ORDER_DELIVERY_PROVIDER_LABELS,
   ORDER_STATUS_LABELS,
+  isBlockedByDesignApproval,
 } from "@/types/domain";
 import type { OrderDeliveryProvider, OrderStatus } from "@/types/database.types";
 
@@ -96,7 +97,28 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
   const refreshOrder = () => {
     queryClient.invalidateQueries({ queryKey: ["order", orderId] });
     queryClient.invalidateQueries({ queryKey: ["orders"] });
+    queryClient.invalidateQueries({ queryKey: ["board"] });
+    queryClient.invalidateQueries({ queryKey: ["stats"] });
     queryClient.invalidateQueries({ queryKey: ["order-timeline", orderId] });
+  };
+
+  const [approvePending, startApprove] = useTransition();
+  // Same as the edit form's Production Approval switch (and the card's Approve).
+  const handleApproveOrder = () => {
+    if (!order) return;
+    startApprove(async () => {
+      try {
+        await approveOrder(order.id);
+        toast.success(
+          order.whatsappEnabled
+            ? `${order.orderNumber} approved — confirmation sent to ${order.customerName}`
+            : `${order.orderNumber} approved`
+        );
+        refreshOrder();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to approve the order");
+      }
+    });
   };
 
   const handleRetryArmadaDispatch = () => {
@@ -160,7 +182,9 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
             <SheetTitle>{order ? order.orderNumber : "Order"}</SheetTitle>
             {order && <OrderStatusBadge status={order.status} />}
           </div>
-          <SheetDescription>{order?.customerName ?? "Loading order details…"}</SheetDescription>
+          <SheetDescription dir="auto" className="text-start">
+            {order?.customerName ?? "Loading order details…"}
+          </SheetDescription>
         </SheetHeader>
 
         <SheetBody className="flex flex-col gap-6">
@@ -186,15 +210,100 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                     Pending Approval
                   </Badge>
                 )}
+                {order.designApprovalStatus !== "not_sent" && (
+                  <Badge
+                    variant={
+                      order.designApprovalStatus === "approved"
+                        ? "success"
+                        : order.designApprovalStatus === "changes_requested"
+                          ? "destructive"
+                          : "warning"
+                    }
+                    className="gap-1"
+                  >
+                    <FileClock className="size-3" />
+                    {DESIGN_APPROVAL_STATUS_LABELS[order.designApprovalStatus]}
+                  </Badge>
+                )}
               </section>
 
-              <div className="flex flex-wrap items-center gap-2">
+              {(() => {
+                // What stands between this order and production, and the
+                // one action that clears it. Start Production isn't offered
+                // until it's clear (the server would refuse it anyway).
+                const blockedByDesign = isBlockedByDesignApproval(order.status, order.designApprovalStatus);
+                const needsApproval = order.status === "new" && !order.approved;
+                if (!blockedByDesign && !needsApproval) return null;
+                return (
+                  <div className="flex flex-col gap-3 rounded-2xl border border-warning/40 bg-warning/10 p-4">
+                    {needsApproval && (
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="min-w-0 flex-1 text-sm text-amber-900">
+                          <span className="font-semibold">Needs your approval.</span> The customer gets their
+                          confirmation and the assigned staff are notified once you approve.
+                        </p>
+                        <Button type="button" variant="primary" disabled={approvePending} onClick={handleApproveOrder}>
+                          {approvePending ? <Loader2 className="animate-spin" /> : <ShieldCheck />}
+                          Approve order
+                        </Button>
+                      </div>
+                    )}
+                    {blockedByDesign && (
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="min-w-0 flex-1 text-sm text-amber-900">
+                          {order.designApprovalStatus === "changes_requested" ? (
+                            <>
+                              <span className="font-semibold">The customer asked for design changes.</span> Update the
+                              files and resend the link — production can start once they approve.
+                            </>
+                          ) : (
+                            <>
+                              <span className="font-semibold">Waiting on the customer&apos;s design approval.</span>{" "}
+                              Production can start once they approve.
+                            </>
+                          )}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="bg-card"
+                            disabled={designApprovalPending}
+                            onClick={handleSendDesignApproval}
+                          >
+                            <Send />
+                            Resend link
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="bg-card"
+                            disabled={designApprovalPending}
+                            onClick={() => setManualApproveOpen(true)}
+                          >
+                            <CheckCircle2 />
+                            Customer approved
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              <div className="flex flex-wrap items-center gap-2 empty:hidden">
                 <StatusActions
                   status={order.status}
                   fulfillmentType={order.fulfillmentType}
                   isOutsourced={false}
                   pending={statusPending}
                   onChange={handleStatusChange}
+                  exclude={
+                    isBlockedByDesignApproval(order.status, order.designApprovalStatus) ||
+                    (order.status === "new" && !order.approved)
+                      ? ["in_progress"]
+                      : undefined
+                  }
                 />
                 {/* Manager-only undo for a job started by mistake -- never
                     offered to employees (see the `-> new` edge's comment in
@@ -359,6 +468,9 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
 
               {(() => {
                 const hasFiles = order.productImages.length > 0 || order.designFiles.length > 0;
+                // While approval blocks production, the notice at the top
+                // carries Resend + Customer approved — don't repeat them here.
+                const blockedByDesign = isBlockedByDesignApproval(order.status, order.designApprovalStatus);
                 return (
                   <DetailSection title="Design Approval">
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -375,17 +487,19 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                       >
                         {DESIGN_APPROVAL_STATUS_LABELS[order.designApprovalStatus]}
                       </Badge>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={!hasFiles || designApprovalPending}
-                        onClick={handleSendDesignApproval}
-                        className="gap-2"
-                      >
-                        {designApprovalPending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
-                        {order.designApprovalStatus === "not_sent" ? "Send for Approval" : "Resend Link"}
-                      </Button>
+                      {!blockedByDesign && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={!hasFiles || designApprovalPending}
+                          onClick={handleSendDesignApproval}
+                          className="gap-2"
+                        >
+                          {designApprovalPending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
+                          {order.designApprovalStatus === "not_sent" ? "Send for Approval" : "Resend Link"}
+                        </Button>
+                      )}
                     </div>
                     {!hasFiles && (
                       <p className="text-xs text-muted-foreground">
@@ -397,24 +511,25 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                         &ldquo;{order.designApprovalNote}&rdquo;
                       </p>
                     )}
-                    {(order.designApprovalStatus === "pending" || order.designApprovalStatus === "changes_requested") && (
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-xs text-muted-foreground">
-                          Start Production is blocked until the customer approves — via the link, or confirmed to you directly.
-                        </p>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={designApprovalPending}
-                          onClick={() => setManualApproveOpen(true)}
-                          className="gap-2"
-                        >
-                          <CheckCircle2 className="size-3.5" />
-                          Customer approved via WhatsApp
-                        </Button>
-                      </div>
-                    )}
+                    {!blockedByDesign &&
+                      (order.designApprovalStatus === "pending" || order.designApprovalStatus === "changes_requested") && (
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-xs text-muted-foreground">
+                            Still waiting on the customer — record it here if they approved by message.
+                          </p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={designApprovalPending}
+                            onClick={() => setManualApproveOpen(true)}
+                            className="gap-2"
+                          >
+                            <CheckCircle2 className="size-3.5" />
+                            Customer approved via WhatsApp
+                          </Button>
+                        </div>
+                      )}
                   </DetailSection>
                 );
               })()}

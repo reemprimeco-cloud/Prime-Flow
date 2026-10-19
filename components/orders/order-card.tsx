@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import Image from "next/image";
-import { ImageIcon, MoreVertical, Copy, Pencil, Trash2, Eye, CalendarClock, Store, Truck, ShieldAlert, FileClock, Users } from "lucide-react";
+import { ImageIcon, MoreVertical, Copy, Pencil, Trash2, Eye, CalendarClock, Store, Truck, ShieldAlert, FileClock, Users, CheckCircle2, MessageSquareWarning, ShieldCheck } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 import { Card } from "@/components/ui/card";
@@ -23,7 +23,7 @@ import { MaterialRequestBadge } from "@/components/orders/material-request-badge
 import { StatusActions } from "@/components/orders/status-actions";
 import { formatDeliveryTime } from "@/lib/utils/countdown";
 import { cn } from "@/lib/utils";
-import { DELAYABLE_STATUSES } from "@/types/domain";
+import { DELAYABLE_STATUSES, isBlockedByDesignApproval } from "@/types/domain";
 import type { OrderListItem } from "@/lib/actions/orders";
 import type { OrderDeliveryProvider, OrderStatus } from "@/types/database.types";
 
@@ -52,6 +52,16 @@ interface OrderCardProps {
   quickActionPending?: boolean;
   /** "Assign" quick action — opens the employee picker for this order. */
   onAssign?: (order: OrderListItem) => void;
+  /**
+   * "Customer approved" — shown in place of Start Production while the
+   * design-approval link is out, for when the customer confirmed directly.
+   */
+  onMarkDesignApproved?: (order: OrderListItem) => void;
+  /**
+   * "Approve" — the edit form's Production Approval switch, on the card.
+   * Shown in place of Start Production while the order is unapproved.
+   */
+  onApprove?: (order: OrderListItem) => void;
 }
 
 /** Which transitions get a button on the card, per current status. The rest stay in the drawer. */
@@ -73,8 +83,17 @@ export const OrderCard = memo(function OrderCard({
   onQuickStatusChange,
   quickActionPending,
   onAssign,
+  onMarkDesignApproved,
+  onApprove,
 }: OrderCardProps) {
-  const quickTargets = onQuickStatusChange ? QUICK_TARGETS[order.status] : undefined;
+  // Start Production would be refused while the customer's design approval
+  // is outstanding, so it isn't offered; the card shows the real next step.
+  const blockedByDesign = isBlockedByDesignApproval(order.status, order.designApprovalStatus);
+  // An unapproved order's first step is approving it (which sends the
+  // customer's confirmation); Start Production appears once that's done.
+  const needsApproval = order.status === "new" && !order.approved && !!onApprove;
+  const quickTargets =
+    onQuickStatusChange && !blockedByDesign && !needsApproval ? QUICK_TARGETS[order.status] : undefined;
   const isInFlight = DELAYABLE_STATUSES.includes(order.status);
   const countdownColor = useCountdownColor(order.deliveryDate, order.deliveryTime);
 
@@ -135,9 +154,11 @@ export const OrderCard = memo(function OrderCard({
               </div>
             </div>
           </div>
-          <div className="truncate text-sm font-semibold text-foreground">{order.customerName}</div>
+          <div dir="auto" className="truncate text-start text-sm font-semibold text-foreground">
+            {order.customerName}
+          </div>
           <div className="truncate text-xs text-muted-foreground">
-            {order.product}
+            <bdi>{order.product}</bdi>
             {order.itemCount > 0 && ` +${order.itemCount} more item${order.itemCount > 1 ? "s" : ""}`}
           </div>
         </div>
@@ -221,8 +242,40 @@ export const OrderCard = memo(function OrderCard({
         )}
       </div>
 
-      {(quickTargets || onAssign) && (
+      {(quickTargets || onAssign || needsApproval || (blockedByDesign && onQuickStatusChange)) && (
         <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          {needsApproval && (
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              disabled={!!quickActionPending}
+              onClick={() => onApprove!(order)}
+              title="Approve this order. The customer gets their confirmation and the assigned staff are notified."
+            >
+              <ShieldCheck className="size-3.5" />
+              Approve
+            </Button>
+          )}
+          {blockedByDesign && onQuickStatusChange && order.designApprovalStatus === "pending" && onMarkDesignApproved && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!!quickActionPending}
+              onClick={() => onMarkDesignApproved(order)}
+              title="Production starts once the customer approves. Use this if they approved directly, e.g. on WhatsApp."
+            >
+              <CheckCircle2 className="size-3.5" />
+              Customer approved
+            </Button>
+          )}
+          {blockedByDesign && onQuickStatusChange && order.designApprovalStatus === "changes_requested" && (
+            <Button type="button" variant="outline" size="sm" onClick={() => onOpen(order)}>
+              <MessageSquareWarning className="size-3.5" />
+              Review changes
+            </Button>
+          )}
           {quickTargets && onQuickStatusChange && (
             <StatusActions
               status={order.status}

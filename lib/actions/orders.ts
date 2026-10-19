@@ -10,6 +10,7 @@ import { normalizePrintSettings, parsePrintSettings, type PrintSettings } from "
 import { isAllowedUpload, MAX_FILE_SIZE_BYTES } from "@/lib/files/constants";
 import { toDeliveryDate } from "@/lib/utils/countdown";
 import { getTodayBoundsInKuwait } from "@/lib/utils/date";
+import { customerKey } from "@/lib/utils/phone";
 import { DEFAULT_ORDERS_PAGE_SIZE } from "@/lib/orders/constants";
 import { DELAYABLE_STATUSES } from "@/types/domain";
 import { isDemoMode } from "@/lib/demo/mode";
@@ -623,8 +624,9 @@ function dedupeCustomersByMobile(rows: CustomerSuggestion[]): CustomerSuggestion
   const seen = new Set<string>();
   const suggestions: CustomerSuggestion[] = [];
   for (const row of rows) {
-    if (seen.has(row.customerMobile)) continue;
-    seen.add(row.customerMobile);
+    const key = customerKey(row.customerMobile);
+    if (seen.has(key)) continue;
+    seen.add(key);
     suggestions.push(row);
     if (suggestions.length >= 8) break;
   }
@@ -1499,6 +1501,46 @@ export async function updateOrderStatus(
   const supabase = createServiceClient();
 
   await applyOrderStatusTransition(supabase, orderId, status, session.employeeId, session.fullName, deliveryProvider);
+}
+
+/**
+ * Quick "Approve" from a dashboard card — the same effect as switching
+ * Production Approval on in the edit form: the order is marked approved,
+ * then the customer's "order received" message and the assigned staff's
+ * job pings go out (sendOrderApprovedNotifications), which an unapproved
+ * order holds back. Idempotent: approving an approved order does nothing.
+ */
+export async function approveOrder(orderId: string): Promise<void> {
+  const session = await requireAdmin();
+  if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
+  const supabase = createServiceClient();
+
+  // Conditional update: only flips rows that are still unapproved, so two
+  // quick taps (or two admins) can't send the customer two confirmations.
+  const { data: flipped, error } = await supabase
+    .from("orders")
+    .update({ approved: true })
+    .eq("id", orderId)
+    .eq("approved", false)
+    .select("order_number")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!flipped) return;
+
+  await runAfterResponse(`approve ${flipped.order_number}`, async () => {
+    await recordAuditLog({
+      actorId: session.employeeId,
+      actorName: session.fullName,
+      action: "order_updated",
+      entityType: "order",
+      entityId: orderId,
+      orderId,
+      oldValue: { approved: false },
+      newValue: { approved: true, quickApprove: true },
+    });
+    await sendOrderApprovedNotifications(supabase, orderId, session.employeeId, session.fullName);
+    await broadcast(CHANNELS.production, "order.updated", { orderId });
+  });
 }
 
 /**

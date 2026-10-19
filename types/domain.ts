@@ -164,6 +164,16 @@ export const EMPLOYEE_NEXT_ACTIONS: Partial<Record<OrderStatus, { status: OrderS
  *   picked pickup vs. delivery at creation time, so marking done routes
  *   automatically to the right status instead of the employee choosing.
  */
+/**
+ * True while an order can't start production because the customer hasn't
+ * approved its design (the link is out, or they asked for changes). The
+ * server enforces this in applyOrderStatusTransition; the UI uses the same
+ * rule so it never offers a Start it would then refuse.
+ */
+export function isBlockedByDesignApproval(status: OrderStatus, designApprovalStatus: DesignApprovalStatus): boolean {
+  return status === "new" && (designApprovalStatus === "pending" || designApprovalStatus === "changes_requested");
+}
+
 export function getEmployeeNextActions(
   status: OrderStatus,
   fulfillmentType: OrderFulfillmentType,

@@ -10,6 +10,14 @@ const { mockIsDemoMode, mockRecordAuditLog, mockBroadcast, mockRevalidatePath, m
 
 vi.mock("@/lib/demo/mode", () => ({ isDemoMode: mockIsDemoMode }));
 vi.mock("@/lib/audit/log", () => ({ recordAuditLog: mockRecordAuditLog }));
+// Returning-customer matching has its own tests (lib/orders/existing-customer.test.ts).
+vi.mock("@/lib/orders/existing-customer", () => ({
+  resolveExistingCustomer: async (_supabase: unknown, customerName: string, customerMobile: string) => ({
+    customerName,
+    customerMobile,
+    matched: false,
+  }),
+}));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 vi.mock("@/lib/realtime/channels", () => ({
   broadcast: mockBroadcast,
@@ -122,11 +130,13 @@ describe("submitOrderRequest", () => {
     expect(mockRecordAuditLog).not.toHaveBeenCalled();
   });
 
-  it("rejects a mobile number without the +965 country code", async () => {
+  // Any format of an 8-digit Kuwait number is accepted (see
+  // lib/validation/order-request.test.ts); a short one is not guessed at.
+  it("rejects a mobile number that isn't 8 digits", async () => {
     const fd = minimalRequestFormData();
-    fd.set("customerMobile", "55011111");
+    fd.set("customerMobile", "5501111");
 
-    await expect(submitOrderRequest(fd)).rejects.toThrow("+965");
+    await expect(submitOrderRequest(fd)).rejects.toThrow("8");
     expect(mockRecordAuditLog).not.toHaveBeenCalled();
   });
 

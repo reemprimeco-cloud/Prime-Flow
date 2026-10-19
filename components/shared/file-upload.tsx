@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getFileKind, MAX_FILE_SIZE_BYTES, type FileKind } from "@/lib/files/constants";
+import { fitImageForUpload } from "@/lib/files/fit-image";
 
 interface ExistingFile {
   id: string;
@@ -27,6 +28,8 @@ interface FileUploadProps {
   hint?: string;
   /** Extra sentence appended to the "file too large" toast — e.g. pointing a public customer at WhatsApp/email as a fallback, since staff on the internal order form don't need that suggestion. */
   tooLargeHint?: string;
+  /** Re-encode large photos in the browser before the size check (see fitImageForUpload) instead of rejecting them. */
+  shrinkImages?: boolean;
 }
 
 export function FileUpload({
@@ -40,12 +43,22 @@ export function FileUpload({
   removingId,
   hint,
   tooLargeHint,
+  shrinkImages = false,
 }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [preparing, setPreparing] = useState(false);
 
-  const handlePick = (fileList: FileList | null) => {
+  const handlePick = async (fileList: FileList | null) => {
     if (!fileList) return;
-    const picked = multiple ? Array.from(fileList) : Array.from(fileList).slice(0, 1);
+    let picked = multiple ? Array.from(fileList) : Array.from(fileList).slice(0, 1);
+    if (shrinkImages) {
+      setPreparing(true);
+      try {
+        picked = await Promise.all(picked.map(fitImageForUpload));
+      } finally {
+        setPreparing(false);
+      }
+    }
 
     const tooLarge = picked.filter((f) => f.size > MAX_FILE_SIZE_BYTES);
     const accepted = picked.filter((f) => f.size <= MAX_FILE_SIZE_BYTES);
@@ -73,9 +86,14 @@ export function FileUpload({
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        className="flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-border bg-muted/20 px-4 py-6 text-center transition-colors hover:border-secondary hover:bg-muted/40"
+        disabled={preparing}
+        className="flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-border bg-muted/20 px-4 py-6 text-center transition-colors hover:border-secondary hover:bg-muted/40 disabled:opacity-60"
       >
-        <Upload className="size-5 text-muted-foreground" />
+        {preparing ? (
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        ) : (
+          <Upload className="size-5 text-muted-foreground" />
+        )}
         <span className="text-sm text-muted-foreground">
           {hint ?? `Click to upload${multiple ? " one or more files" : ""}`}
         </span>
@@ -87,8 +105,10 @@ export function FileUpload({
         multiple={multiple}
         className="hidden"
         onChange={(e) => {
-          handlePick(e.target.files);
-          e.target.value = "";
+          const picked = e.target.files;
+          void handlePick(picked).finally(() => {
+            e.target.value = "";
+          });
         }}
       />
 

@@ -9,6 +9,7 @@ import { recordAuditLog } from "@/lib/audit/log";
 import { isDemoMode } from "@/lib/demo/mode";
 import { createOrderRequestSchema, type OrderRequestLanguage } from "@/lib/validation/order-request";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/notifications/constants";
+import { resolveExistingCustomer } from "@/lib/orders/existing-customer";
 
 const DEMO_WRITE_ERROR = "This is a read-only demo — writes are disabled.";
 
@@ -87,12 +88,14 @@ export async function submitOrderRequest(formData: FormData): Promise<{ orderNum
   const deliveryTime = input.deliveryTime || DEFAULT_DELIVERY_TIME;
 
   const supabase = createServiceClient();
+  // A returning customer keeps the name already on file for their number.
+  const customer = await resolveExistingCustomer(supabase, input.customerName, input.customerMobile);
 
   const { data: order, error } = await supabase
     .from("orders")
     .insert({
-      customer_name: input.customerName,
-      customer_mobile: input.customerMobile,
+      customer_name: customer.customerName,
+      customer_mobile: customer.customerMobile,
       preferred_language: language,
       whatsapp_enabled: true,
       preferred_channel: "whatsapp",
@@ -146,12 +149,17 @@ export async function submitOrderRequest(formData: FormData): Promise<{ orderNum
 
   await recordAuditLog({
     actorId: null,
-    actorName: `${input.customerName} (order request form)`,
+    actorName: `${customer.customerName} (order request form)`,
     action: "order_created",
     entityType: "order",
     entityId: order.id,
     orderId: order.id,
-    newValue: { orderNumber: order.order_number, product: input.product, deliveryDate },
+    newValue: {
+      orderNumber: order.order_number,
+      product: input.product,
+      deliveryDate,
+      ...(customer.customerName !== input.customerName ? { enteredName: input.customerName } : {}),
+    },
   });
 
   await broadcast(CHANNELS.production, "order.created", { orderId: order.id });

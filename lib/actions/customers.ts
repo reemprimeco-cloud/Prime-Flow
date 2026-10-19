@@ -8,6 +8,8 @@ import { isDemoMode } from "@/lib/demo/mode";
 import { getDemoCustomers } from "@/lib/demo/data";
 import { recordAuditLog } from "@/lib/audit/log";
 import { editCustomerSchema, type EditCustomerInput } from "@/lib/validation/customer";
+import { findCustomerOrderIds } from "@/lib/orders/existing-customer";
+import { customerKey } from "@/lib/utils/phone";
 import type { NotificationChannel, OrderLanguage } from "@/types/database.types";
 
 const DEMO_WRITE_ERROR = "This is a read-only demo — writes are disabled.";
@@ -45,14 +47,17 @@ export async function listCustomers(): Promise<CustomerListItem[]> {
     .limit(CUSTOMER_SCAN_LIMIT);
   if (error) throw new Error(error.message);
 
+  // Keyed by customerKey, not the raw string: "+965 5000 1111" and
+  // "+96550001111" are the same customer.
   const byMobile = new Map<string, CustomerListItem>();
   for (const row of data ?? []) {
-    const existing = byMobile.get(row.customer_mobile);
+    const key = customerKey(row.customer_mobile);
+    const existing = byMobile.get(key);
     if (existing) {
       existing.orderCount += 1;
       continue; // rows are newest-first, so the first row seen per mobile already has the latest name/prefs
     }
-    byMobile.set(row.customer_mobile, {
+    byMobile.set(key, {
       customerMobile: row.customer_mobile,
       customerName: row.customer_name,
       orderCount: 1,
@@ -67,7 +72,7 @@ export async function listCustomers(): Promise<CustomerListItem[]> {
 
 /**
  * Corrects a customer's name/mobile across every order that currently
- * carries the old mobile number — the fix for the "same customer, several
+ * carries the old mobile number (in any stored format — see phoneKey) — the fix for the "same customer, several
  * slightly different entries" problem that a typo'd or inconsistently
  * formatted phone number causes in the mobile-keyed customer list above. If
  * the new number happens to match another existing customer, this merges
@@ -83,10 +88,13 @@ export async function updateCustomerInfo(oldMobile: string, input: EditCustomerI
   const data = parsed.data;
 
   const supabase = createServiceClient();
+  // Every order under this number, in whichever format each was stored.
+  const orderIds = await findCustomerOrderIds(supabase, oldMobile);
+  if (orderIds.length === 0) return { updated: 0 };
   const { data: updatedRows, error } = await supabase
     .from("orders")
     .update({ customer_name: data.customerName, customer_mobile: data.customerMobile })
-    .eq("customer_mobile", oldMobile)
+    .in("id", orderIds)
     .select("id");
   if (error) throw new Error(error.message);
 

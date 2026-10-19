@@ -8,6 +8,7 @@ import { recordAuditLog } from "@/lib/audit/log";
 import { notifyOrderCreated } from "@/lib/notifications/service";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/notifications/constants";
 import { sanitizePhoneInput } from "@/lib/utils/phone";
+import { resolveExistingCustomer } from "@/lib/orders/existing-customer";
 import { fetchCustomer, fetchInvoice, loadTokens, type QboAddress, type QboCustomer, type QboInvoice } from "@/lib/quickbooks/client";
 
 /**
@@ -223,11 +224,14 @@ export async function importInvoice(supabase: ServiceClient, realmId: string, in
     return { status: "skipped", reason: "No active admin to attribute the order to" };
   }
 
+  // A returning customer keeps the name already on file for their number.
+  const identity = await resolveExistingCustomer(supabase, mapped.customerName, mapped.customerMobile);
+
   const { data: newOrder, error } = await supabase
     .from("orders")
     .insert({
-      customer_name: mapped.customerName,
-      customer_mobile: mapped.customerMobile,
+      customer_name: identity.customerName,
+      customer_mobile: identity.customerMobile,
       preferred_language: "en",
       whatsapp_enabled: mapped.whatsappEnabled,
       preferred_channel: "whatsapp",
@@ -293,8 +297,8 @@ export async function importInvoice(supabase: ServiceClient, realmId: string, in
     {
       orderId: newOrder.id,
       orderNumber: newOrder.order_number,
-      customerName: mapped.customerName,
-      customerMobile: mapped.customerMobile,
+      customerName: identity.customerName,
+      customerMobile: identity.customerMobile,
       product: mapped.product,
       deliveryDate: mapped.deliveryDate,
       deliveryTime: mapped.deliveryTime,

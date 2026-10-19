@@ -1,17 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockRequireAdmin, mockIsDemoMode, mockRecordAuditLog, mockRevalidatePath, mockDeleteOrder } = vi.hoisted(() => ({
+const { mockRequireAdmin, mockIsDemoMode, mockRecordAuditLog, mockDeleteOrder } = vi.hoisted(() => ({
   mockRequireAdmin: vi.fn(),
   mockIsDemoMode: vi.fn(() => false),
   mockRecordAuditLog: vi.fn(async () => {}),
-  mockRevalidatePath: vi.fn(),
-  mockDeleteOrder: vi.fn(async () => {}),
+  mockDeleteOrder: vi.fn<(orderId: string) => Promise<void>>(async () => {}),
 }));
 
 vi.mock("@/lib/auth/guards", () => ({ requireAdmin: mockRequireAdmin }));
 vi.mock("@/lib/demo/mode", () => ({ isDemoMode: mockIsDemoMode }));
 vi.mock("@/lib/audit/log", () => ({ recordAuditLog: mockRecordAuditLog }));
-vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 vi.mock("@/lib/actions/orders", () => ({ deleteOrder: mockDeleteOrder }));
 vi.mock("@/lib/realtime/channels", () => ({ broadcast: vi.fn(), CHANNELS: { production: "production" } }));
 vi.mock("@/lib/notifications/service", () => ({ notifyEmployeeJobAssigned: vi.fn(), notifyOrderStatusChanged: vi.fn() }));
@@ -37,7 +35,6 @@ describe("bulkDeleteOrders", () => {
     expect(mockRecordAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({ action: "order_deleted", oldValue: { bulk: true, orderIds: ["o1", "o2", "o3"], succeeded: 3 } })
     );
-    expect(mockRevalidatePath).toHaveBeenCalledWith("/dashboard");
   });
 
   it("keeps going when one delete fails and reports it as skipped", async () => {

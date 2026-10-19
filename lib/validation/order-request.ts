@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { sanitizePhoneInput } from "@/lib/utils/phone";
+import { phoneKey, sanitizePhoneInput } from "@/lib/utils/phone";
 
 interface ValidationMessages {
   nameRequired: string;
@@ -19,7 +19,7 @@ export type OrderRequestLanguage = "ar" | "en";
 const MESSAGES: Record<OrderRequestLanguage, ValidationMessages> = {
   en: {
     nameRequired: "Your name is required",
-    mobileInvalid: "Enter a Kuwait mobile number starting with +965, e.g. +965 5000 1111",
+    mobileInvalid: "Enter your 8-digit Kuwait mobile number, e.g. 5000 1111",
     productRequired: "Product is required",
     wholeNumbers: "Whole numbers only",
     positive: "Must be greater than 0",
@@ -30,7 +30,7 @@ const MESSAGES: Record<OrderRequestLanguage, ValidationMessages> = {
   },
   ar: {
     nameRequired: "الاسم مطلوب",
-    mobileInvalid: "أدخل رقم جوال كويتي يبدأ بـ +965، مثال: 965 5000 1111+",
+    mobileInvalid: "اكتبوا رقم الجوال الكويتي من 8 أرقام، مثال: 5000 1111",
     productRequired: "نوع الطلب مطلوب",
     wholeNumbers: "أرقام صحيحة فقط",
     positive: "لازم يكون أكبر من 0",
@@ -68,18 +68,22 @@ export function createOrderRequestSchema(lang: OrderRequestLanguage) {
   const m = MESSAGES[lang];
   return z.object({
     customerName: z.string().trim().min(1, m.nameRequired).max(200),
-    // Required with the +965 country code, typed by the customer — not
-    // auto-added. customer_mobile goes straight to Twilio's WhatsApp send
-    // as-is (see toWhatsAppAddress, lib/notifications/providers/twilio-whatsapp.ts),
-    // which needs E.164 with the country code to actually reach them, and a
-    // silently-added prefix turned out to leave some customers unreachable
-    // (bad input slipping past auto-normalization) — so the country code is
-    // spelled out and required up front instead.
+    // Always stored as +965 and exactly 8 digits. customer_mobile goes
+    // straight to Twilio's WhatsApp send as-is (see toWhatsAppAddress,
+    // lib/notifications/providers/twilio-whatsapp.ts), which needs E.164 to
+    // reach anyone. The customer can type it however a phone keyboard gives
+    // it — "5000 1111", "+965 5000 1111", "0096550001111", Arabic-Indic
+    // digits — and phoneKey reduces it to the local 8 digits; anything that
+    // doesn't come out as exactly 8 digits is rejected rather than guessed
+    // at, which is what once let bad input through as an unreachable number.
     customerMobile: z
       .string()
       .trim()
       .max(30)
-      .transform((val) => sanitizePhoneInput(val).replace(/[\s-]/g, ""))
+      .transform((val) => {
+        const local = phoneKey(sanitizePhoneInput(val));
+        return /^\d{8}$/.test(local) ? `+965${local}` : val;
+      })
       .refine((val) => /^\+965\d{8}$/.test(val), m.mobileInvalid),
     product: z.string().trim().min(1, m.productRequired).max(200),
     paper: z.string().trim().max(200).optional().or(z.literal("")),

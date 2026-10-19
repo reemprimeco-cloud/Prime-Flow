@@ -62,6 +62,8 @@ interface StatusActionsProps {
   size?: "sm" | "default" | "lg";
   /** Renders only the given target statuses, if any match — e.g. `["collected", "delivered"]` for a compact "mark done" quick action without the full action list. */
   only?: OrderStatus[];
+  /** Target statuses to leave out — e.g. Start Production while the customer's design approval is outstanding. */
+  exclude?: OrderStatus[];
 }
 
 export function StatusActions({
@@ -73,6 +75,7 @@ export function StatusActions({
   suppressDoneAction,
   size = "lg",
   only,
+  exclude,
 }: StatusActionsProps) {
   const [confirmTarget, setConfirmTarget] = useState<{ status: OrderStatus; label: string } | null>(null);
   const [providerPromptOpen, setProviderPromptOpen] = useState(false);
@@ -80,6 +83,7 @@ export function StatusActions({
   let actions = getEmployeeNextActions(status, fulfillmentType, isOutsourced);
   if (suppressDoneAction && status === "in_progress") actions = actions.slice(0, -1);
   if (only) actions = actions.filter((a) => only.includes(a.status));
+  if (exclude) actions = actions.filter((a) => !exclude.includes(a.status));
   if (actions.length === 0) return null;
 
   const isStartProduction = (action: { status: OrderStatus }) => status === "new" && action.status === "in_progress";
