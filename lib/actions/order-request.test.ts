@@ -10,6 +10,14 @@ const { mockIsDemoMode, mockRecordAuditLog, mockBroadcast, mockRevalidatePath, m
 
 vi.mock("@/lib/demo/mode", () => ({ isDemoMode: mockIsDemoMode }));
 vi.mock("@/lib/audit/log", () => ({ recordAuditLog: mockRecordAuditLog }));
+// Returning-customer matching has its own tests (lib/orders/existing-customer.test.ts).
+vi.mock("@/lib/orders/existing-customer", () => ({
+  resolveExistingCustomer: async (_supabase: unknown, customerName: string, customerMobile: string) => ({
+    customerName,
+    customerMobile,
+    matched: false,
+  }),
+}));
 vi.mock("next/cache", () => ({ revalidatePath: mockRevalidatePath }));
 vi.mock("@/lib/realtime/channels", () => ({
   broadcast: mockBroadcast,

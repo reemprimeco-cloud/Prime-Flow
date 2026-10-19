@@ -23,7 +23,7 @@ function resetSupabaseMock(response: Response) {
 
 function makeBuilder(result: Response) {
   const builder: Record<string, unknown> = {};
-  for (const method of ["select", "update", "eq", "order", "limit"]) {
+  for (const method of ["select", "update", "eq", "in", "like", "order", "limit"]) {
     builder[method] = (...args: unknown[]) => {
       recordedUpdateCalls.push({ method, args });
       return builder;
@@ -52,7 +52,7 @@ beforeEach(() => {
 });
 
 describe("listCustomers", () => {
-  it("dedupes orders by mobile number, keeping the newest name and counting repeat orders", async () => {
+  it("dedupes orders by mobile number (whatever its formatting), keeping the newest name and counting repeat orders", async () => {
     resetSupabaseMock({
       data: [
         {
@@ -72,6 +72,14 @@ describe("listCustomers", () => {
           created_at: "2026-08-01T10:00:00Z",
         },
         {
+          customer_name: "Ahmad (older, spaced number)",
+          customer_mobile: "+965 5501 1111",
+          preferred_language: "ar",
+          whatsapp_enabled: true,
+          preferred_channel: "whatsapp",
+          created_at: "2026-07-01T10:00:00Z",
+        },
+        {
           customer_name: "Fatima Noor",
           customer_mobile: "+96555022222",
           preferred_language: "en",
@@ -88,7 +96,7 @@ describe("listCustomers", () => {
     expect(customers).toHaveLength(2);
     const ahmad = customers.find((c) => c.customerMobile === "+96555011111");
     expect(ahmad).toEqual(
-      expect.objectContaining({ customerName: "Ahmad (new spelling)", orderCount: 2 })
+      expect.objectContaining({ customerName: "Ahmad (new spelling)", orderCount: 3 })
     );
   });
 
@@ -99,20 +107,26 @@ describe("listCustomers", () => {
 });
 
 describe("updateCustomerInfo", () => {
-  it("updates every order under the old mobile number and logs an audit entry", async () => {
-    resetSupabaseMock({ data: [{ id: "order-1" }, { id: "order-2" }], error: null });
+  it("updates every order under the old mobile number, in any stored format, and logs an audit entry", async () => {
+    resetSupabaseMock({
+      data: [
+        { id: "order-1", customer_mobile: "+96555011111" },
+        { id: "order-2", customer_mobile: "+965 5501 1111" },
+        { id: "order-3", customer_mobile: "+965 5500 0001 1111" }, // caught by the loose LIKE, a different number
+      ],
+      error: null,
+    });
 
-    const result = await updateCustomerInfo("+96555011111", {
+    await updateCustomerInfo("+96555011111", {
       customerName: "Ahmad Al-Sayed",
       customerMobile: "+96555099999",
     });
 
-    expect(result).toEqual({ updated: 2 });
-    expect(recordedUpdateCalls[0]).toEqual({
+    expect(recordedUpdateCalls.find((c) => c.method === "update")).toEqual({
       method: "update",
       args: [{ customer_name: "Ahmad Al-Sayed", customer_mobile: "+96555099999" }],
     });
-    expect(recordedUpdateCalls.some((c) => c.method === "eq" && c.args[1] === "+96555011111")).toBe(true);
+    expect(recordedUpdateCalls.find((c) => c.method === "in")?.args).toEqual(["id", ["order-1", "order-2"]]);
     expect(mockRecordAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         action: "customer_updated",

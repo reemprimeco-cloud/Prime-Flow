@@ -9,6 +9,7 @@ import { orderFormSchema } from "@/lib/validation/order";
 import { isAllowedUpload, MAX_FILE_SIZE_BYTES } from "@/lib/files/constants";
 import { toDeliveryDate } from "@/lib/utils/countdown";
 import { getTodayBoundsInKuwait } from "@/lib/utils/date";
+import { customerKey } from "@/lib/utils/phone";
 import { DEFAULT_ORDERS_PAGE_SIZE } from "@/lib/orders/constants";
 import { DELAYABLE_STATUSES } from "@/types/domain";
 import { isDemoMode } from "@/lib/demo/mode";
@@ -617,8 +618,9 @@ function dedupeCustomersByMobile(rows: CustomerSuggestion[]): CustomerSuggestion
   const seen = new Set<string>();
   const suggestions: CustomerSuggestion[] = [];
   for (const row of rows) {
-    if (seen.has(row.customerMobile)) continue;
-    seen.add(row.customerMobile);
+    const key = customerKey(row.customerMobile);
+    if (seen.has(key)) continue;
+    seen.add(key);
     suggestions.push(row);
     if (suggestions.length >= 8) break;
   }

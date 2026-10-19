@@ -9,6 +9,7 @@ import { recordAuditLog } from "@/lib/audit/log";
 import { notifyAdminOrderStatusChanged, notifyOrderCreated } from "@/lib/notifications/service";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/notifications/constants";
 import { sanitizePhoneInput } from "@/lib/utils/phone";
+import { resolveExistingCustomer } from "@/lib/orders/existing-customer";
 import { DESIGN_EXTENSIONS, MAX_FETCHED_FILE_BYTES } from "@/lib/files/constants";
 
 /**
@@ -266,10 +267,13 @@ export async function POST(request: Request) {
   }
 
   const billing = order.billing ?? {};
-  const customerName = `${billing.first_name ?? ""} ${billing.last_name ?? ""}`.trim() || `WooCommerce Order #${order.number ?? order.id}`;
+  const enteredName = `${billing.first_name ?? ""} ${billing.last_name ?? ""}`.trim() || `WooCommerce Order #${order.number ?? order.id}`;
   const rawPhone = sanitizePhoneInput(billing.phone ?? "");
-  const customerMobile = rawPhone || "N/A";
   const whatsappEnabled = rawPhone.length >= 6;
+  // A returning customer keeps the name already on file for their number.
+  const { customerName, customerMobile } = rawPhone
+    ? await resolveExistingCustomer(supabase, enteredName, rawPhone)
+    : { customerName: enteredName, customerMobile: "N/A" };
 
   const isDelivery = looksLikeDelivery(order.shipping_lines);
   const deliveryAddress = isDelivery ? buildAddress(order.shipping) || buildAddress(billing) || null : null;

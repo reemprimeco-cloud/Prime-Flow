@@ -10,6 +10,14 @@ const { mockBroadcast, mockRecordAuditLog, mockNotifyOrderCreated, mockNotifyAdm
 }));
 
 vi.mock("@/lib/audit/log", () => ({ recordAuditLog: mockRecordAuditLog }));
+// Returning-customer matching has its own tests (lib/orders/existing-customer.test.ts).
+vi.mock("@/lib/orders/existing-customer", () => ({
+  resolveExistingCustomer: async (_supabase: unknown, customerName: string, customerMobile: string) => ({
+    customerName,
+    customerMobile,
+    matched: false,
+  }),
+}));
 vi.mock("@/lib/notifications/service", () => ({
   notifyOrderCreated: mockNotifyOrderCreated,
   notifyAdminOrderStatusChanged: mockNotifyAdminOrderStatusChanged,
