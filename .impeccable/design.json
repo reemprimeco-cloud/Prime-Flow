@@ -1,0 +1,395 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-19T16:57:20Z",
+  "title": "Design System: Prime Flow",
+  "extensions": {
+    "colorMeta": {
+      "prime-navy": {
+        "role": "primary",
+        "displayName": "Prime Navy",
+        "canonical": "#0a1f44",
+        "tonalRamp": [
+          "#050f22",
+          "#0a1f44",
+          "#132c5c",
+          "#1f3d77",
+          "#3a5a94",
+          "#6f88b6",
+          "#b4c2dc",
+          "#e8edf6"
+        ]
+      },
+      "press-blue": {
+        "role": "secondary",
+        "displayName": "Press Blue",
+        "canonical": "#1e40af",
+        "tonalRamp": [
+          "#172554",
+          "#1e3a8a",
+          "#1e40af",
+          "#1d4ed8",
+          "#2563eb",
+          "#60a5fa",
+          "#bfdbfe",
+          "#eff6ff"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#0f172a",
+        "tonalRamp": [
+          "#020617",
+          "#0f172a",
+          "#1e293b",
+          "#334155",
+          "#64748b",
+          "#94a3b8",
+          "#e2e8f0",
+          "#f1f5f9"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#020617",
+          "#0f172a",
+          "#1e293b",
+          "#334155",
+          "#64748b",
+          "#94a3b8",
+          "#e2e8f0",
+          "#f1f5f9"
+        ]
+      },
+      "mist": {
+        "role": "neutral",
+        "displayName": "Mist",
+        "canonical": "#f1f5f9",
+        "tonalRamp": [
+          "#020617",
+          "#0f172a",
+          "#1e293b",
+          "#334155",
+          "#64748b",
+          "#94a3b8",
+          "#e2e8f0",
+          "#f1f5f9"
+        ]
+      },
+      "slate-text": {
+        "role": "neutral",
+        "displayName": "Slate Text",
+        "canonical": "#64748b",
+        "tonalRamp": [
+          "#020617",
+          "#0f172a",
+          "#1e293b",
+          "#334155",
+          "#64748b",
+          "#94a3b8",
+          "#e2e8f0",
+          "#f1f5f9"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#e2e8f0",
+        "tonalRamp": [
+          "#020617",
+          "#0f172a",
+          "#1e293b",
+          "#334155",
+          "#64748b",
+          "#94a3b8",
+          "#e2e8f0",
+          "#f1f5f9"
+        ]
+      },
+      "ready-green": {
+        "role": "status",
+        "displayName": "Ready Green",
+        "canonical": "#22c55e",
+        "tonalRamp": [
+          "#052e16",
+          "#14532d",
+          "#15803d",
+          "#16a34a",
+          "#22c55e",
+          "#4ade80",
+          "#bbf7d0",
+          "#f0fdf4"
+        ]
+      },
+      "ready-green-ink": {
+        "role": "status",
+        "displayName": "Ready Green Ink",
+        "canonical": "#052e16",
+        "tonalRamp": [
+          "#052e16",
+          "#14532d",
+          "#15803d",
+          "#16a34a",
+          "#22c55e",
+          "#4ade80",
+          "#bbf7d0",
+          "#f0fdf4"
+        ]
+      },
+      "working-amber": {
+        "role": "status",
+        "displayName": "Working Amber",
+        "canonical": "#f59e0b",
+        "tonalRamp": [
+          "#1a1204",
+          "#78350f",
+          "#b45309",
+          "#d97706",
+          "#f59e0b",
+          "#fbbf24",
+          "#fde68a",
+          "#fffbeb"
+        ]
+      },
+      "working-amber-ink": {
+        "role": "status",
+        "displayName": "Working Amber Ink",
+        "canonical": "#1a1204",
+        "tonalRamp": [
+          "#1a1204",
+          "#78350f",
+          "#b45309",
+          "#d97706",
+          "#f59e0b",
+          "#fbbf24",
+          "#fde68a",
+          "#fffbeb"
+        ]
+      },
+      "alert-red": {
+        "role": "status",
+        "displayName": "Alert Red",
+        "canonical": "#ef4444",
+        "tonalRamp": [
+          "#450a0a",
+          "#7f1d1d",
+          "#b91c1c",
+          "#dc2626",
+          "#ef4444",
+          "#f87171",
+          "#fecaca",
+          "#fef2f2"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "TV board clock and day stats."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page titles and stat-tile numbers."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Customer names and section headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default text; 16px on touch devices."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Chips, badges, captions, specs lines."
+      },
+      "order-number": {
+        "displayName": "Order Number",
+        "purpose": "Every #1234 order number, in mono."
+      }
+    },
+    "shadows": [
+      {
+        "name": "rest",
+        "value": "0 1px 2px 0 rgba(0,0,0,0.05)",
+        "purpose": "Cards at rest (shadow-sm)."
+      },
+      {
+        "name": "hover-lift",
+        "value": "0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1)",
+        "purpose": "Order card on hover only."
+      },
+      {
+        "name": "floating",
+        "value": "0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1)",
+        "purpose": "Dialogs, popovers, menus, sheets."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-change",
+        "value": "150ms ease (Tailwind transition-colors default)",
+        "purpose": "Hover, focus, and fill changes on buttons, inputs, nav."
+      },
+      {
+        "name": "card-lift",
+        "value": "box-shadow 150ms ease",
+        "purpose": "Order card hover lift."
+      },
+      {
+        "name": "overlay",
+        "value": "tw-animate-css fade/zoom in-out",
+        "purpose": "Dialogs, sheets, and popovers opening and closing."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      },
+      {
+        "name": "2xl",
+        "value": "1536px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Default Button",
+      "kind": "button",
+      "refersTo": "button-default",
+      "description": "Everyday action in Press Blue.",
+      "html": "<button class=\"ds-btn-default\">Assign</button>",
+      "css": ".ds-btn-default{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:8px 20px;border-radius:20px;font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:14px;font-weight:600;border:1px solid transparent;cursor:pointer;transition:background-color .15s, box-shadow .15s;background:#1e40af;color:#fff;} .ds-btn-default:hover{background:rgba(30,64,175,.9);} .ds-btn-default:focus-visible{outline:none;box-shadow:0 0 0 2px #1e40af;}"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one committing action on a view, in Prime Navy.",
+      "html": "<button class=\"ds-btn-primary\">Start Production</button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:8px 20px;border-radius:20px;font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:14px;font-weight:600;border:1px solid transparent;cursor:pointer;transition:background-color .15s, box-shadow .15s;background:#0a1f44;color:#fff;border-color:rgba(255,255,255,.1);} .ds-btn-primary:hover{background:rgba(10,31,68,.9);} .ds-btn-primary:focus-visible{outline:none;box-shadow:0 0 0 2px #1e40af;}"
+    },
+    {
+      "name": "Success Button",
+      "kind": "button",
+      "refersTo": "button-success",
+      "description": "Status-moving action: Ready, Collected, Delivered.",
+      "html": "<button class=\"ds-btn-success\">Ready for Pickup</button>",
+      "css": ".ds-btn-success{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:8px 20px;border-radius:20px;font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:14px;font-weight:600;border:1px solid transparent;cursor:pointer;transition:background-color .15s, box-shadow .15s;background:#22c55e;color:#052e16;} .ds-btn-success:hover{background:rgba(34,197,94,.9);} .ds-btn-success:focus-visible{outline:none;box-shadow:0 0 0 2px #1e40af;}"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary action beside a filled button.",
+      "html": "<button class=\"ds-btn-outline\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/></svg>Reassign</button>",
+      "css": ".ds-btn-outline{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:8px 20px;border-radius:20px;font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:14px;font-weight:600;border:1px solid transparent;cursor:pointer;transition:background-color .15s, box-shadow .15s;background:transparent;color:#0f172a;border-color:#e2e8f0;} .ds-btn-outline:hover{background:#f1f5f9;} .ds-btn-outline:focus-visible{outline:none;box-shadow:0 0 0 2px #1e40af;}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Mist-filled field with a Press Blue focus.",
+      "html": "<input class=\"ds-input\" placeholder=\"Search orders, customers…\" />",
+      "css": ".ds-input{height:44px;width:280px;padding:8px 16px;border-radius:20px;border:1px solid #e2e8f0;background:rgba(241,245,249,.4);color:#0f172a;font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:14px;outline:none;transition:border-color .15s, box-shadow .15s;} .ds-input::placeholder{color:#64748b;} .ds-input:focus-visible{border-color:#1e40af;box-shadow:0 0 0 2px rgba(30,64,175,.4);}"
+    },
+    {
+      "name": "Status Chips",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Tinted status pills: 15% fill, full-color text, 30% border.",
+      "html": "<div class=\"ds-chips\"><span class=\"ds-chip ds-new\">New</span><span class=\"ds-chip ds-prog\">In Progress</span><span class=\"ds-chip ds-wait\">Waiting for Materials</span><span class=\"ds-chip ds-ready\">Ready for Pickup</span><span class=\"ds-chip ds-done\">Delivered</span></div>",
+      "css": ".ds-chips{display:flex;flex-wrap:wrap;gap:8px;} .ds-chip{display:inline-flex;align-items:center;padding:2px 10px;border-radius:9999px;border:1px solid;font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:12px;font-weight:600;white-space:nowrap;} .ds-new{background:rgba(30,64,175,.15);color:#1e40af;border-color:rgba(30,64,175,.3);} .ds-prog{background:rgba(245,158,11,.15);color:#f59e0b;border-color:rgba(245,158,11,.3);} .ds-wait{background:rgba(239,68,68,.15);color:#ef4444;border-color:rgba(239,68,68,.3);} .ds-ready{background:rgba(34,197,94,.15);color:#22c55e;border-color:rgba(34,197,94,.3);} .ds-done{background:#f1f5f9;color:#64748b;border-color:transparent;}"
+    },
+    {
+      "name": "Navigation Item",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Sidebar rows: active is a solid Press Blue fill.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-item ds-active\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect width=\"7\" height=\"7\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"7\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"7\" x=\"14\" y=\"14\" rx=\"1\"/><rect width=\"7\" height=\"7\" x=\"3\" y=\"14\" rx=\"1\"/></svg>Dashboard</a><a class=\"ds-nav-item\" href=\"#\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect width=\"7\" height=\"7\" x=\"3\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"7\" x=\"14\" y=\"3\" rx=\"1\"/><rect width=\"7\" height=\"7\" x=\"14\" y=\"14\" rx=\"1\"/><rect width=\"7\" height=\"7\" x=\"3\" y=\"14\" rx=\"1\"/></svg>Operations</a></nav>",
+      "css": ".ds-nav{display:flex;flex-direction:column;gap:4px;width:220px;} .ds-nav-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:20px;font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:14px;font-weight:500;color:#64748b;text-decoration:none;transition:background-color .15s,color .15s;} .ds-nav-item:hover{background:#f1f5f9;color:#0f172a;} .ds-nav-item:focus-visible{outline:none;box-shadow:0 0 0 2px #1e40af;} .ds-nav-item.ds-active{background:#1e40af;color:#fff;}"
+    },
+    {
+      "name": "Order Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Signature component: order, countdown, specs, status, and quick actions.",
+      "html": "<div class=\"ds-order\"><div class=\"ds-order-top\"><div class=\"ds-thumb\"></div><div><div class=\"ds-num\">#1132</div><div class=\"ds-cust\">PUFF</div><div class=\"ds-prod\">Vinyl Stickers WaterProof +1 more item</div></div></div><div class=\"ds-strip\"><span class=\"ds-date\">Sat, Oct 10 · 5:00 PM</span><span class=\"ds-count\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/></svg>51h 18m left</span></div><div class=\"ds-spec\">Qty: 160 · Vinyl Stickers + lamination, A5 sheet</div><div class=\"ds-row\"><span class=\"ds-chip ds-new\">New</span></div><div class=\"ds-row\"><button class=\"ds-mini ds-mini-primary\">Start Production</button><button class=\"ds-mini ds-mini-outline\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M22 21v-2a4 4 0 0 0-3-3.87\"/><path d=\"M16 3.13a4 4 0 0 1 0 7.75\"/></svg>Assign</button></div></div>",
+      "css": ".ds-order{position:relative;width:340px;display:flex;flex-direction:column;gap:10px;padding:14px 14px 14px 16px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 1px 2px rgba(0,0,0,.05);font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;color:#0f172a;overflow:hidden;transition:box-shadow .2s;cursor:pointer;} .ds-order::before{content:'';position:absolute;inset:0 auto 0 0;width:4px;background:#1e40af;} .ds-order:hover{box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1);} .ds-order-top{display:flex;gap:10px;} .ds-thumb{width:48px;height:48px;border-radius:20px;border:1px solid #e2e8f0;background:rgba(241,245,249,.4);flex-shrink:0;} .ds-num{font-family:ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;font-size:14px;font-weight:700;} .ds-cust{font-size:14px;font-weight:600;} .ds-prod{font-size:12px;color:#64748b;} .ds-strip{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border-radius:20px;background:rgba(241,245,249,.4);} .ds-date{font-size:12px;font-weight:700;} .ds-count{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:9999px;background:#22c55e;color:#052e16;font-size:12px;font-weight:600;} .ds-spec{font-size:12px;color:#64748b;} .ds-row{display:flex;flex-wrap:wrap;gap:8px;} .ds-chip{display:inline-flex;padding:2px 10px;border-radius:9999px;border:1px solid;font-size:12px;font-weight:600;} .ds-new{background:rgba(30,64,175,.15);color:#1e40af;border-color:rgba(30,64,175,.3);} .ds-mini{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:16px;font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;font-size:12px;font-weight:600;border:1px solid transparent;cursor:pointer;} .ds-mini:focus-visible{outline:none;box-shadow:0 0 0 2px #1e40af;} .ds-mini-primary{background:#1e40af;color:#fff;} .ds-mini-primary:hover{background:rgba(30,64,175,.9);} .ds-mini-outline{background:transparent;color:#0f172a;border-color:#e2e8f0;} .ds-mini-outline:hover{background:#f1f5f9;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Prime Flow",
+    "overview": "Prime Flow is the shop's production line drawn as a screen: orders flow left to right through their stages, and the interface's only job is to keep that flow moving without friction. Every surface is white paper with navy ink, and color is reserved for one thing: telling you where an order stands and whether it is running late. Nothing is decorative. If a color appears, it is a status; if something moves, it is because an order moved.\n\nThe system is built for a phone in one hand on a print-shop floor and for a manager who switches between a laptop and a phone through the day. Targets are big and soft (44px buttons with 20px corners), text is the operating system's own font so the app reads as native on an iPhone, and the layout collapses from a sidebar to a bottom tab bar without losing a single action. The shop TV uses the same palette and cards at a distance-reading scale.\n\nDensity is moderate: cards carry the order number, customer, product, the delivery countdown, specs, assignees, and status chips, but each fact has its own line and the countdown always gets top billing.",
+    "keyCharacteristics": [
+      "White paper, navy ink, and color used only as status.",
+      "Big, soft, thumb-ready targets: 44px minimum, generous corner rounding.",
+      "The platform's own system font; monospace only for order numbers and the TV clock.",
+      "Flat surfaces with a single quiet shadow; depth comes from hairline borders and tinted fills.",
+      "English interface, light theme only, no dark mode."
+    ],
+    "rules": [
+      {
+        "name": "The Color Means Status Rule",
+        "body": "Green, amber, and red never decorate. Each one appears only to say where an order is or how late it is, and always with a text label, never color alone.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tint-Then-Fill Rule",
+        "body": "A status shown as a chip is a 15% tint with the full color as text and a 30% border. A status that demands action now (the countdown, an Urgent flag, a destructive button) is a solid fill.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Navy Rule",
+        "body": "At most one Prime Navy button per view or dialog. If two actions feel equally primary, one of them is Press Blue or outline.",
+        "section": "colors"
+      },
+      {
+        "name": "The Mono Means Identifier Rule",
+        "body": "Monospace is only for order numbers, timers, and counts that should line up. Never for prose or labels.",
+        "section": "typography"
+      },
+      {
+        "name": "The Bold Is Load-Bearing Rule",
+        "body": "Weight carries hierarchy (700 for names and numbers, 600 for chips, 400 for body). Avoid adding new font sizes; reach for weight first.",
+        "section": "typography"
+      },
+      {
+        "name": "The Hover-Is-The-Only-Lift Rule",
+        "body": "Nothing gains a shadow except in response to the pointer or because it floats above the page (dialogs, menus, sheets).",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** keep every tappable control at least 44px tall on the staff and manager screens.",
+      "**Do** use Press Blue for \"live / active / here\" and Prime Navy for the single committing action.",
+      "**Do** pair every status color with a text label.",
+      "**Do** use the system font and mono only for order numbers, timers, and aligned counts.",
+      "**Do** keep surfaces white and separate them with Hairline borders and Mist fills."
+    ],
+    "donts": [
+      "**Don't** use green, amber, or red for decoration, illustrations, or emphasis that isn't a status.",
+      "**Don't** add a dark mode or a dark TV theme; the product is light-only by decision.",
+      "**Don't** add a webfont.",
+      "**Don't** shrink buttons below 36px or below 44px on staff screens.",
+      "**Don't** put more than one Prime Navy button on a view.",
+      "**Don't** add Arabic or other languages to the manager or staff interface; Arabic belongs only in customer-facing messages and the order-request form."
+    ]
+  }
+}
