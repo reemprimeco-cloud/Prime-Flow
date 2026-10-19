@@ -25,4 +25,4 @@ See `supabase/migrations/` for the schema and `lib/` for auth, validation, and S
 
 ## Documentation
 
-See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full system design, and [`docs/REALTIME.md`](./docs/REALTIME.md), [`docs/STATUS_ENGINE.md`](./docs/STATUS_ENGINE.md), [`docs/NOTIFICATIONS.md`](./docs/NOTIFICATIONS.md), and [`docs/AUDIT_LOG.md`](./docs/AUDIT_LOG.md) for the infrastructure layer added in the Production Core phase.
+See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the full system design, and [`docs/REALTIME.md`](./docs/REALTIME.md), [`docs/STATUS_ENGINE.md`](./docs/STATUS_ENGINE.md), [`docs/NOTIFICATIONS.md`](./docs/NOTIFICATIONS.md), and [`docs/AUDIT_LOG.md`](./docs/AUDIT_LOG.md) for the infrastructure layer added in the Production Core phase. [`docs/PRINT_SETTINGS.md`](./docs/PRINT_SETTINGS.md) covers the Fiery print settings on orders.

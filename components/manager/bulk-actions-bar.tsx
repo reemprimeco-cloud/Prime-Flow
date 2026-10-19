@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Archive, Bell, Calendar, Flag, Loader2, Users, X } from "lucide-react";
+import { Archive, Bell, Calendar, Flag, Loader2, Trash2, Users, X } from "lucide-react";
 
 import {
   bulkArchiveCompleted,
   bulkAssignEmployees,
   bulkChangePriority,
+  bulkDeleteOrders,
   bulkMoveDeliveryDate,
   bulkSendNotifications,
   type BulkResult,
@@ -26,10 +27,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { ORDER_PRIORITY_LABELS } from "@/types/domain";
 import type { OrderPriority } from "@/types/database.types";
 
-type BulkMode = "assign" | "priority" | "date" | null;
+type BulkMode = "assign" | "priority" | "date" | "delete" | null;
 
 interface BulkActionsBarProps {
   selectedIds: string[];
@@ -38,11 +40,11 @@ interface BulkActionsBarProps {
   onDone: () => void;
 }
 
-function reportResult(action: string, result: BulkResult) {
+function reportResult(action: string, result: BulkResult, verb = "updated") {
   if (result.skipped > 0) {
     toast.success(`${action}: ${result.succeeded} succeeded, ${result.skipped} skipped`);
   } else {
-    toast.success(`${action}: ${result.succeeded} order${result.succeeded === 1 ? "" : "s"} updated`);
+    toast.success(`${action}: ${result.succeeded} order${result.succeeded === 1 ? "" : "s"} ${verb}`);
   }
 }
 
@@ -53,11 +55,11 @@ export function BulkActionsBar({ selectedIds, employees, onClear, onDone }: Bulk
   const [newDate, setNewDate] = useState("");
   const [pickedEmployees, setPickedEmployees] = useState<string[]>([]);
 
-  const run = (label: string, action: () => Promise<BulkResult>) => {
+  const run = (label: string, action: () => Promise<BulkResult>, verb?: string) => {
     setIsPending(true);
     action()
       .then((result) => {
-        reportResult(label, result);
+        reportResult(label, result, verb);
         setMode(null);
         onDone();
       })
@@ -70,6 +72,7 @@ export function BulkActionsBar({ selectedIds, employees, onClear, onDone }: Bulk
   const handleAssign = () => run("Bulk assign", () => bulkAssignEmployees(selectedIds, pickedEmployees));
   const handlePriority = () => run("Priority change", () => bulkChangePriority(selectedIds, priority));
   const handleDate = () => run("Delivery date change", () => bulkMoveDeliveryDate(selectedIds, newDate));
+  const handleDelete = () => run("Delete", () => bulkDeleteOrders(selectedIds), "deleted");
 
   if (selectedIds.length === 0) return null;
 
@@ -92,6 +95,16 @@ export function BulkActionsBar({ selectedIds, employees, onClear, onDone }: Bulk
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={handleNotify} disabled={isPending}>
             <Bell className="size-3.5" /> Notify
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setMode("delete")}
+            disabled={isPending}
+            className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="size-3.5" /> Delete
           </Button>
           <Button type="button" variant="ghost" size="sm" onClick={onClear} aria-label="Clear selection">
             <X className="size-3.5" />
@@ -179,6 +192,17 @@ export function BulkActionsBar({ selectedIds, employees, onClear, onDone }: Bulk
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={mode === "delete"}
+        onOpenChange={(open) => !open && setMode(null)}
+        title={`Delete ${selectedIds.length} order${selectedIds.length === 1 ? "" : "s"}?`}
+        description={`This permanently deletes the ${selectedIds.length} selected order${selectedIds.length === 1 ? "" : "s"} and their uploaded files, and tells assigned employees the jobs are cancelled. This can't be undone.`}
+        confirmLabel={`Delete ${selectedIds.length} order${selectedIds.length === 1 ? "" : "s"}`}
+        destructive
+        pending={isPending}
+        onConfirm={handleDelete}
+      />
     </>
   );
 }

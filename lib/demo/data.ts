@@ -11,6 +11,7 @@ import {
   subMonths,
 } from "date-fns";
 
+import type { PrintSettings } from "@/lib/print-settings";
 import type {
   CompletedOrderFilters,
   CustomerSuggestion,
@@ -82,6 +83,7 @@ interface DemoOrderItemSeed {
   paperSize: string;
   quantity: number;
   finishing: string;
+  printSettings?: PrintSettings;
   isReady: boolean;
 }
 
@@ -95,6 +97,7 @@ interface DemoOrderSeed {
   paperSize: string;
   quantity: number;
   finishing: string;
+  printSettings?: PrintSettings;
   priority: "normal" | "urgent";
   status: OrderStatus;
   offsetMinutes: number; // relative to now — negative = overdue
@@ -125,7 +128,7 @@ const ORDER_SEEDS: DemoOrderSeed[] = [
   { id: "demo-order-1", orderNumber: "#1042", customerName: "Ahmed Al-Sayed", customerMobile: "+96555011111", product: "Business Cards", paper: "350gsm Matte", paperSize: "9x5cm", quantity: 500, finishing: "Lamination, rounded corners", priority: "normal", status: "new", offsetMinutes: 6 * 60, assignedTo: [], assignedHoursAgo: 1, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "ar", notes: "" },
   { id: "demo-order-2", orderNumber: "#1043", customerName: "Fatima Noor", customerMobile: "+96555022222", product: "Wedding Invitations", paper: "250gsm Pearl", paperSize: "A5", quantity: 200, finishing: "Gold foil edges", priority: "urgent", status: "new", offsetMinutes: 90, assignedTo: ["demo-emp-2"], assignedHoursAgo: 3, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "ar", notes: "Customer wants a proof approved before final run.", designApprovalStatus: "pending" },
   { id: "demo-order-3", orderNumber: "#1044", customerName: "TechHub Kuwait", customerMobile: "+96555033333", product: "Trade Show Banners", paper: "Vinyl 13oz", paperSize: "200x90cm", quantity: 4, finishing: "Grommets", priority: "normal", status: "in_progress", offsetMinutes: 45, assignedTo: ["demo-emp-1"], assignedHoursAgo: 5, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "en", notes: "" },
-  { id: "demo-order-4", orderNumber: "#1045", customerName: "Layla Hassan", customerMobile: "+96555044444", product: "Product Packaging Boxes", paper: "400gsm Card", paperSize: "15x15x8cm", quantity: 1000, finishing: "Matte lamination, die-cut", priority: "urgent", status: "in_progress", offsetMinutes: -20, assignedTo: ["demo-emp-1", "demo-emp-3"], assignedHoursAgo: 4, pendingMaterials: ["paper"], whatsappEnabled: true, preferredLanguage: "en", notes: "Rush order — client picking up in person.", itemReady: true, items: [
+  { id: "demo-order-4", orderNumber: "#1045", customerName: "Layla Hassan", customerMobile: "+96555044444", product: "Product Packaging Boxes", paper: "400gsm Card", paperSize: "15x15x8cm", quantity: 1000, finishing: "Matte lamination, die-cut", printSettings: { preset: "A3Matt8", mediaType: "Matte coated 8 (326-350 g/m2)", paperSource: "multi_purpose_tray", paperSize: "SRA3 (320 x 450 mm)", sides: "simplex", colorMode: "cmyk", layout: "gangup", notes: "Image quality: Best" }, priority: "urgent", status: "in_progress", offsetMinutes: -20, assignedTo: ["demo-emp-1", "demo-emp-3"], assignedHoursAgo: 4, pendingMaterials: ["paper"], whatsappEnabled: true, preferredLanguage: "en", notes: "Rush order — client picking up in person.", itemReady: true, items: [
     { id: "demo-order-4-item-2", product: "Thank You Cards", paper: "300gsm Silk", paperSize: "9x5cm", quantity: 1000, finishing: "Matte lamination", isReady: true },
     { id: "demo-order-4-item-3", product: "Shipping Labels", paper: "Sticker Vinyl", paperSize: "10x7cm", quantity: 1000, finishing: "", isReady: false },
   ] },
@@ -137,7 +140,7 @@ const ORDER_SEEDS: DemoOrderSeed[] = [
   { id: "demo-order-10", orderNumber: "#1035", customerName: "Al-Rashid Clinic", customerMobile: "+96555010101", product: "Appointment Cards", paper: "300gsm Matte", paperSize: "9x5cm", quantity: 400, finishing: "", priority: "normal", status: "completed", offsetMinutes: -4000, assignedTo: ["demo-emp-4"], assignedHoursAgo: 90, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "ar", notes: "", completedDaysAgo: 3 },
   { id: "demo-order-11", orderNumber: "#1031", customerName: "Bayt Al-Ward Flowers", customerMobile: "+96555020202", product: "Gift Tags", paper: "270gsm Pearl", paperSize: "6x9cm", quantity: 600, finishing: "Ribbon hole", priority: "normal", status: "completed", offsetMinutes: -6000, assignedTo: ["demo-emp-2", "demo-emp-4"], assignedHoursAgo: 170, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "ar", notes: "", completedDaysAgo: 7 },
   { id: "demo-order-12", orderNumber: "#0998", customerName: "Kuwait Sports Club", customerMobile: "+96555030303", product: "Event Banners", paper: "Vinyl 13oz", paperSize: "300x100cm", quantity: 3, finishing: "Grommets", priority: "urgent", status: "completed", offsetMinutes: -9000, assignedTo: ["demo-emp-1"], assignedHoursAgo: 840, pendingMaterials: [], whatsappEnabled: false, preferredLanguage: "en", notes: "", completedDaysAgo: 35 },
-  { id: "demo-order-13", orderNumber: "#1051", customerName: "Al-Noor School", customerMobile: "+96555040404", product: "Certificates", paper: "300gsm Card", paperSize: "A4", quantity: 100, finishing: "Gold foil", priority: "urgent", status: "new", offsetMinutes: 5 * 60, assignedTo: ["demo-emp-1"], assignedHoursAgo: 2, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "ar", notes: "Please double check the spelling list before printing." },
+  { id: "demo-order-13", orderNumber: "#1051", customerName: "Al-Noor School", customerMobile: "+96555040404", product: "Certificates", paper: "300gsm Card", paperSize: "A4", quantity: 100, finishing: "Gold foil", printSettings: { preset: "Gradebooklet", mediaType: "Matte coated 6 (257-300 g/m2)", paperSource: "multi_purpose_tray", paperSize: "33 x 48 cm", sides: "duplex_long", colorMode: "cmyk", layout: "booklet", bookletBinding: "right", fold: "saddle", staple: "saddle_stitch", mixedMedia: [{ kind: "front_cover", mediaType: "Matte coated 8 (326-350 g/m2)", paperSize: "33 x 23 cm", paperSource: "multi_purpose_tray", sides: "simplex", colorMode: "cmyk" }, { kind: "page_range", pages: "2-20", mediaType: "Plain 2 (91-105 g/m2)", paperSize: "33 x 23 cm", paperSource: "drawer_2", sides: "duplex_long" }] }, priority: "urgent", status: "new", offsetMinutes: 5 * 60, assignedTo: ["demo-emp-1"], assignedHoursAgo: 2, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "ar", notes: "Please double check the spelling list before printing." },
   { id: "demo-order-14", orderNumber: "#1052", customerName: "Fitness First Gym", customerMobile: "+96555050505", product: "Membership Cards", paper: "300gsm PVC-look Card", paperSize: "8.5x5.5cm", quantity: 500, finishing: "Lamination", priority: "normal", status: "new", offsetMinutes: 2 * 60, assignedTo: ["demo-emp-1"], assignedHoursAgo: 5, pendingMaterials: [], whatsappEnabled: true, preferredLanguage: "en", notes: "", approved: false },
 ];
 
@@ -155,6 +158,7 @@ function buildOrder(seed: DemoOrderSeed, now: Date): OrderListItem & { completed
     paperSize: seed.paperSize,
     quantity: seed.quantity,
     finishing: seed.finishing || null,
+    printSettings: seed.printSettings ?? null,
     priority: seed.priority,
     deliveryDate: format(deliveryAt, "yyyy-MM-dd"),
     deliveryTime: format(deliveryAt, "HH:mm:ss"),
@@ -453,6 +457,7 @@ export function getDemoOrderDetail(orderId: string): OrderDetail {
     paperSize: order.paperSize,
     quantity: order.quantity,
     finishing: order.finishing,
+    printSettings: order.printSettings,
     priority: order.priority,
     deliveryDate: order.deliveryDate,
     deliveryTime: order.deliveryTime,
@@ -763,6 +768,7 @@ export function getDemoMyJobs(employeeId: string): {
         paperSize: order.paperSize,
         quantity: order.quantity,
         finishing: order.finishing,
+        printSettings: order.printSettings,
         priority: order.priority,
         deliveryDate: order.deliveryDate,
         deliveryTime: order.deliveryTime,
@@ -788,6 +794,7 @@ export function getDemoMyJobs(employeeId: string): {
           paperSize: item.paperSize || null,
           quantity: item.quantity,
           finishing: item.finishing || null,
+          printSettings: item.printSettings ?? null,
           isReady: item.isReady,
         })),
         itemCount: seed.items?.length ?? 0,

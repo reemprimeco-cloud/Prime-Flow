@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { createServiceClient } from "@/lib/supabase/server";
 import { broadcast, CHANNELS } from "@/lib/realtime/channels";
 import { orderFormSchema } from "@/lib/validation/order";
+import { normalizePrintSettings, parsePrintSettings, type PrintSettings } from "@/lib/print-settings";
 import { isAllowedUpload, MAX_FILE_SIZE_BYTES } from "@/lib/files/constants";
 import { toDeliveryDate } from "@/lib/utils/countdown";
 import { getTodayBoundsInKuwait } from "@/lib/utils/date";
@@ -80,6 +81,7 @@ export interface OrderListItem {
   paperSize: string | null;
   quantity: number;
   finishing: string | null;
+  printSettings: PrintSettings | null;
   priority: OrderPriority;
   deliveryDate: string;
   deliveryTime: string;
@@ -104,6 +106,7 @@ export interface OrderItemDetail {
   paperSize: string | null;
   quantity: number;
   finishing: string | null;
+  printSettings: PrintSettings | null;
   employeeId: string | null;
   employeeName: string | null;
 }
@@ -122,6 +125,7 @@ export interface OrderDetail {
   paperSize: string | null;
   quantity: number;
   finishing: string | null;
+  printSettings: PrintSettings | null;
   priority: OrderPriority;
   deliveryDate: string;
   deliveryTime: string;
@@ -208,7 +212,7 @@ export interface CompletedOrderFilters {
 const DASHBOARD_COMPLETED_STATUSES: OrderStatus[] = ["collected", "delivered", "completed"];
 
 const ORDER_LIST_SELECT =
-  "id, order_number, customer_name, customer_mobile, product, paper, paper_size, quantity, finishing, priority, delivery_date, delivery_time, status, fulfillment_type, delivery_provider, notes, whatsapp_enabled, preferred_language, approved, design_approval_status";
+  "id, order_number, customer_name, customer_mobile, product, paper, paper_size, quantity, finishing, print_settings, priority, delivery_date, delivery_time, status, fulfillment_type, delivery_provider, notes, whatsapp_enabled, preferred_language, approved, design_approval_status";
 
 interface OrderListRow {
   id: string;
@@ -220,6 +224,7 @@ interface OrderListRow {
   paper_size: string | null;
   quantity: number;
   finishing: string | null;
+  print_settings: unknown;
   priority: OrderPriority;
   delivery_date: string;
   delivery_time: string;
@@ -563,6 +568,7 @@ async function buildOrderListItems(supabase: ServiceClient, orders: OrderListRow
       paperSize: o.paper_size,
       quantity: o.quantity,
       finishing: o.finishing,
+      printSettings: parsePrintSettings(o.print_settings),
       priority: o.priority,
       deliveryDate: o.delivery_date,
       deliveryTime: o.delivery_time,
@@ -627,6 +633,35 @@ function dedupeCustomersByMobile(rows: CustomerSuggestion[]): CustomerSuggestion
   return suggestions;
 }
 
+/**
+ * Paper sizes typed on earlier orders (job-level and mixed-media), most
+ * recent first, so a custom sheet entered once is offered next time. Read
+ * from the last 300 orders — enough history to cover every size the shop
+ * actually runs without scanning the whole table on each form open.
+ */
+export async function listPaperSizeSuggestions(): Promise<string[]> {
+  await requireAdmin();
+  if (isDemoMode()) return [];
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("orders")
+    .select("print_settings")
+    .not("print_settings", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(300);
+  if (error) throw new Error(error.message);
+
+  const seen = new Set<string>();
+  for (const row of data ?? []) {
+    const settings = parsePrintSettings(row.print_settings);
+    const sizes = [settings?.paperSize, ...(settings?.mixedMedia ?? []).map((r) => r.paperSize)];
+    for (const size of sizes) {
+      if (size && !seen.has(size)) seen.add(size);
+    }
+  }
+  return [...seen];
+}
+
 export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
   await requireAdmin();
   if (isDemoMode()) return getDemoOrderDetail(orderId);
@@ -660,7 +695,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
         .order("created_at", { ascending: false }),
       supabase
         .from("order_items")
-        .select("id, product, paper, paper_size, quantity, finishing, employee_id")
+        .select("id, product, paper, paper_size, quantity, finishing, print_settings, employee_id")
         .eq("order_id", orderId)
         .order("sort_order"),
     ]);
@@ -699,6 +734,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
     paperSize: order.paper_size,
     quantity: order.quantity,
     finishing: order.finishing,
+    printSettings: parsePrintSettings(order.print_settings),
     priority: order.priority,
     deliveryDate: order.delivery_date,
     deliveryTime: order.delivery_time,
@@ -735,6 +771,7 @@ export async function getOrderDetail(orderId: string): Promise<OrderDetail> {
       paperSize: r.paper_size,
       quantity: r.quantity,
       finishing: r.finishing,
+      printSettings: parsePrintSettings(r.print_settings),
       employeeId: r.employee_id,
       employeeName: r.employee_id ? employeesById.get(r.employee_id) ?? "Unknown" : null,
     })),
@@ -878,6 +915,7 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
       paper_size: input.paperSize || null,
       quantity: input.quantity,
       finishing: input.finishing || null,
+      print_settings: normalizePrintSettings(input.printSettings),
       fulfillment_type: input.fulfillmentType,
       delivery_provider: input.deliveryProvider,
       priority: input.priority,
@@ -918,6 +956,7 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
         paper_size: item.paperSize || null,
         quantity: item.quantity,
         finishing: item.finishing || null,
+        print_settings: normalizePrintSettings(item.printSettings),
         employee_id: item.employeeId || null,
         sort_order: index,
       }))
@@ -1111,6 +1150,7 @@ export async function updateOrder(orderId: string, formData: FormData): Promise<
       paper_size: input.paperSize || null,
       quantity: input.quantity,
       finishing: input.finishing || null,
+      print_settings: normalizePrintSettings(input.printSettings),
       fulfillment_type: input.fulfillmentType,
       delivery_provider: input.deliveryProvider,
       priority: input.priority,
@@ -1141,6 +1181,7 @@ export async function updateOrder(orderId: string, formData: FormData): Promise<
         paper_size: item.paperSize || null,
         quantity: item.quantity,
         finishing: item.finishing || null,
+        print_settings: normalizePrintSettings(item.printSettings),
         employee_id: item.employeeId || null,
         sort_order: index,
       }))
@@ -1269,7 +1310,7 @@ export async function duplicateOrder(orderId: string): Promise<{ id: string }> {
     supabase.from("order_files").select("*").eq("order_id", orderId),
     supabase
       .from("order_items")
-      .select("product, paper, paper_size, quantity, finishing, employee_id, sort_order")
+      .select("product, paper, paper_size, quantity, finishing, print_settings, employee_id, sort_order")
       .eq("order_id", orderId),
   ]);
 
@@ -1287,6 +1328,7 @@ export async function duplicateOrder(orderId: string): Promise<{ id: string }> {
       paper_size: original.paper_size,
       quantity: original.quantity,
       finishing: original.finishing,
+      print_settings: original.print_settings,
       fulfillment_type: original.fulfillment_type,
       // The provider choice carries over, but never an already-dispatched
       // Armada delivery -- that code/tracking belongs to the original
@@ -1331,6 +1373,7 @@ export async function duplicateOrder(orderId: string): Promise<{ id: string }> {
         paper_size: item.paper_size,
         quantity: item.quantity,
         finishing: item.finishing,
+        print_settings: item.print_settings,
         employee_id: item.employee_id,
         sort_order: item.sort_order,
       }))
@@ -1673,6 +1716,16 @@ function parseOrderForm(formData: FormData) {
     }
   }
 
+  const rawPrintSettings = formData.get("printSettings");
+  let printSettings: unknown = undefined;
+  if (typeof rawPrintSettings === "string" && rawPrintSettings.length > 0) {
+    try {
+      printSettings = JSON.parse(rawPrintSettings);
+    } catch {
+      // fall through as "no settings" — validated (and rejected if malformed) by the schema below
+    }
+  }
+
   const rawItems = formData.get("items");
   let items: unknown = [];
   if (typeof rawItems === "string" && rawItems.length > 0) {
@@ -1695,6 +1748,7 @@ function parseOrderForm(formData: FormData) {
     paperSize: formData.get("paperSize") || undefined,
     quantity: formData.get("quantity"),
     finishing: formData.get("finishing") || undefined,
+    printSettings,
     fulfillmentType: formData.get("fulfillmentType"),
     deliveryProvider: formData.get("deliveryProvider") || "internal",
     priority: formData.get("priority"),

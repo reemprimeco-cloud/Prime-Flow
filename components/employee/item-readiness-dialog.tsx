@@ -9,6 +9,7 @@ import { toggleJobItemReady, type EmployeeJobItem } from "@/lib/actions/employee
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DeliveryProviderDialog } from "@/components/orders/delivery-provider-dialog";
+import { summarizePrintSettings } from "@/lib/print-settings";
 import { PRIMARY_ITEM_ID } from "@/types/domain";
 import type { OrderDeliveryProvider } from "@/types/database.types";
 
@@ -35,6 +36,7 @@ export function ItemReadinessDialog({ open, onOpenChange, job, isOutsourced }: I
       paperSize: job.paperSize,
       quantity: job.quantity,
       finishing: job.finishing,
+      printSettings: job.printSettings,
       isReady: job.itemReady,
     },
     ...job.additionalItems,
@@ -100,6 +102,11 @@ export function ItemReadinessDialog({ open, onOpenChange, job, isOutsourced }: I
                   <div className="text-xs text-muted-foreground">
                     {[`Qty ${row.quantity}`, row.paper, row.paperSize, row.finishing].filter(Boolean).join(" · ")}
                   </div>
+                  {summarizePrintSettings(row.printSettings) && (
+                    <div className="mt-0.5 text-xs font-semibold text-destructive">
+                      Fiery: <span className="text-foreground">{summarizePrintSettings(row.printSettings)}</span>
+                    </div>
+                  )}
                 </div>
                 {row.isReady && <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />}
               </label>

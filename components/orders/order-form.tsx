@@ -11,11 +11,14 @@ import { orderFormSchema, type OrderFormInput } from "@/lib/validation/order";
 import {
   createOrder,
   deleteOrderFile,
+  listPaperSizeSuggestions,
   searchCustomers,
   updateOrder,
   type CustomerSuggestion,
   type OrderDetail,
 } from "@/lib/actions/orders";
+import { EMPTY_PRINT_SETTINGS, toPrintSettingsForm } from "@/lib/print-settings";
+import { PrintSettingsFields } from "@/components/orders/print-settings-fields";
 import type { EmployeeListItem } from "@/lib/actions/employees";
 import {
   Sheet,
@@ -67,6 +70,7 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
       paperSize: "",
       quantity: 1,
       finishing: "",
+      printSettings: EMPTY_PRINT_SETTINGS,
       fulfillmentType: "pickup",
       deliveryProvider: "internal",
       priority: "normal",
@@ -100,6 +104,7 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
     paperSize: order.paperSize ?? "",
     quantity: order.quantity,
     finishing: order.finishing ?? "",
+    printSettings: toPrintSettingsForm(order.printSettings),
     fulfillmentType: order.fulfillmentType,
     deliveryProvider: order.deliveryProvider,
     priority: order.priority,
@@ -121,6 +126,7 @@ function defaultValues(order?: OrderDetail | null): OrderFormValues {
       quantity: item.quantity,
       finishing: item.finishing ?? "",
       employeeId: item.employeeId ?? "",
+      printSettings: toPrintSettingsForm(item.printSettings),
     })),
   };
 }
@@ -134,6 +140,7 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
   const [existingDesigns, setExistingDesigns] = useState(order?.designFiles ?? []);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
+  const [paperSizeSuggestions, setPaperSizeSuggestions] = useState<string[]>([]);
   const [customerQuery, setCustomerQuery] = useState("");
   const [customerSuggestions, setCustomerSuggestions] = useState<CustomerSuggestion[]>([]);
   const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false);
@@ -185,6 +192,12 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
     setCustomerQuery("");
     setCustomerSuggestions([]);
     setShowCustomerSuggestions(false);
+    // Custom paper sizes typed on earlier orders, so "33 x 70 cm" entered
+    // once is one tap next time. Best-effort: the built-in lists still show
+    // if this fails.
+    listPaperSizeSuggestions()
+      .then(setPaperSizeSuggestions)
+      .catch(() => setPaperSizeSuggestions([]));
   }, [open, order, reset]);
 
   // Debounced customer-name autocomplete, sourced from past orders (not a
@@ -260,6 +273,7 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
         formData.set("paperSize", values.paperSize ?? "");
         formData.set("quantity", String(values.quantity));
         formData.set("finishing", values.finishing ?? "");
+        formData.set("printSettings", JSON.stringify(values.printSettings ?? EMPTY_PRINT_SETTINGS));
         formData.set("fulfillmentType", values.fulfillmentType);
         formData.set("deliveryProvider", values.deliveryProvider ?? "internal");
         formData.set("priority", values.priority);
@@ -421,6 +435,9 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                     placeholder="Paper, size, finishing — anything the floor needs to know"
                   />
                 </Field>
+                <div className="sm:col-span-2">
+                  <PrintSettingsFields control={control} prefix="printSettings" paperSizeSuggestions={paperSizeSuggestions} />
+                </div>
               </div>
             </section>
 
@@ -507,7 +524,15 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                   variant="outline"
                   size="sm"
                   onClick={() =>
-                    appendItem({ product: "", paper: "", paperSize: "", quantity: 1, finishing: "", employeeId: "" })
+                    appendItem({
+                      product: "",
+                      paper: "",
+                      paperSize: "",
+                      quantity: 1,
+                      finishing: "",
+                      employeeId: "",
+                      printSettings: EMPTY_PRINT_SETTINGS,
+                    })
                   }
                 >
                   <Plus className="size-3.5" /> Add Item
@@ -552,6 +577,14 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                         placeholder="Paper, size, finishing — anything the floor needs to know"
                       />
                     </Field>
+                    <div className="sm:col-span-2">
+                      <PrintSettingsFields
+                        control={control}
+                        prefix={`items.${index}.printSettings`}
+                        paperSizeSuggestions={paperSizeSuggestions}
+                        compact
+                      />
+                    </div>
                     <Field label="Assign To" className="sm:col-span-2">
                       <Controller
                         control={control}

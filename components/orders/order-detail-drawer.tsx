@@ -27,6 +27,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
+import { PrintSettingsRows } from "@/components/orders/print-settings-summary";
+import { summarizePrintSettings } from "@/lib/print-settings";
 import { StatusActions } from "@/components/orders/status-actions";
 import { CountdownTimer } from "@/components/orders/countdown-timer";
 import { OrderTimeline } from "@/components/orders/order-timeline";
@@ -425,12 +427,21 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                 </DetailSection>
               )}
 
+              {order.printSettings && (
+                <DetailSection title="Fiery Print Settings">
+                  <PrintSettingsRows settings={order.printSettings} />
+                </DetailSection>
+              )}
+
               {order.items.map((item, index) => (
                 <DetailSection key={item.id} title={`Item ${index + 2}: ${item.product}`}>
                   <DetailRow label="Quantity" value={String(item.quantity)} />
                   {item.paper && <DetailRow label="Paper" value={item.paper} />}
                   {item.paperSize && <DetailRow label="Size" value={item.paperSize} />}
                   {item.finishing && <DetailRow label="Order Details" value={item.finishing} />}
+                  {summarizePrintSettings(item.printSettings) && (
+                    <DetailRow label="Fiery" value={summarizePrintSettings(item.printSettings)!} />
+                  )}
                   <DetailRow label="Assigned To" value={item.employeeName || "Unassigned"} />
                 </DetailSection>
               ))}

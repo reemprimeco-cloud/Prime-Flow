@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { CountdownTimer } from "@/components/orders/countdown-timer";
 import { DesignApprovalControl } from "@/components/employee/design-approval-control";
 import { cn } from "@/lib/utils";
+import { summarizePrintSettings } from "@/lib/print-settings";
 
 import type { EmployeeJobItem } from "@/lib/actions/employee-jobs";
 
@@ -66,6 +67,13 @@ export function QueueCard({
           </div>
           <div className="truncate text-sm font-bold text-foreground">{job.customerName}</div>
           <div className="truncate text-xs text-muted-foreground">{job.product}</div>
+          {/* One line of Fiery settings so the operator can pull the right
+              stock before pressing Start; the full block is on the job card. */}
+          {summarizePrintSettings(job.printSettings) && (
+            <div className="truncate text-xs font-semibold text-foreground">
+              <span className="text-destructive">Fiery:</span> {summarizePrintSettings(job.printSettings)}
+            </div>
+          )}
         </div>
 
         <div className="flex shrink-0 flex-col items-end gap-1.5">
