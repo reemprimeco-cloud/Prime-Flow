@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useQueryState, parseAsInteger } from "nuqs";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, PackageOpen } from "lucide-react";
+import { ChevronLeft, ChevronRight, PackageOpen, Plus } from "lucide-react";
 
 import {
   deleteOrder,
@@ -26,8 +26,8 @@ import { DEFAULT_ORDERS_PAGE_SIZE } from "@/lib/orders/constants";
 import type { EmployeeListItem } from "@/lib/actions/employees";
 import { useRealtimeChannel } from "@/lib/realtime/use-realtime-channel";
 import { CHANNELS } from "@/lib/realtime/constants";
-import { StatsGrid } from "@/components/manager/stats-grid";
-import { QuickActions } from "@/components/manager/quick-actions";
+import { StatusStrip, type StatusStripKey } from "@/components/manager/status-strip";
+import { AttentionPanel } from "@/components/manager/attention-panel";
 import { OrderFilters as OrderFiltersBar } from "@/components/manager/order-filters";
 import { ViewToggle, type OrderView } from "@/components/manager/view-toggle";
 import { OrderCard } from "@/components/orders/order-card";
@@ -50,6 +50,10 @@ const OrderDetailDrawer = dynamic(
 );
 
 interface DashboardClientProps {
+  /** e.g. "Good afternoon, Reem" — rendered as the page title. */
+  greeting: string;
+  /** e.g. "Monday, 19 October 2026". */
+  dateLabel: string;
   initialStats: DashboardStats;
   /** Null when the page was opened on the board view — the list loads on toggle. */
   initialOrdersResult: OrderListResult | null;
@@ -59,6 +63,8 @@ interface DashboardClientProps {
 }
 
 export function DashboardClient({
+  greeting,
+  dateLabel,
   initialStats,
   initialOrdersResult,
   initialBoard,
@@ -67,7 +73,7 @@ export function DashboardClient({
   const queryClient = useQueryClient();
 
   const [search] = useQueryState("q", { defaultValue: "" });
-  const [status] = useQueryState("status", { defaultValue: "all" });
+  const [status, setStatus] = useQueryState("status", { defaultValue: "all" });
   const [employeeId] = useQueryState("employee", { defaultValue: "all" });
   const [priority] = useQueryState("priority", { defaultValue: "all" });
   const [deliveryDate] = useQueryState("date", { defaultValue: "" });
@@ -208,6 +214,30 @@ export function DashboardClient({
     []
   );
 
+  // Status strip: on the board, jump to that stage (or to Needs attention
+  // for Late); in the list/card views, filter to that status instead.
+  const handleStripSelect = (key: StatusStripKey) => {
+    const scrollTo = (id: string) =>
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (key === "late") {
+      if (view !== "board") setView("board");
+      requestAnimationFrame(() => scrollTo("needs-attention"));
+      return;
+    }
+    if (view === "board") {
+      scrollTo(`board-${key}`);
+      return;
+    }
+    const statusByKey: Record<Exclude<StatusStripKey, "late">, OrderStatus> = {
+      new: "new",
+      inProgress: "in_progress",
+      waitingMaterials: "waiting_materials",
+      readyPickup: "ready_pickup",
+      readyDelivery: "ready_delivery",
+    };
+    setStatus(statusByKey[key]);
+  };
+
   const handleNewOrder = () => {
     setEditingOrder(null);
     setFormOpen(true);
@@ -273,15 +303,33 @@ export function DashboardClient({
 
   return (
     <div className="flex flex-col gap-6">
-      <StatsGrid stats={statsQuery.data} isLoading={statsQuery.isFetching && !statsQuery.data} />
-      <QuickActions onNewOrder={handleNewOrder} />
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex-1">
-          <OrderFiltersBar employees={employees} hideStatus={view === "board"} />
+      {/* Header: who/when on the left, the page's one primary action on the right. */}
+      <header className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="truncate text-xl font-bold tracking-tight sm:text-2xl">{greeting}</h1>
+          <p className="text-sm text-muted-foreground">{dateLabel}</p>
         </div>
-        <ViewToggle view={view} onChange={setView} />
-      </div>
+        <Button variant="primary" onClick={handleNewOrder} className="shrink-0">
+          <Plus />
+          New Order
+        </Button>
+      </header>
+
+      <StatusStrip
+        stats={statsQuery.data}
+        isLoading={statsQuery.isFetching && !statsQuery.data}
+        onSelect={handleStripSelect}
+      />
+
+      <OrderFiltersBar
+        employees={employees}
+        hideStatus={view === "board"}
+        trailing={<ViewToggle view={view} onChange={setView} />}
+      />
+
+      {view === "board" && !boardQuery.isLoading && !boardIsEmpty && (
+        <AttentionPanel board={board} onOpen={handleOpen} />
+      )}
 
       <BulkActionsBar
         selectedIds={[...selectedIds]}
