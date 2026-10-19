@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -9,7 +9,6 @@ import {
   Clock,
   Loader2,
   MapPin,
-  MessageSquareText,
   Paperclip,
   Plus,
   Printer,
@@ -29,9 +28,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileUpload } from "@/components/shared/file-upload";
-import { DESIGN_FILE_ACCEPT, MAX_TOTAL_UPLOAD_BYTES, PRODUCT_IMAGE_ACCEPT } from "@/lib/files/constants";
+import { DESIGN_FILE_ACCEPT, getFileKind, MAX_TOTAL_UPLOAD_BYTES } from "@/lib/files/constants";
 import { cn } from "@/lib/utils";
 
 type OrderRequestValues = z.input<ReturnType<typeof createOrderRequestSchema>>;
@@ -39,7 +37,7 @@ type OrderRequestInput = z.infer<ReturnType<typeof createOrderRequestSchema>>;
 
 const emptyValues: OrderRequestValues = {
   customerName: "",
-  customerMobile: "+965",
+  customerMobile: "",
   product: "",
   paper: "",
   paperSize: "",
@@ -58,6 +56,58 @@ const emptyValues: OrderRequestValues = {
   items: [],
 };
 
+/**
+ * Who this device ordered as last time — prefilled on the next visit so a
+ * returning customer only fills in the order itself. Lives only in this
+ * browser; nothing is looked up by number (that would let anyone read a
+ * stranger's name off the form).
+ */
+const REMEMBERED_KEY = "prime-order-request:me";
+const REMEMBERED_FIELDS = [
+  "customerName",
+  "customerMobile",
+  "fulfillmentType",
+  "deliveryArea",
+  "deliveryBlock",
+  "deliveryStreet",
+  "deliveryBuildingNumber",
+  "deliveryAddress",
+  "deliveryMapLink",
+] as const;
+type RememberedDetails = Partial<Pick<OrderRequestValues, (typeof REMEMBERED_FIELDS)[number]>>;
+
+function loadRemembered(): RememberedDetails {
+  try {
+    const raw = window.localStorage.getItem(REMEMBERED_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    if (!parsed || typeof parsed !== "object") return {};
+    const saved = parsed as Record<string, unknown>;
+    const details: Record<string, string> = {};
+    for (const field of REMEMBERED_FIELDS) {
+      if (typeof saved[field] === "string") details[field] = saved[field];
+    }
+    if (details.fulfillmentType !== "pickup" && details.fulfillmentType !== "delivery") delete details.fulfillmentType;
+    return details as RememberedDetails;
+  } catch {
+    return {};
+  }
+}
+
+function saveRemembered(values: OrderRequestInput) {
+  try {
+    const details: Record<string, string> = {};
+    for (const field of REMEMBERED_FIELDS) {
+      const value = values[field];
+      if (typeof value === "string" && value) details[field] = value;
+    }
+    // Stored as the 8 local digits — the field shows +965 itself.
+    if (details.customerMobile) details.customerMobile = details.customerMobile.replace(/^\+965/, "");
+    window.localStorage.setItem(REMEMBERED_KEY, JSON.stringify(details));
+  } catch {
+    // Private mode or storage blocked — the next visit just starts empty.
+  }
+}
+
 const STRINGS = {
   ar: {
     dir: "rtl" as const,
@@ -67,13 +117,13 @@ const STRINGS = {
     yourName: "الاسم الكامل",
     namePlaceholder: "مثال: أحمد العتيبي",
     mobile: "رقم الجوال",
-    mobilePlaceholder: "+965 5000 1111",
+    mobilePlaceholder: "5000 1111",
     whatToPrint: "شنو حابين تطبعون؟",
     product: "نوع الطلب",
     productPlaceholder: "مثال: كروت شخصية",
     quantity: "الكمية",
     details: "تفاصيل إضافية (اختياري)",
-    detailsPlaceholder: "الورق، المقاس، التشطيب — أي شي ثاني",
+    detailsPlaceholder: "الورق، المقاس، التشطيب، أو أي ملاحظة ثانية",
     additionalItems: "أصناف إضافية (اختياري)",
     addItem: "إضافة صنف",
     item: "الصنف",
@@ -95,21 +145,18 @@ const STRINGS = {
     buildingNumber: "رقم المنزل / البناية",
     buildingNumberPlaceholder: "مثال: 12",
     mapLink: "رابط الموقع (اختياري)",
-    mapLinkPlaceholder: "الصقي رابط قوقل مابس",
+    mapLinkPlaceholder: "الصقوا رابط قوقل مابس",
     attachments: "المرفقات (اختياري)",
-    productImages: "صور المنتج",
-    designFiles: "ملفات التصميم",
-    uploadHint: "اضغط لرفع ملف أو أكثر",
-    notes: "ملاحظات (اختياري)",
-    notesPlaceholder: "أي شي ثاني نعرفه",
+    attachmentsLabel: "التصميم أو صور للمطلوب",
+    uploadHint: "اضغطوا لإرفاق صور أو ملفات التصميم",
     submit: "إرسال الطلب",
     submitting: "جاري الإرسال...",
     received: "تم استلام طلبك",
     receivedBody: "شكراً لك! فريقنا بيراجع طلبك ويأكده معك عبر واتساب قريباً.",
     another: "إرسال طلب ثاني",
-    genericError: "صار خطأ، حاولي مرة ثانية.",
-    filesTooLarge: "حجم الملفات المرفقة كبير — قلّلي عدد الملفات أو حجمها وحاولي مرة ثانية، أو ابعتيه لنا عبر واتساب أو الإيميل.",
-    tooLargeHint: "تقدرين ترسلينه لنا عبر واتساب أو الإيميل.",
+    genericError: "صار خطأ، حاولوا مرة ثانية.",
+    filesTooLarge: "حجم الملفات المرفقة كبير — شيلوا ملف وحاولوا مرة ثانية، أو أرسلوه لنا عبر واتساب أو الإيميل.",
+    tooLargeHint: "تقدرون ترسلونه لنا عبر واتساب أو الإيميل.",
   },
   en: {
     dir: "ltr" as const,
@@ -119,13 +166,13 @@ const STRINGS = {
     yourName: "Your Name",
     namePlaceholder: "e.g. Ahmad Al-Otaibi",
     mobile: "Mobile Number",
-    mobilePlaceholder: "+965 5000 1111",
+    mobilePlaceholder: "5000 1111",
     whatToPrint: "What do you need printed?",
     product: "Product",
     productPlaceholder: "e.g. Business Cards",
     quantity: "Quantity",
     details: "Order details (optional)",
-    detailsPlaceholder: "Paper, size, finishing — anything else",
+    detailsPlaceholder: "Paper, size, finishing — or anything else we should know",
     additionalItems: "Additional Items (optional)",
     addItem: "Add Item",
     item: "Item",
@@ -149,18 +196,15 @@ const STRINGS = {
     mapLink: "Map Location Link (optional)",
     mapLinkPlaceholder: "Paste a Google Maps link",
     attachments: "Attachments (optional)",
-    productImages: "Product Images",
-    designFiles: "Design Files",
-    uploadHint: "Click to upload one or more files",
-    notes: "Notes (optional)",
-    notesPlaceholder: "Anything else we should know",
+    attachmentsLabel: "Your design, or photos of what you need",
+    uploadHint: "Tap to attach photos or design files",
     submit: "Submit Request",
     submitting: "Submitting...",
     received: "Request received",
     receivedBody: "Thanks! Our team will review your request and confirm your order over WhatsApp shortly.",
     another: "Submit another request",
     genericError: "Something went wrong. Please try again.",
-    filesTooLarge: "Attached files are too large together — remove or shrink a file and try again, or send it to us over WhatsApp or email.",
+    filesTooLarge: "Attached files are too large together — remove a file and try again, or send it to us over WhatsApp or email.",
     tooLargeHint: "You can send it to us over WhatsApp or email.",
   },
 } satisfies Record<OrderRequestLanguage, Record<string, string>>;
@@ -170,8 +214,7 @@ export function OrderRequestForm() {
   const t = STRINGS[lang];
 
   const [submitted, setSubmitted] = useState<{ orderNumber: string } | null>(null);
-  const [productImages, setProductImages] = useState<File[]>([]);
-  const [designFiles, setDesignFiles] = useState<File[]>([]);
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -188,13 +231,22 @@ export function OrderRequestForm() {
 
   const fulfillmentType = watch("fulfillmentType");
 
+  // Read after mount, not during render — localStorage doesn't exist on the
+  // server, and reading it there would mismatch hydration.
+  const [remembered, setRemembered] = useState<RememberedDetails>({});
+  useEffect(() => {
+    const saved = loadRemembered();
+    setRemembered(saved);
+    if (Object.keys(saved).length > 0) reset({ ...emptyValues, ...saved });
+  }, [reset]);
+
   const { fields: itemFields, append: appendItem, remove: removeItem } = useFieldArray({
     control,
     name: "items",
   });
 
   const onSubmit = async (values: OrderRequestInput) => {
-    const totalBytes = [...productImages, ...designFiles].reduce((sum, file) => sum + file.size, 0);
+    const totalBytes = attachments.reduce((sum, file) => sum + file.size, 0);
     if (totalBytes > MAX_TOTAL_UPLOAD_BYTES) {
       toast.error(t.filesTooLarge);
       return;
@@ -222,10 +274,15 @@ export function OrderRequestForm() {
       fd.set("notes", values.notes ?? "");
       fd.set("items", JSON.stringify(values.items));
       fd.set("preferredLanguage", lang);
-      for (const file of productImages) fd.append("productImages", file);
-      for (const file of designFiles) fd.append("designFiles", file);
+      // One box for the customer; photos land with product images (they're
+      // the card thumbnail), everything else with design files.
+      for (const file of attachments) {
+        fd.append(getFileKind(file.name) === "image" ? "productImages" : "designFiles", file);
+      }
 
       const result = await submitOrderRequest(fd);
+      saveRemembered(values);
+      setRemembered(loadRemembered());
       setSubmitted(result);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t.genericError);
@@ -269,9 +326,8 @@ export function OrderRequestForm() {
             variant="outline"
             className="mt-2"
             onClick={() => {
-              reset(emptyValues);
-              setProductImages([]);
-              setDesignFiles([]);
+              reset({ ...emptyValues, ...remembered });
+              setAttachments([]);
               setSubmitted(null);
             }}
           >
@@ -297,10 +353,30 @@ export function OrderRequestForm() {
           <SectionHeading icon={User} label={t.yourDetails} />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label={t.yourName} error={errors.customerName?.message}>
-              <Input {...register("customerName")} aria-invalid={!!errors.customerName} placeholder={t.namePlaceholder} />
+              <Input
+                {...register("customerName")}
+                aria-invalid={!!errors.customerName}
+                placeholder={t.namePlaceholder}
+                autoComplete="name"
+                dir="auto"
+              />
             </Field>
             <Field label={t.mobile} error={errors.customerMobile?.message}>
-              <Input {...register("customerMobile")} aria-invalid={!!errors.customerMobile} placeholder={t.mobilePlaceholder} dir="ltr" />
+              {/* +965 is fixed in front — the customer types only their 8 digits (any other way they type it still works). */}
+              <div dir="ltr" className="relative">
+                <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm font-medium text-muted-foreground">
+                  +965
+                </span>
+                <Input
+                  {...register("customerMobile")}
+                  aria-invalid={!!errors.customerMobile}
+                  placeholder={t.mobilePlaceholder}
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel-national"
+                  className="pl-16"
+                />
+              </div>
             </Field>
           </div>
 
@@ -312,7 +388,7 @@ export function OrderRequestForm() {
               <Input {...register("product")} aria-invalid={!!errors.product} placeholder={t.productPlaceholder} />
             </Field>
             <Field label={t.quantity} error={errors.quantity?.message}>
-              <Input type="number" min={1} {...register("quantity")} aria-invalid={!!errors.quantity} />
+              <Input type="number" inputMode="numeric" min={1} {...register("quantity")} aria-invalid={!!errors.quantity} />
             </Field>
             <Field label={t.details} className="sm:col-span-2">
               <Textarea {...register("finishing")} rows={3} placeholder={t.detailsPlaceholder} />
@@ -368,42 +444,54 @@ export function OrderRequestForm() {
           <Separator />
 
           <SectionHeading icon={Truck} label={t.delivery} />
-          <p className="text-xs text-muted-foreground">{t.deliveryHint}</p>
+          <Controller
+            control={control}
+            name="fulfillmentType"
+            render={({ field }) => (
+              <div role="radiogroup" aria-label={t.fulfillment} className="grid grid-cols-2 gap-3">
+                {(
+                  [
+                    { value: "pickup", label: t.pickup, icon: Store },
+                    { value: "delivery", label: t.deliveryOption, icon: Truck },
+                  ] as const
+                ).map(({ value, label, icon: Icon }) => {
+                  const selected = field.value === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => field.onChange(value)}
+                      className={cn(
+                        "flex min-h-12 items-center justify-center gap-1.5 rounded-xl border-2 px-2 text-sm font-semibold whitespace-nowrap transition-colors",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        selected
+                          ? "border-secondary bg-secondary/10 text-secondary"
+                          : "border-border bg-card text-muted-foreground hover:border-secondary/50 hover:text-foreground"
+                      )}
+                    >
+                      <Icon className="size-4" aria-hidden />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label={t.date} error={errors.deliveryDate?.message} icon={Calendar}>
-              <Input type="date" {...register("deliveryDate")} aria-invalid={!!errors.deliveryDate} />
-            </Field>
-            <Field label={t.time} error={errors.deliveryTime?.message} icon={Clock}>
-              <Input type="time" {...register("deliveryTime")} aria-invalid={!!errors.deliveryTime} />
-            </Field>
-            <Field label={t.fulfillment} className="sm:col-span-2">
-              <Controller
-                control={control}
-                name="fulfillmentType"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pickup">
-                        <Store className="size-3.5" /> {t.pickup}
-                      </SelectItem>
-                      <SelectItem value="delivery">
-                        <Truck className="size-3.5" /> {t.deliveryOption}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </Field>
             {fulfillmentType === "delivery" && (
               <>
                 <Field label={t.area} error={errors.deliveryArea?.message}>
                   <Input {...register("deliveryArea")} aria-invalid={!!errors.deliveryArea} placeholder={t.areaPlaceholder} />
                 </Field>
                 <Field label={t.block} error={errors.deliveryBlock?.message}>
-                  <Input {...register("deliveryBlock")} aria-invalid={!!errors.deliveryBlock} placeholder={t.blockPlaceholder} />
+                  <Input
+                    {...register("deliveryBlock")}
+                    aria-invalid={!!errors.deliveryBlock}
+                    placeholder={t.blockPlaceholder}
+                    inputMode="numeric"
+                  />
                 </Field>
                 <Field label={t.street} error={errors.deliveryStreet?.message}>
                   <Input {...register("deliveryStreet")} aria-invalid={!!errors.deliveryStreet} placeholder={t.streetPlaceholder} />
@@ -419,38 +507,31 @@ export function OrderRequestForm() {
                   <Input {...register("deliveryAddress")} placeholder={t.addressPlaceholder} />
                 </Field>
                 <Field label={t.mapLink} className="sm:col-span-2">
-                  <Input {...register("deliveryMapLink")} placeholder={t.mapLinkPlaceholder} dir="ltr" />
+                  <Input {...register("deliveryMapLink")} placeholder={t.mapLinkPlaceholder} dir="ltr" inputMode="url" />
                 </Field>
               </>
             )}
+            <p className="text-xs text-muted-foreground sm:col-span-2">{t.deliveryHint}</p>
+            <Field label={t.date} error={errors.deliveryDate?.message} icon={Calendar}>
+              <Input type="date" {...register("deliveryDate")} aria-invalid={!!errors.deliveryDate} />
+            </Field>
+            <Field label={t.time} error={errors.deliveryTime?.message} icon={Clock}>
+              <Input type="time" {...register("deliveryTime")} aria-invalid={!!errors.deliveryTime} />
+            </Field>
           </div>
 
           <Separator />
 
           <SectionHeading icon={Paperclip} label={t.attachments} />
-          <div className="flex flex-col gap-4">
-            <FileUpload
-              label={t.productImages}
-              accept={PRODUCT_IMAGE_ACCEPT}
-              files={productImages}
-              onChange={setProductImages}
-              hint={t.uploadHint}
-              tooLargeHint={t.tooLargeHint}
-            />
-            <FileUpload
-              label={t.designFiles}
-              accept={DESIGN_FILE_ACCEPT}
-              files={designFiles}
-              onChange={setDesignFiles}
-              hint={t.uploadHint}
-              tooLargeHint={t.tooLargeHint}
-            />
-          </div>
-
-          <Separator />
-
-          <SectionHeading icon={MessageSquareText} label={t.notes} />
-          <Textarea {...register("notes")} rows={3} placeholder={t.notesPlaceholder} />
+          <FileUpload
+            label={t.attachmentsLabel}
+            accept={DESIGN_FILE_ACCEPT}
+            files={attachments}
+            onChange={setAttachments}
+            hint={t.uploadHint}
+            tooLargeHint={t.tooLargeHint}
+            shrinkImages
+          />
         </Card>
 
         <Button type="submit" variant="primary" size="lg" className="w-full gap-2" disabled={isSubmitting}>

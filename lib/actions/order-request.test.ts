@@ -130,11 +130,13 @@ describe("submitOrderRequest", () => {
     expect(mockRecordAuditLog).not.toHaveBeenCalled();
   });
 
-  it("rejects a mobile number without the +965 country code", async () => {
+  // Any format of an 8-digit Kuwait number is accepted (see
+  // lib/validation/order-request.test.ts); a short one is not guessed at.
+  it("rejects a mobile number that isn't 8 digits", async () => {
     const fd = minimalRequestFormData();
-    fd.set("customerMobile", "55011111");
+    fd.set("customerMobile", "5501111");
 
-    await expect(submitOrderRequest(fd)).rejects.toThrow("+965");
+    await expect(submitOrderRequest(fd)).rejects.toThrow("8");
     expect(mockRecordAuditLog).not.toHaveBeenCalled();
   });
 
