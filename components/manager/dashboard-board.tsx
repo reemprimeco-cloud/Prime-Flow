@@ -3,7 +3,6 @@
 import type { ComponentType } from "react";
 import { CheckCircle2, Clock, PackageCheck, PackageSearch, Sparkles, Truck } from "lucide-react";
 
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { OrderCard } from "@/components/orders/order-card";
 import type { DashboardBoardResult, OrderListItem } from "@/lib/actions/orders";
@@ -56,7 +55,7 @@ export function DashboardBoard({
         const orders = board[section.key];
         const Icon = section.icon;
         return (
-          <section key={section.key} className="flex flex-col gap-3">
+          <section key={section.key} id={`board-${section.key}`} className="flex scroll-mt-20 flex-col gap-3">
             <div className="flex items-center gap-2">
               <Icon className={`size-4 ${section.accent}`} />
               <h2 className="text-sm font-bold text-foreground">{section.label}</h2>
@@ -64,11 +63,11 @@ export function DashboardBoard({
               {section.key === "deliveredToday" && orders.length > 0 && (
                 <span className="text-xs text-muted-foreground">— clears at midnight</span>
               )}
+              {/* An empty stage is a one-line fact, not a card-sized hole in the board. */}
+              {orders.length === 0 && <span className="text-xs text-muted-foreground">None right now</span>}
             </div>
 
-            {orders.length === 0 ? (
-              <Card className="px-4 py-6 text-center text-sm text-muted-foreground">Nothing here right now.</Card>
-            ) : (
+            {orders.length > 0 && (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
                 {orders.map((order) => (
                   <OrderCard
