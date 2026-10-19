@@ -222,6 +222,7 @@ export async function bulkDeleteOrders(orderIds: string[]): Promise<BulkResult> 
     oldValue: { bulk: true, orderIds, succeeded },
   });
 
-  revalidatePath("/dashboard");
+  // No revalidatePath: the dashboard refetches through react-query once the
+  // bulk bar reports back (onDone), same as the other bulk actions.
   return { requested: orderIds.length, succeeded, skipped: orderIds.length - succeeded };
 }
