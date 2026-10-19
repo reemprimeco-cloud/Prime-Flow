@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { isSameMonth } from "date-fns";
 
 import { requireAdmin } from "@/lib/auth/guards";
@@ -22,6 +21,7 @@ import {
   getDemoOrders,
 } from "@/lib/demo/data";
 import { recordAuditLog } from "@/lib/audit/log";
+import { runAfterResponse } from "@/lib/utils/after-response";
 import { applyOrderStatusTransition } from "@/lib/actions/status-transition";
 import {
   notifyEmployeeHighPriorityAssigned,
@@ -932,78 +932,83 @@ export async function createOrder(formData: FormData): Promise<{ id: string }> {
 
   await uploadOrderFiles(supabase, order.id, session.employeeId, formData);
 
-  await recordAuditLog({
-    actorId: session.employeeId,
-    actorName: session.fullName,
-    action: "order_created",
-    entityType: "order",
-    entityId: order.id,
-    orderId: order.id,
-    newValue: { orderNumber: order.order_number, product: input.product, deliveryDate: input.deliveryDate },
-  });
-  for (const employeeId of allEmployeeIds) {
+  // Audit rows, the customer "order received" WhatsApp, employee pings, and
+  // the realtime broadcast run after the response — see
+  // lib/utils/after-response.ts. The order, items, assignments, and files
+  // above are already saved by now.
+  await runAfterResponse(`create ${order.order_number}`, async () => {
     await recordAuditLog({
       actorId: session.employeeId,
       actorName: session.fullName,
-      action: "employee_assigned",
-      entityType: "order_assignment",
-      entityId: employeeId,
+      action: "order_created",
+      entityType: "order",
+      entityId: order.id,
       orderId: order.id,
-      newValue: { employeeId },
+      newValue: { orderNumber: order.order_number, product: input.product, deliveryDate: input.deliveryDate },
     });
-  }
-
-  // A brand-new order defaults to unapproved (the order form's "Production
-  // Approval" switch — see 0017_order_approval.sql) -- while it sits
-  // unapproved, nobody's told about it yet: no customer "order received"
-  // confirmation, no employee assignment ping. sendOrderApprovedNotifications
-  // fires this same burst later, the moment it actually clears (an admin
-  // flips the toggle on an edit, or the customer approves a design approval
-  // link — see updateOrder and lib/actions/design-approval.ts).
-  if (input.approved) {
-    await notifyOrderCreated(
-      {
+    for (const employeeId of allEmployeeIds) {
+      await recordAuditLog({
+        actorId: session.employeeId,
+        actorName: session.fullName,
+        action: "employee_assigned",
+        entityType: "order_assignment",
+        entityId: employeeId,
         orderId: order.id,
-        orderNumber: order.order_number,
-        customerName: input.customerName,
-        customerMobile: input.customerMobile,
-        product: input.product,
-        deliveryDate,
-        deliveryTime,
-        whatsappEnabled: input.whatsappEnabled,
-        preferredChannel: input.preferredChannel,
-        language: input.preferredLanguage,
-        notificationPreferences: input.notificationPreferences,
-      },
-      session.employeeId,
-      session.fullName
-    );
+        newValue: { employeeId },
+      });
+    }
 
-    if (allEmployeeIds.length > 0) {
-      const assignedEmployees = await fetchEmployeePhones(supabase, allEmployeeIds);
-      for (const employeeId of allEmployeeIds) {
-        const employee = assignedEmployees.get(employeeId);
-        if (!employee) continue;
-        const context = {
-          employeeId,
-          employeePhone: employee.phone,
+    // A brand-new order defaults to unapproved (the order form's "Production
+    // Approval" switch — see 0017_order_approval.sql) -- while it sits
+    // unapproved, nobody's told about it yet: no customer "order received"
+    // confirmation, no employee assignment ping. sendOrderApprovedNotifications
+    // fires this same burst later, the moment it actually clears (an admin
+    // flips the toggle on an edit, or the customer approves a design approval
+    // link — see updateOrder and lib/actions/design-approval.ts).
+    if (input.approved) {
+      await notifyOrderCreated(
+        {
           orderId: order.id,
           orderNumber: order.order_number,
+          customerName: input.customerName,
+          customerMobile: input.customerMobile,
           product: input.product,
           deliveryDate,
           deliveryTime,
-        };
-        if (input.priority === "urgent") {
-          await notifyEmployeeHighPriorityAssigned(context, session.employeeId, session.fullName);
-        } else {
-          await notifyEmployeeJobAssigned(context, session.employeeId, session.fullName);
+          whatsappEnabled: input.whatsappEnabled,
+          preferredChannel: input.preferredChannel,
+          language: input.preferredLanguage,
+          notificationPreferences: input.notificationPreferences,
+        },
+        session.employeeId,
+        session.fullName
+      );
+
+      if (allEmployeeIds.length > 0) {
+        const assignedEmployees = await fetchEmployeePhones(supabase, allEmployeeIds);
+        for (const employeeId of allEmployeeIds) {
+          const employee = assignedEmployees.get(employeeId);
+          if (!employee) continue;
+          const context = {
+            employeeId,
+            employeePhone: employee.phone,
+            orderId: order.id,
+            orderNumber: order.order_number,
+            product: input.product,
+            deliveryDate,
+            deliveryTime,
+          };
+          if (input.priority === "urgent") {
+            await notifyEmployeeHighPriorityAssigned(context, session.employeeId, session.fullName);
+          } else {
+            await notifyEmployeeJobAssigned(context, session.employeeId, session.fullName);
+          }
         }
       }
     }
-  }
 
-  await broadcast(CHANNELS.production, "order.created", { orderId: order.id });
-  revalidatePath("/dashboard");
+    await broadcast(CHANNELS.production, "order.created", { orderId: order.id });
+  });
 
   return { id: order.id };
 }
@@ -1223,25 +1228,28 @@ export async function updateOrder(orderId: string, formData: FormData): Promise<
   }
 
   if (justApproved) {
-    await sendOrderApprovedNotifications(supabase, orderId, session.employeeId, session.fullName);
+    await runAfterResponse(`approved burst ${orderId}`, () =>
+      sendOrderApprovedNotifications(supabase, orderId, session.employeeId, session.fullName)
+    );
   }
 
   await syncAssignmentSequences(supabase, orderId, input.employeeIds, [...nextIds]);
 
   await uploadOrderFiles(supabase, orderId, session.employeeId, formData);
 
-  await recordAuditLog({
-    actorId: session.employeeId,
-    actorName: session.fullName,
-    action: "order_updated",
-    entityType: "order",
-    entityId: orderId,
-    orderId,
-    newValue: { product: input.product, deliveryDate: input.deliveryDate, deliveryTime: input.deliveryTime },
-  });
+  await runAfterResponse(`update order ${orderId}`, async () => {
+    await recordAuditLog({
+      actorId: session.employeeId,
+      actorName: session.fullName,
+      action: "order_updated",
+      entityType: "order",
+      entityId: orderId,
+      orderId,
+      newValue: { product: input.product, deliveryDate: input.deliveryDate, deliveryTime: input.deliveryTime },
+    });
 
-  await broadcast(CHANNELS.production, "order.updated", { orderId });
-  revalidatePath("/dashboard");
+    await broadcast(CHANNELS.production, "order.updated", { orderId });
+  });
 
   return { id: orderId };
 }
@@ -1361,7 +1369,6 @@ export async function duplicateOrder(orderId: string): Promise<{ id: string }> {
   });
 
   await broadcast(CHANNELS.production, "order.created", { orderId: newOrder.id });
-  revalidatePath("/dashboard");
 
   return { id: newOrder.id };
 }
@@ -1427,7 +1434,6 @@ export async function deleteOrder(orderId: string): Promise<void> {
   }
 
   await broadcast(CHANNELS.production, "order.deleted", { orderId });
-  revalidatePath("/dashboard");
 }
 
 /**
@@ -1478,6 +1484,18 @@ export async function setOrderAssignments(orderId: string, employeeIds: string[]
   if (toRemove.length > 0) {
     const { error } = await supabase.from("order_assignments").delete().eq("order_id", orderId).in("employee_id", toRemove);
     if (error) throw new Error(error.message);
+  }
+  if (toAdd.length > 0) {
+    const { error } = await supabase
+      .from("order_assignments")
+      .insert(toAdd.map((employeeId) => ({ order_id: orderId, employee_id: employeeId })));
+    if (error) throw new Error(error.message);
+  }
+  await syncAssignmentSequences(supabase, orderId, orderedIds, orderedIds);
+
+  // Audit rows, the employees' "you've been assigned" pings, and the
+  // realtime broadcast run after the response (lib/utils/after-response.ts).
+  await runAfterResponse(`assign ${order.order_number}`, async () => {
     for (const employeeId of toRemove) {
       await recordAuditLog({
         actorId: session.employeeId,
@@ -1489,12 +1507,6 @@ export async function setOrderAssignments(orderId: string, employeeIds: string[]
         oldValue: { employeeId, quickAssign: true },
       });
     }
-  }
-  if (toAdd.length > 0) {
-    const { error } = await supabase
-      .from("order_assignments")
-      .insert(toAdd.map((employeeId) => ({ order_id: orderId, employee_id: employeeId })));
-    if (error) throw new Error(error.message);
     for (const employeeId of toAdd) {
       await recordAuditLog({
         actorId: session.employeeId,
@@ -1509,7 +1521,7 @@ export async function setOrderAssignments(orderId: string, employeeIds: string[]
 
     // Unapproved orders ping nobody yet (see createOrder); the approval
     // itself fires everyone assigned at that point.
-    if (order.approved) {
+    if (order.approved && toAdd.length > 0) {
       const isReassignment = toRemove.length > 0;
       const assignedEmployees = await fetchEmployeePhones(supabase, toAdd);
       for (const employeeId of toAdd) {
@@ -1533,12 +1545,9 @@ export async function setOrderAssignments(orderId: string, employeeIds: string[]
         }
       }
     }
-  }
 
-  await syncAssignmentSequences(supabase, orderId, orderedIds, orderedIds);
-
-  await broadcast(CHANNELS.production, "order.updated", { orderId });
-  revalidatePath("/dashboard");
+    await broadcast(CHANNELS.production, "order.updated", { orderId });
+  });
 }
 
 /**
@@ -1586,7 +1595,6 @@ export async function overrideOrderStatus(orderId: string, newStatus: OrderStatu
   });
 
   await broadcast(CHANNELS.production, "order.updated", { orderId });
-  revalidatePath("/dashboard");
 }
 
 export async function deleteOrderFile(fileId: string): Promise<void> {
@@ -1606,7 +1614,6 @@ export async function deleteOrderFile(fileId: string): Promise<void> {
   await supabase.from("order_files").delete().eq("id", fileId);
 
   await broadcast(CHANNELS.production, "order.updated", { orderId: file.order_id });
-  revalidatePath("/dashboard");
 }
 
 // ---------------------------------------------------------------------------
@@ -1689,13 +1696,15 @@ async function syncAssignmentSequences(
   orderedEmployeeIds: string[],
   allEmployeeIds: string[]
 ): Promise<void> {
-  for (const employeeId of allEmployeeIds) {
-    await supabase
-      .from("order_assignments")
-      .update({ sequence: sequenceFor(employeeId, orderedEmployeeIds) })
-      .eq("order_id", orderId)
-      .eq("employee_id", employeeId);
-  }
+  await Promise.all(
+    allEmployeeIds.map((employeeId) =>
+      supabase
+        .from("order_assignments")
+        .update({ sequence: sequenceFor(employeeId, orderedEmployeeIds) })
+        .eq("order_id", orderId)
+        .eq("employee_id", employeeId)
+    )
+  );
 }
 
 async function fetchEmployeeNames(supabase: ServiceClient, ids: string[]): Promise<Map<string, string>> {
