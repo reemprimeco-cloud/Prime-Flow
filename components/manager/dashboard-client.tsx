@@ -5,9 +5,11 @@ import dynamic from "next/dynamic";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useQueryState, parseAsInteger } from "nuqs";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, PackageOpen, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, PackageOpen, Plus, RotateCw, WifiOff } from "lucide-react";
 
+import { markDesignApprovedManually } from "@/lib/actions/design-approval";
 import {
+  approveOrder,
   deleteOrder,
   duplicateOrder,
   getDashboardBoard,
@@ -153,6 +155,8 @@ export function DashboardClient({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [quickActionPendingId, setQuickActionPendingId] = useState<string | null>(null);
   const [assignTarget, setAssignTarget] = useState<OrderListItem | null>(null);
+  const [designApproveTarget, setDesignApproveTarget] = useState<OrderListItem | null>(null);
+  const [isDesignApproving, startDesignApproveTransition] = useTransition();
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -236,6 +240,62 @@ export function DashboardClient({
       readyDelivery: "ready_delivery",
     };
     setStatus(statusByKey[key]);
+  };
+
+  /** Optimistically patch one order wherever it sits on the board; returns an undo. */
+  const patchBoardOrder = (orderId: string, patch: Partial<OrderListItem>) => {
+    const snapshots = queryClient.getQueriesData<DashboardBoardResult>({ queryKey: ["board"] });
+    queryClient.setQueriesData<DashboardBoardResult>({ queryKey: ["board"] }, (current) => {
+      if (!current) return current;
+      const update = (orders: OrderListItem[]) => orders.map((o) => (o.id === orderId ? { ...o, ...patch } : o));
+      return {
+        new: update(current.new),
+        inProgress: update(current.inProgress),
+        waitingMaterials: update(current.waitingMaterials),
+        readyPickup: update(current.readyPickup),
+        readyDelivery: update(current.readyDelivery),
+        deliveredToday: update(current.deliveredToday),
+      };
+    });
+    return () => {
+      for (const [key, data] of snapshots) queryClient.setQueryData(key, data);
+    };
+  };
+
+  // "Approve" on a card — same as the edit form's Production Approval switch.
+  const handleApprove = (order: OrderListItem) => {
+    setQuickActionPendingId(order.id);
+    const undo = patchBoardOrder(order.id, { approved: true });
+    approveOrder(order.id)
+      .then(() => {
+        toast.success(
+          order.whatsappEnabled
+            ? `${order.orderNumber} approved — confirmation sent to ${order.customerName}`
+            : `${order.orderNumber} approved`
+        );
+        refreshLists();
+      })
+      .catch((error) => {
+        undo();
+        toast.error(error instanceof Error ? error.message : "Failed to approve the order");
+      })
+      .finally(() => setQuickActionPendingId(null));
+  };
+
+  // "Customer approved" on a card — the drawer's manual design approval.
+  const confirmDesignApproved = () => {
+    if (!designApproveTarget) return;
+    const target = designApproveTarget;
+    startDesignApproveTransition(async () => {
+      try {
+        await markDesignApprovedManually(target.id);
+        toast.success(`${target.orderNumber}: design marked approved — production can start`);
+        setDesignApproveTarget(null);
+        refreshLists();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to mark the design as approved");
+      }
+    });
   };
 
   const handleNewOrder = () => {
@@ -344,6 +404,8 @@ export function DashboardClient({
       {view === "board" ? (
         boardQuery.isLoading ? (
           <SkeletonGrid />
+        ) : boardQuery.isError && !boardQuery.data ? (
+          <LoadError error={boardQuery.error} onRetry={() => boardQuery.refetch()} retrying={boardQuery.isFetching} />
         ) : boardIsEmpty ? (
           <EmptyState hasFilters={!isDefaultBoardFilters} onNewOrder={handleNewOrder} />
         ) : (
@@ -356,12 +418,16 @@ export function DashboardClient({
             onQuickStatusChange={handleQuickStatusChange}
             quickActionPendingId={quickActionPendingId}
             onAssign={setAssignTarget}
+            onApprove={handleApprove}
+            onMarkDesignApproved={setDesignApproveTarget}
             selectedIds={selectedIds}
             onToggleSelect={toggleSelect}
           />
         )
       ) : ordersQuery.isLoading ? (
         <SkeletonGrid />
+      ) : ordersQuery.isError && !ordersQuery.data ? (
+        <LoadError error={ordersQuery.error} onRetry={() => ordersQuery.refetch()} retrying={ordersQuery.isFetching} />
       ) : orders.length === 0 ? (
         <EmptyState hasFilters={!isDefaultFilters} onNewOrder={handleNewOrder} />
       ) : view === "list" ? (
@@ -389,6 +455,8 @@ export function DashboardClient({
               onQuickStatusChange={handleQuickStatusChange}
               quickActionPending={quickActionPendingId === order.id}
               onAssign={setAssignTarget}
+              onApprove={handleApprove}
+              onMarkDesignApproved={setDesignApproveTarget}
             />
           ))}
         </div>
@@ -432,6 +500,17 @@ export function DashboardClient({
         order={editingOrder}
         employees={employees}
         onSaved={refreshLists}
+      />
+
+      <ConfirmDialog
+        open={!!designApproveTarget}
+        onOpenChange={(open) => !open && setDesignApproveTarget(null)}
+        title={`Mark ${designApproveTarget?.orderNumber ?? "the"} design as approved?`}
+        description="Use this when the customer confirmed the design to you directly (e.g. on WhatsApp) instead of through the link. It's recorded under your name, and Start Production is unblocked."
+        confirmLabel="Mark approved"
+        destructive={false}
+        pending={isDesignApproving}
+        onConfirm={confirmDesignApproved}
       />
 
       <QuickAssignDialog
@@ -478,6 +557,33 @@ function SkeletonGrid() {
         <Card key={i} className="h-[172px] animate-pulse bg-card/60" />
       ))}
     </div>
+  );
+}
+
+/**
+ * A failed load must never read as "no orders" — that's the one lie a
+ * production board can't tell. Shows what went wrong and a way to retry.
+ */
+function LoadError({ error, onRetry, retrying }: { error: unknown; onRetry: () => void; retrying: boolean }) {
+  const detail = error instanceof Error && error.message ? error.message : null;
+  return (
+    <Card role="alert" className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
+      <div className="flex size-12 items-center justify-center rounded-2xl bg-destructive/10 text-red-700">
+        <WifiOff className="size-6" />
+      </div>
+      <div className="flex flex-col gap-1">
+        <p className="font-semibold text-foreground">Couldn&apos;t load orders</p>
+        <p className="max-w-md text-sm text-muted-foreground">
+          The board isn&apos;t showing anything because loading failed, not because there are no orders. Check the
+          connection and try again.
+        </p>
+        {detail && <p className="text-xs text-muted-foreground">Details: {detail}</p>}
+      </div>
+      <Button type="button" variant="outline" onClick={onRetry} disabled={retrying}>
+        <RotateCw className={retrying ? "animate-spin" : undefined} />
+        Try again
+      </Button>
+    </Card>
   );
 }
 

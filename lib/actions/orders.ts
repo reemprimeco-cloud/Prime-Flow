@@ -1459,6 +1459,46 @@ export async function updateOrderStatus(
 }
 
 /**
+ * Quick "Approve" from a dashboard card — the same effect as switching
+ * Production Approval on in the edit form: the order is marked approved,
+ * then the customer's "order received" message and the assigned staff's
+ * job pings go out (sendOrderApprovedNotifications), which an unapproved
+ * order holds back. Idempotent: approving an approved order does nothing.
+ */
+export async function approveOrder(orderId: string): Promise<void> {
+  const session = await requireAdmin();
+  if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
+  const supabase = createServiceClient();
+
+  // Conditional update: only flips rows that are still unapproved, so two
+  // quick taps (or two admins) can't send the customer two confirmations.
+  const { data: flipped, error } = await supabase
+    .from("orders")
+    .update({ approved: true })
+    .eq("id", orderId)
+    .eq("approved", false)
+    .select("order_number")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!flipped) return;
+
+  await runAfterResponse(`approve ${flipped.order_number}`, async () => {
+    await recordAuditLog({
+      actorId: session.employeeId,
+      actorName: session.fullName,
+      action: "order_updated",
+      entityType: "order",
+      entityId: orderId,
+      orderId,
+      oldValue: { approved: false },
+      newValue: { approved: true, quickApprove: true },
+    });
+    await sendOrderApprovedNotifications(supabase, orderId, session.employeeId, session.fullName);
+    await broadcast(CHANNELS.production, "order.updated", { orderId });
+  });
+}
+
+/**
  * Quick "Assign" from a dashboard card: replaces the order's assignee list
  * with `employeeIds` (in hand-off order) without going through the full edit
  * form. Same diff, audit trail, and employee pings as updateOrder's

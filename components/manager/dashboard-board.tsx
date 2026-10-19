@@ -17,6 +17,8 @@ interface DashboardBoardProps {
   onQuickStatusChange: (order: OrderListItem, status: OrderStatus, deliveryProvider?: OrderDeliveryProvider) => void;
   quickActionPendingId: string | null;
   onAssign: (order: OrderListItem) => void;
+  onApprove: (order: OrderListItem) => void;
+  onMarkDesignApproved: (order: OrderListItem) => void;
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
 }
@@ -46,6 +48,8 @@ export function DashboardBoard({
   onQuickStatusChange,
   quickActionPendingId,
   onAssign,
+  onApprove,
+  onMarkDesignApproved,
   selectedIds,
   onToggleSelect,
 }: DashboardBoardProps) {
@@ -82,6 +86,8 @@ export function DashboardBoard({
                     onQuickStatusChange={onQuickStatusChange}
                     quickActionPending={quickActionPendingId === order.id}
                     onAssign={onAssign}
+                    onApprove={onApprove}
+                    onMarkDesignApproved={onMarkDesignApproved}
                   />
                 ))}
               </div>

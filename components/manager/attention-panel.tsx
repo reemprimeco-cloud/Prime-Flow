@@ -202,8 +202,11 @@ export function AttentionPanel({ board, onOpen }: AttentionPanelProps) {
                 <span className="col-span-2 min-w-0 truncate text-sm md:col-span-1">
                   <span className="font-mono font-bold text-foreground">{order.orderNumber}</span>
                   <span className="text-muted-foreground"> · </span>
-                  <span className="font-semibold text-foreground">{order.customerName}</span>
-                  <span className="text-muted-foreground"> · {order.product}</span>
+                  <bdi className="font-semibold text-foreground">{order.customerName}</bdi>
+                  <span className="text-muted-foreground">
+                    {" · "}
+                    <bdi>{order.product}</bdi>
+                  </span>
                   {assignees && <span className="text-muted-foreground"> · {assignees}</span>}
                   {!assignees && order.status !== "ready_pickup" && order.status !== "ready_delivery" && (
                     <span className="text-muted-foreground"> · Unassigned</span>

@@ -62,6 +62,7 @@ function makeBuilder(result: Response, record?: boolean) {
     };
   }
   builder.single = () => builder;
+  builder.maybeSingle = () => builder;
   builder.then = (resolve: (v: Response) => unknown, reject?: (e: unknown) => unknown) =>
     Promise.resolve(result).then(resolve, reject);
   return builder;
@@ -78,7 +79,15 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-import { createOrder, getCompletedOrders, getOrders, setOrderAssignments, updateOrder, updateOrderStatus } from "@/lib/actions/orders";
+import {
+  approveOrder,
+  createOrder,
+  getCompletedOrders,
+  getOrders,
+  setOrderAssignments,
+  updateOrder,
+  updateOrderStatus,
+} from "@/lib/actions/orders";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/notifications/constants";
 
 const ADMIN_SESSION = { employeeId: "admin-1", username: "admin", fullName: "Rana Al-Fadhli", role: "admin" as const };
@@ -372,5 +381,56 @@ describe("Dashboard quick action — setOrderAssignments", () => {
     await expect(setOrderAssignments("order-1", ["emp-b"])).rejects.toThrow("Unauthorized");
     mockIsDemoMode.mockReturnValue(true);
     await expect(setOrderAssignments("order-1", ["emp-b"])).rejects.toThrow(/demo/i);
+  });
+});
+
+describe("Dashboard quick action — approveOrder", () => {
+  it("approves an unapproved order and sends the deferred customer confirmation", async () => {
+    resetSupabaseMock({
+      orders: [
+        { data: { order_number: "#1052" }, error: null }, // conditional update flipped it
+        {
+          data: {
+            order_number: "#1052",
+            customer_name: "Fitness First Gym",
+            customer_mobile: "+96555000000",
+            product: "Membership Cards",
+            delivery_date: "2026-10-20",
+            delivery_time: "17:00",
+            whatsapp_enabled: true,
+            preferred_channel: "whatsapp",
+            preferred_language: "en",
+            notification_preferences: DEFAULT_NOTIFICATION_PREFERENCES,
+            priority: "normal",
+          },
+          error: null,
+        },
+      ],
+      order_assignments: [{ data: [], error: null }],
+    });
+
+    await approveOrder("order-1052");
+
+    expect(mockRecordAuditLog).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "order_updated", orderId: "order-1052", newValue: { approved: true, quickApprove: true } })
+    );
+    expect(mockNotifyOrderCreated).toHaveBeenCalledTimes(1);
+    expect(mockBroadcast).toHaveBeenCalledWith("production", "order.updated", { orderId: "order-1052" });
+  });
+
+  it("does nothing when the order was already approved (a second tap never re-sends the confirmation)", async () => {
+    resetSupabaseMock({ orders: [{ data: null, error: null }] });
+
+    await approveOrder("order-1052");
+
+    expect(mockNotifyOrderCreated).not.toHaveBeenCalled();
+    expect(mockRecordAuditLog).not.toHaveBeenCalled();
+  });
+
+  it("requires admin auth and blocks demo mode", async () => {
+    mockRequireAdmin.mockRejectedValueOnce(new Error("Unauthorized"));
+    await expect(approveOrder("order-1")).rejects.toThrow("Unauthorized");
+    mockIsDemoMode.mockReturnValue(true);
+    await expect(approveOrder("order-1")).rejects.toThrow(/demo/i);
   });
 });

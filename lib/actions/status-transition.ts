@@ -3,6 +3,7 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 
 import { runAfterResponse } from "@/lib/utils/after-response";
+import { isBlockedByDesignApproval } from "@/types/domain";
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { broadcast, CHANNELS } from "@/lib/realtime/channels";
@@ -131,11 +132,7 @@ export async function applyOrderStatusTransition(
   // which only blocks employees -- see updateEmployeeJobStatus). An admin
   // who genuinely needs to skip this still can, via Override Status, which
   // bypasses this function entirely. See docs/DESIGN_APPROVAL.md.
-  if (
-    status === "in_progress" &&
-    current.status === "new" &&
-    (current.design_approval_status === "pending" || current.design_approval_status === "changes_requested")
-  ) {
+  if (status === "in_progress" && isBlockedByDesignApproval(current.status, current.design_approval_status)) {
     throw new Error("Waiting on the customer to approve the design before production can start.");
   }
 
