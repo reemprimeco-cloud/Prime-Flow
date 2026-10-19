@@ -2,6 +2,8 @@ import "server-only";
 
 import { revalidatePath } from "next/cache";
 
+import { runAfterResponse } from "@/lib/utils/after-response";
+
 import { createServiceClient } from "@/lib/supabase/server";
 import { broadcast, CHANNELS } from "@/lib/realtime/channels";
 import { assertValidTransition } from "@/lib/status/engine";
@@ -153,31 +155,6 @@ export async function applyOrderStatusTransition(
     changed_by: actorId,
   });
 
-  await recordAuditLog({
-    actorId,
-    actorName,
-    action: "status_changed",
-    entityType: "order",
-    entityId: orderId,
-    orderId,
-    oldValue: { status: current.status },
-    newValue: { status },
-  });
-
-  const notificationContext = {
-    orderId,
-    orderNumber: current.order_number,
-    customerName: current.customer_name,
-    customerMobile: current.customer_mobile,
-    product: current.product,
-    deliveryDate: current.delivery_date,
-    deliveryTime: current.delivery_time,
-    whatsappEnabled: current.whatsapp_enabled,
-    preferredChannel: current.preferred_channel,
-    language: current.preferred_language,
-    notificationPreferences: current.notification_preferences,
-  };
-
   const isRevertToProduction =
     (current.status === "ready_pickup" || current.status === "ready_delivery") && status === "in_progress";
 
@@ -191,44 +168,79 @@ export async function applyOrderStatusTransition(
     await supabase.from("order_items").update({ is_ready: false }).eq("order_id", orderId);
   }
 
-  // Every branch below except the customer notification assumes a human
-  // actor -- the Armada webhook (the only null-actorId caller) always
-  // targets "delivered", never "ready_internal_pickup"/"ready_delivery"/a
-  // revert, so `actorId!` here is a documented invariant, not a guess.
-  if (status === "ready_internal_pickup") {
-    // Outsourced worker's "done" -- internal handoff only, no customer
-    // notification. Auto-assign the delivery-role staff so this job shows
-    // up on their dashboard, and let them know to go collect it.
-    await notifyDeliveryStaffForStatus(supabase, orderId, current, "internal_pickup_ready", actorId!, actorName);
-  } else if (isRevertToProduction) {
-    await notifyOrderMovedBackToProduction(notificationContext, actorId!, actorName);
-  } else {
-    await notifyOrderStatusChanged({ ...notificationContext, toStatus: status }, actorId, actorName);
+  // Everything below is side effects of a change that's already saved:
+  // audit row, customer/staff notifications, Armada dispatch, and the
+  // realtime broadcast. They run after the response so the button returns
+  // as soon as the status is written. See lib/utils/after-response.ts.
+  await runAfterResponse(`status ${current.order_number} -> ${status}`, async () => {
+    await recordAuditLog({
+      actorId,
+      actorName,
+      action: "status_changed",
+      entityType: "order",
+      entityId: orderId,
+      orderId,
+      oldValue: { status: current.status },
+      newValue: { status },
+    });
 
-    if (status === "ready_delivery") {
-      if (effectiveDeliveryProvider === "armada") {
-        // Whoever marked this ready picked Armada in the "Who's delivering
-        // this?" prompt -- dispatch it to their API instead of paging
-        // internal delivery staff. If Armada can't be reached or isn't
-        // configured, fall back to the internal notify below so the order
-        // still gets delivered by someone rather than stranding it.
-        try {
-          await dispatchArmadaDelivery(supabase, orderId, current, actorId, actorName);
-        } catch (dispatchError) {
-          console.error(`[armada] dispatch failed for ${current.order_number}, falling back to internal delivery staff`, dispatchError);
+    const notificationContext = {
+      orderId,
+      orderNumber: current.order_number,
+      customerName: current.customer_name,
+      customerMobile: current.customer_mobile,
+      product: current.product,
+      deliveryDate: current.delivery_date,
+      deliveryTime: current.delivery_time,
+      whatsappEnabled: current.whatsapp_enabled,
+      preferredChannel: current.preferred_channel,
+      language: current.preferred_language,
+      notificationPreferences: current.notification_preferences,
+    };
+
+    // Every branch below except the customer notification assumes a human
+    // actor -- the Armada webhook (the only null-actorId caller) always
+    // targets "delivered", never "ready_internal_pickup"/"ready_delivery"/a
+    // revert, so `actorId!` here is a documented invariant, not a guess.
+    if (status === "ready_internal_pickup") {
+      // Outsourced worker's "done" -- internal handoff only, no customer
+      // notification. Auto-assign the delivery-role staff so this job shows
+      // up on their dashboard, and let them know to go collect it.
+      await notifyDeliveryStaffForStatus(supabase, orderId, current, "internal_pickup_ready", actorId!, actorName);
+    } else if (isRevertToProduction) {
+      await notifyOrderMovedBackToProduction(notificationContext, actorId!, actorName);
+    } else {
+      await notifyOrderStatusChanged({ ...notificationContext, toStatus: status }, actorId, actorName);
+
+      if (status === "ready_delivery") {
+        if (effectiveDeliveryProvider === "armada") {
+          // Whoever marked this ready picked Armada in the "Who's delivering
+          // this?" prompt -- dispatch it to their API instead of paging
+          // internal delivery staff. If Armada can't be reached or isn't
+          // configured, fall back to the internal notify below so the order
+          // still gets delivered by someone rather than stranding it.
+          try {
+            await dispatchArmadaDelivery(supabase, orderId, current, actorId, actorName);
+          } catch (dispatchError) {
+            console.error(`[armada] dispatch failed for ${current.order_number}, falling back to internal delivery staff`, dispatchError);
+            await notifyDeliveryStaffForStatus(supabase, orderId, current, "order_out_for_delivery_staff", actorId!, actorName);
+          }
+        } else {
+          // On top of the customer notification above: tell delivery-role
+          // staff (e.g. Naresh) to go deliver it, and put it on their dashboard.
           await notifyDeliveryStaffForStatus(supabase, orderId, current, "order_out_for_delivery_staff", actorId!, actorName);
         }
-      } else {
-        // On top of the customer notification above: tell delivery-role
-        // staff (e.g. Naresh) to go deliver it, and put it on their dashboard.
-        await notifyDeliveryStaffForStatus(supabase, orderId, current, "order_out_for_delivery_staff", actorId!, actorName);
       }
     }
-  }
 
-  await broadcast(CHANNELS.production, "order.updated", { orderId });
+    await broadcast(CHANNELS.production, "order.updated", { orderId });
+  });
+
+  // The caller's own screen refreshes through react-query (and everyone
+  // else's through the broadcast above), so there's no "/dashboard"
+  // revalidation here: in a Server Action it re-rendered the whole
+  // dashboard page into the response for nothing.
   revalidatePath("/employee");
-  revalidatePath("/dashboard");
 
   return current;
 }

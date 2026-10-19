@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/auth/guards";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -76,7 +75,6 @@ export async function bulkAssignEmployees(orderIds: string[], employeeIds: strin
   }
 
   await broadcast(CHANNELS.production, "order.updated", { bulk: true });
-  revalidatePath("/dashboard");
   return { requested: orderIds.length * employeeIds.length, succeeded: toInsert.length, skipped: orderIds.length * employeeIds.length - toInsert.length };
 }
 
@@ -100,7 +98,6 @@ export async function bulkChangePriority(orderIds: string[], priority: OrderPrio
   });
 
   await broadcast(CHANNELS.production, "order.updated", { bulk: true });
-  revalidatePath("/dashboard");
   return { requested: orderIds.length, succeeded: orderIds.length, skipped: 0 };
 }
 
@@ -124,7 +121,6 @@ export async function bulkMoveDeliveryDate(orderIds: string[], newDate: string):
   });
 
   await broadcast(CHANNELS.production, "order.updated", { bulk: true });
-  revalidatePath("/dashboard");
   return { requested: orderIds.length, succeeded: orderIds.length, skipped: 0 };
 }
 
@@ -152,7 +148,6 @@ export async function bulkArchiveCompleted(orderIds: string[]): Promise<BulkResu
   });
 
   await broadcast(CHANNELS.production, "order.archived", { bulk: true });
-  revalidatePath("/dashboard");
   return { requested: orderIds.length, succeeded: eligibleIds.length, skipped: orderIds.length - eligibleIds.length };
 }
 

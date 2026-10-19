@@ -51,8 +51,10 @@ const OrderDetailDrawer = dynamic(
 
 interface DashboardClientProps {
   initialStats: DashboardStats;
-  initialOrdersResult: OrderListResult;
-  initialBoard: DashboardBoardResult;
+  /** Null when the page was opened on the board view — the list loads on toggle. */
+  initialOrdersResult: OrderListResult | null;
+  /** Null when the page was opened on the list/card view — the board loads on toggle. */
+  initialBoard: DashboardBoardResult | null;
   employees: EmployeeListItem[];
 }
 
@@ -102,7 +104,7 @@ export function DashboardClient({
   const ordersQuery = useQuery({
     queryKey: ["orders", filters],
     queryFn: () => getOrders(filters),
-    initialData: isDefaultFilters && page === 1 ? initialOrdersResult : undefined,
+    initialData: isDefaultFilters && page === 1 ? initialOrdersResult ?? undefined : undefined,
     enabled: view !== "board",
   });
 
@@ -114,7 +116,7 @@ export function DashboardClient({
   const boardQuery = useQuery({
     queryKey: ["board", boardFilters],
     queryFn: () => getDashboardBoard(boardFilters),
-    initialData: isDefaultBoardFilters ? initialBoard : undefined,
+    initialData: isDefaultBoardFilters ? initialBoard ?? undefined : undefined,
     enabled: view === "board",
   });
 
@@ -180,15 +182,25 @@ export function DashboardClient({
   // Pickup/Delivery, Picked Up, Delivered) — the routine moves without
   // opening the full detail drawer. Admin-only path (updateOrderStatus),
   // not gated the way the employee's equivalent action is.
+  //
+  // Optimistic: the card jumps to its new column the moment it's clicked,
+  // and only snaps back (with the server's reason) if the change is refused.
   const handleQuickStatusChange = useCallback(
     (order: OrderListItem, status: OrderStatus, deliveryProvider?: OrderDeliveryProvider) => {
       setQuickActionPendingId(order.id);
+      const snapshots = queryClient.getQueriesData<DashboardBoardResult>({ queryKey: ["board"] });
+      queryClient.setQueriesData<DashboardBoardResult>({ queryKey: ["board"] }, (board) =>
+        board ? moveOnBoard(board, order, status, deliveryProvider) : board
+      );
       updateOrderStatus(order.id, status, deliveryProvider)
         .then(() => {
           toast.success(`${order.orderNumber} → ${ORDER_STATUS_LABELS[status]}`);
           refreshLists();
         })
-        .catch((error) => toast.error(error instanceof Error ? error.message : "Failed to update order"))
+        .catch((error) => {
+          for (const [key, data] of snapshots) queryClient.setQueryData(key, data);
+          toast.error(error instanceof Error ? error.message : "Failed to update order");
+        })
         .finally(() => setQuickActionPendingId(null));
     },
     // refreshLists closes over queryClient, which is stable — safe to omit.
@@ -446,4 +458,40 @@ function EmptyState({ hasFilters, onNewOrder }: { hasFilters: boolean; onNewOrde
       )}
     </Card>
   );
+}
+
+/** Board column a status lands in — mirrors getDashboardBoard's grouping. */
+const BOARD_COLUMN_FOR_STATUS: Partial<Record<OrderStatus, keyof DashboardBoardResult>> = {
+  new: "new",
+  in_progress: "inProgress",
+  ready_internal_pickup: "inProgress",
+  waiting_materials: "waitingMaterials",
+  ready_pickup: "readyPickup",
+  ready_delivery: "readyDelivery",
+  collected: "deliveredToday",
+  delivered: "deliveredToday",
+};
+
+/** The optimistic board after `order` moves to `status`: out of every column, into its new one (top of the list). */
+function moveOnBoard(
+  board: DashboardBoardResult,
+  order: OrderListItem,
+  status: OrderStatus,
+  deliveryProvider?: OrderDeliveryProvider
+): DashboardBoardResult {
+  const without = (orders: OrderListItem[]) => orders.filter((o) => o.id !== order.id);
+  const next: DashboardBoardResult = {
+    new: without(board.new),
+    inProgress: without(board.inProgress),
+    waitingMaterials: without(board.waitingMaterials),
+    readyPickup: without(board.readyPickup),
+    readyDelivery: without(board.readyDelivery),
+    deliveredToday: without(board.deliveredToday),
+  };
+  const column = BOARD_COLUMN_FOR_STATUS[status];
+  if (column) {
+    const moved: OrderListItem = { ...order, status, deliveryProvider: deliveryProvider ?? order.deliveryProvider };
+    next[column] = [moved, ...next[column]];
+  }
+  return next;
 }

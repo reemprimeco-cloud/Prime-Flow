@@ -85,6 +85,7 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
         toast.success(`${order.orderNumber} → ${ORDER_STATUS_LABELS[status]}`);
         queryClient.invalidateQueries({ queryKey: ["order", orderId] });
         queryClient.invalidateQueries({ queryKey: ["orders"] });
+        queryClient.invalidateQueries({ queryKey: ["board"] });
         queryClient.invalidateQueries({ queryKey: ["stats"] });
         queryClient.invalidateQueries({ queryKey: ["order-timeline", orderId] });
       })
