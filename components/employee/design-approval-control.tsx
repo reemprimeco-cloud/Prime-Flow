@@ -26,7 +26,7 @@ export function DesignApprovalControl({ job, pending, onRequest }: DesignApprova
     <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-muted/20 px-3.5 py-2.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Design Approval
           </span>
           <Badge

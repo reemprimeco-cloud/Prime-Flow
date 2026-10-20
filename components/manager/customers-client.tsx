@@ -74,7 +74,7 @@ export function CustomersClient({ initialCustomers }: { initialCustomers: Custom
                   {customer.customerMobile}
                 </TableCell>
                 <TableCell>{customer.orderCount}</TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
                   {format(new Date(customer.lastOrderAt), "MMM d, yyyy")}
                 </TableCell>
                 <TableCell>
