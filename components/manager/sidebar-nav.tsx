@@ -57,7 +57,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps = {}) {
             >
               <Icon className="size-[18px] shrink-0" />
               {label}
-              <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Soon
               </span>
             </span>

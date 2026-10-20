@@ -103,13 +103,16 @@ export const OrderCard = memo(function OrderCard({
       className={cn(
         "group relative flex cursor-pointer flex-col gap-2.5 overflow-hidden p-3.5 pl-4 before:absolute before:inset-y-0 before:left-0 before:w-1",
         "transition-shadow hover:shadow-lg hover:shadow-black/10",
-        // A brand-new order gets a flat blue stripe (matching its status
-        // badge) rather than the countdown colour every other in-flight
-        // status uses — nobody's working it yet, so time-remaining urgency
-        // isn't the useful signal, and it keeps New visually distinct from
-        // In Progress and Ready at a glance.
+        // A brand-new order's stripe says whether it can start: blue (its
+        // status colour) when it's clear to start, amber while it waits on an
+        // approval (yours or the customer's), red when the customer asked for
+        // changes. Every other in-flight status uses the countdown colour.
         order.status === "new"
-          ? "before:bg-secondary"
+          ? order.designApprovalStatus === "changes_requested"
+            ? "before:bg-destructive"
+            : !order.approved || blockedByDesign
+              ? "before:bg-warning"
+              : "before:bg-secondary"
           : isInFlight
             ? ACCENT_BORDER[countdownColor]
             : "before:bg-border",
@@ -147,6 +150,10 @@ export const OrderCard = memo(function OrderCard({
                   checked={selected ?? false}
                   onCheckedChange={() => onToggleSelect(order.id)}
                   onClick={(e) => e.stopPropagation()}
+                  aria-label={`Select order ${order.orderNumber}`}
+                  // A 20px box is hard to hit with a thumb: on touch screens
+                  // the tappable area extends 10px past it on every side.
+                  className="relative pointer-coarse:after:absolute pointer-coarse:after:-inset-2.5"
                 />
               )}
               <div onClick={(e) => e.stopPropagation()}>
@@ -223,19 +230,19 @@ export const OrderCard = memo(function OrderCard({
           <Badge variant="muted">Armada</Badge>
         )}
         {order.status === "new" && !order.approved && (
-          <Badge variant="warning" className="gap-1">
+          <Badge variant="warningSoft" className="gap-1">
             <ShieldAlert className="size-3" />
             Pending Approval
           </Badge>
         )}
         {order.status === "new" && order.designApprovalStatus === "pending" && (
-          <Badge variant="warning" className="gap-1">
+          <Badge variant="warningSoft" className="gap-1">
             <FileClock className="size-3" />
             Awaiting Customer
           </Badge>
         )}
         {order.status === "new" && order.designApprovalStatus === "changes_requested" && (
-          <Badge variant="destructive" className="gap-1">
+          <Badge variant="destructiveSoft" className="gap-1">
             <FileClock className="size-3" />
             Design Changes Requested
           </Badge>
@@ -243,7 +250,11 @@ export const OrderCard = memo(function OrderCard({
       </div>
 
       {(quickTargets || onAssign || needsApproval || (blockedByDesign && onQuickStatusChange)) && (
-        <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
+        <div
+          // 44px tap targets on touch screens; the compact size stays for a mouse.
+          className="flex flex-wrap items-center gap-2 pointer-coarse:[&_button]:min-h-11 pointer-coarse:[&_button]:px-3.5 pointer-coarse:[&_button]:text-sm"
+          onClick={(e) => e.stopPropagation()}
+        >
           {needsApproval && (
             <Button
               type="button"
@@ -285,6 +296,7 @@ export const OrderCard = memo(function OrderCard({
               onChange={(status, provider) => onQuickStatusChange(order, status, provider)}
               only={quickTargets}
               size="sm"
+              orderNumber={order.orderNumber}
             />
           )}
           {onAssign && (order.status === "new" || order.status === "in_progress" || order.status === "waiting_materials") && (
@@ -319,7 +331,9 @@ function OrderActionsMenu({
         <Button
           variant="ghost"
           size="icon"
-          className="size-7 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+          // Revealed on hover for a mouse; a touch screen has no hover, so
+          // there it's always shown, at a thumb-sized 40px.
+          className="size-7 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:size-10 pointer-coarse:opacity-100"
           aria-label={`Actions for order ${order.orderNumber}`}
         >
           <MoreVertical className="size-4" />

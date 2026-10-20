@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { getDashboardBoard, getDashboardStats, getOrders } from "@/lib/actions/orders";
 import { listEmployees } from "@/lib/actions/employees";
 import { DashboardClient } from "@/components/manager/dashboard-client";
+import { formatKuwaitDateLong, getKuwaitHour } from "@/lib/utils/date";
 
 export const dynamic = "force-dynamic";
 
@@ -39,13 +40,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   return (
     <Suspense fallback={null}>
       <DashboardClient
-        greeting={`${getGreeting(now.getHours())}, ${session.fullName.split(" ")[0]}`}
-        dateLabel={now.toLocaleDateString(undefined, {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        })}
+        // Rendered on the server, which runs on UTC — read the clock in Kuwait.
+        greeting={`${getGreeting(getKuwaitHour(now))}, ${session.fullName.split(" ")[0]}`}
+        dateLabel={formatKuwaitDateLong(now)}
         initialStats={stats}
         initialOrdersResult={ordersResult}
         initialBoard={board}

@@ -482,7 +482,7 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                       const employee = employees.find((e) => e.id === id);
                       return (
                         <li key={id} className="flex items-center gap-2 rounded-lg bg-muted/30 px-2.5 py-1.5">
-                          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-bold text-secondary-foreground">
+                          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-bold text-secondary-foreground">
                             {index + 1}
                           </span>
                           <span className="min-w-0 flex-1 truncate text-sm">{employee?.fullName ?? "Unknown"}</span>

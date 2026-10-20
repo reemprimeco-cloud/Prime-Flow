@@ -53,7 +53,7 @@ export function MobileTabBar({ onMore, moreOpen }: MobileTabBarProps) {
               )}
             >
               <Icon className={cn("size-[22px] shrink-0", isActive && "fill-secondary/10")} />
-              <span className="text-[10px] font-medium leading-none">{label}</span>
+              <span className="text-xs font-medium leading-none">{label}</span>
             </Link>
           );
         })}
@@ -68,7 +68,7 @@ export function MobileTabBar({ onMore, moreOpen }: MobileTabBarProps) {
           )}
         >
           <MoreHorizontal className="size-[22px] shrink-0" />
-          <span className="text-[10px] font-medium leading-none">More</span>
+          <span className="text-xs font-medium leading-none">More</span>
         </button>
       </div>
     </nav>

@@ -18,7 +18,7 @@ export function PrintSettingsCard({ settings, className }: { settings: PrintSett
 
   return (
     <div className={cn("overflow-hidden rounded-xl border border-border", className)}>
-      <div className="flex items-center justify-between gap-2 bg-destructive/10 px-3 py-2 text-[11px] font-extrabold uppercase tracking-wide text-destructive">
+      <div className="flex items-center justify-between gap-2 bg-destructive/10 px-3 py-2 text-xs font-extrabold uppercase tracking-wide text-destructive">
         <span className="flex items-center gap-1.5">
           <Printer className="size-3.5" />
           Fiery · Print Settings
@@ -41,7 +41,7 @@ export function PrintSettingsCard({ settings, className }: { settings: PrintSett
                   wide ? "col-span-2" : index % 2 === 0 && "border-r"
                 )}
               >
-                <dt className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{row.label}</dt>
+                <dt className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{row.label}</dt>
                 <dd className="break-words text-sm font-bold text-foreground">{row.value}</dd>
               </div>
             );
@@ -50,7 +50,7 @@ export function PrintSettingsCard({ settings, className }: { settings: PrintSett
       )}
       {ranges.length > 0 && (
         <div className="border-t border-border">
-          <div className="px-3 pt-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Mixed media</div>
+          <div className="px-3 pt-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">Mixed media</div>
           {ranges.map((range, index) => (
             <div key={index} className="grid grid-cols-[96px_1fr] items-baseline gap-2 border-t border-dashed border-border px-3 py-1.5 first-of-type:border-t-0">
               <span className="text-xs font-extrabold text-destructive">{range.title}</span>

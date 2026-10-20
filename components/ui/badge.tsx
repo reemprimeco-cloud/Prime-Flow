@@ -13,6 +13,11 @@ const badgeVariants = cva(
         success: "bg-success text-success-foreground border-success",
         warning: "bg-warning text-warning-foreground border-warning",
         destructive: "bg-destructive text-destructive-foreground border-destructive",
+        // Tints for a state to note rather than an alarm (e.g. "Pending
+        // Approval") — dark ink so the label clears 4.5:1 on its tint, and
+        // quiet enough that a solid Urgent still reads first.
+        warningSoft: "bg-warning/15 text-amber-800 border-warning/30",
+        destructiveSoft: "bg-destructive/10 text-red-700 border-destructive/30",
         outline: "bg-transparent text-foreground border-border",
         muted: "bg-muted text-muted-foreground border-transparent",
       },

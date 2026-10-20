@@ -11,6 +11,7 @@ import { approveOrder, getOrderDetail, updateOrderStatus } from "@/lib/actions/o
 import { cancelArmadaDeliveryAction, retryArmadaDispatch } from "@/lib/actions/armada";
 import { markDesignApprovedManually, requestDesignApproval } from "@/lib/actions/design-approval";
 import { buildGoogleMapsLink } from "@/lib/utils/maps";
+import { sanitizePhoneInput } from "@/lib/utils/phone";
 import { formatDeliveryTime } from "@/lib/utils/countdown";
 import { useRealtimeChannel } from "@/lib/realtime/use-realtime-channel";
 import { CHANNELS } from "@/lib/realtime/constants";
@@ -205,7 +206,7 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                 <Badge variant="muted">{order.preferredLanguage === "ar" ? "Arabic" : "English"}</Badge>
                 <Badge variant="muted">WhatsApp {order.whatsappEnabled ? "on" : "off"}</Badge>
                 {order.status === "new" && !order.approved && (
-                  <Badge variant="warning" className="gap-1">
+                  <Badge variant="warningSoft" className="gap-1">
                     <ShieldAlert className="size-3" />
                     Pending Approval
                   </Badge>
@@ -216,8 +217,8 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                       order.designApprovalStatus === "approved"
                         ? "success"
                         : order.designApprovalStatus === "changes_requested"
-                          ? "destructive"
-                          : "warning"
+                          ? "destructiveSoft"
+                          : "warningSoft"
                     }
                     className="gap-1"
                   >
@@ -298,6 +299,7 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                   isOutsourced={false}
                   pending={statusPending}
                   onChange={handleStatusChange}
+                  orderNumber={order.orderNumber}
                   exclude={
                     isBlockedByDesignApproval(order.status, order.designApprovalStatus) ||
                     (order.status === "new" && !order.approved)
@@ -323,8 +325,8 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
               </div>
 
               <DetailSection title="Customer">
-                <DetailRow label="Name" value={order.customerName} />
-                <DetailRow label="Mobile" value={order.customerMobile} />
+                <DetailRow label="Name" value={<bdi>{order.customerName}</bdi>} />
+                <DetailRow label="Mobile" value={<PhoneLink phone={order.customerMobile} />} />
               </DetailSection>
 
               <DetailSection title="Specifications">
@@ -379,7 +381,9 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
                         <DetailRow label="Armada Status" value={order.armadaDeliveryStatus} />
                       )}
                       {order.armadaDriverName && <DetailRow label="Driver" value={order.armadaDriverName} />}
-                      {order.armadaDriverPhone && <DetailRow label="Driver Phone" value={order.armadaDriverPhone} />}
+                      {order.armadaDriverPhone && (
+                        <DetailRow label="Driver Phone" value={<PhoneLink phone={order.armadaDriverPhone} />} />
+                      )}
                       {order.armadaTrackingLink && (
                         <div className="flex items-center justify-between gap-4 text-sm">
                           <span className="text-muted-foreground">Tracking</span>
@@ -692,11 +696,27 @@ function DetailSection({ title, children }: { title: string; children: React.Rea
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 text-sm">
       <span className="text-muted-foreground">{label}</span>
       <span className="text-right font-medium text-foreground">{value}</span>
     </div>
+  );
+}
+
+/** One tap to call from a phone. "N/A" and other placeholders stay plain text. */
+function PhoneLink({ phone }: { phone: string }) {
+  const dialable = sanitizePhoneInput(phone).replace(/[^\d+]/g, "");
+  if (dialable.replace(/\D/g, "").length < 6) return <>{phone}</>;
+  return (
+    <a
+      href={`tel:${dialable}`}
+      dir="ltr"
+      onClick={(e) => e.stopPropagation()}
+      className="-my-2 inline-block rounded-md py-2 text-secondary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {phone}
+    </a>
   );
 }
