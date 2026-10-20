@@ -88,7 +88,7 @@ export function CalendarClient({ initialOrders }: { initialOrders: CalendarOrder
           <h1 className="text-2xl font-bold tracking-tight">Production Calendar</h1>
           <p className="text-sm text-muted-foreground">Delivery &amp; pickup schedule</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center rounded-xl border border-border p-1">
             {(["day", "week", "month"] as ViewMode[]).map((v) => (
               <button
@@ -113,20 +113,21 @@ export function CalendarClient({ initialOrders }: { initialOrders: CalendarOrder
           <Button type="button" variant="outline" size="sm" onClick={() => navigate(1)}>
             <ChevronRight className="size-4" />
           </Button>
-          <span className="ml-1 text-sm font-semibold text-foreground">
+          {/* Own line on a phone, so the controls above never push the page sideways. */}
+          <span className="basis-full text-sm font-semibold text-foreground sm:ml-1 sm:basis-auto">
             {view === "month" ? format(anchor, "MMMM yyyy") : view === "week" ? `Week of ${format(start, "MMM d")}` : format(anchor, "EEEE, MMM d")}
           </span>
         </div>
       </div>
 
       {view === "month" && (
-        <Card className="p-4">
-          <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold text-muted-foreground">
+        <Card className="p-2 sm:p-4">
+          <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-muted-foreground sm:gap-2">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
               <div key={d}>{d}</div>
             ))}
           </div>
-          <div className="mt-2 grid grid-cols-7 gap-2">
+          <div className="mt-2 grid grid-cols-7 gap-1 sm:gap-2">
             {days.map((day) => {
               const iso = format(day, "yyyy-MM-dd");
               const dayOrders = ordersByDay.get(iso) ?? [];
@@ -142,18 +143,31 @@ export function CalendarClient({ initialOrders }: { initialOrders: CalendarOrder
                     setAnchor(day);
                   }}
                   className={cn(
-                    "flex min-h-20 flex-col items-start gap-1 rounded-lg border p-2 text-left transition-colors hover:border-secondary",
+                    "flex min-h-16 min-w-0 flex-col items-start gap-1 overflow-hidden rounded-lg border p-1.5 text-left transition-colors hover:border-secondary sm:min-h-20 sm:p-2",
                     isSameMonth(day, anchor) ? "border-border" : "border-border/40 opacity-50",
                     isToday(day) && "border-secondary bg-secondary/5"
                   )}
                 >
                   <span className={cn("text-xs font-semibold", isToday(day) && "text-secondary")}>{format(day, "d")}</span>
                   {dayOrders.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      <Badge variant="muted">{dayOrders.length}</Badge>
-                      {urgentCount > 0 && <Badge variant="destructive">{urgentCount} urgent</Badge>}
-                      {overdueCount > 0 && <Badge variant="warning">{overdueCount} overdue</Badge>}
-                    </div>
+                    <>
+                      {/* A phone's day cell is ~45px wide: the count plus a
+                          dot per flag; the labelled badges from sm up. */}
+                      <div className="flex items-center gap-1 sm:hidden">
+                        <span className="text-xs font-bold text-foreground tabular-nums">{dayOrders.length}</span>
+                        {urgentCount > 0 && <span className="size-2 rounded-full bg-destructive" aria-hidden />}
+                        {overdueCount > 0 && <span className="size-2 rounded-full bg-warning" aria-hidden />}
+                        <span className="sr-only">
+                          {dayOrders.length} orders{urgentCount > 0 && `, ${urgentCount} urgent`}
+                          {overdueCount > 0 && `, ${overdueCount} overdue`}
+                        </span>
+                      </div>
+                      <div className="hidden flex-wrap gap-1 sm:flex">
+                        <Badge variant="muted">{dayOrders.length}</Badge>
+                        {urgentCount > 0 && <Badge variant="destructive">{urgentCount} urgent</Badge>}
+                        {overdueCount > 0 && <Badge variant="warningSoft">{overdueCount} overdue</Badge>}
+                      </div>
+                    </>
                   )}
                 </button>
               );

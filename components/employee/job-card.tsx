@@ -112,7 +112,7 @@ export function JobCard({
 
       <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl bg-muted/40 px-3.5 py-2.5">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Delivery</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Delivery</div>
           <div className="text-sm font-bold text-foreground">
             {format(parseISO(job.deliveryDate), "EEE, MMM d")} · {formatDeliveryTime(job.deliveryTime)}
           </div>
@@ -135,7 +135,7 @@ export function JobCard({
 
       {job.finishing && (
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Order Details</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Order Details</div>
           <p className="whitespace-pre-wrap text-sm font-medium text-foreground">{job.finishing}</p>
         </div>
       )}
@@ -189,7 +189,7 @@ export function JobCard({
 
       {job.productImages.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Product Images
           </div>
           <div className="flex flex-wrap gap-2">
@@ -212,7 +212,7 @@ export function JobCard({
 
       {job.designFiles.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Design Files
           </div>
           <div className="flex flex-wrap gap-2">
@@ -273,7 +273,7 @@ export function JobCard({
 function Spec({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="truncate text-sm font-bold text-foreground">{value}</div>
     </div>
   );

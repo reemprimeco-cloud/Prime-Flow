@@ -99,20 +99,23 @@ export function MaterialRequestsClient({ initialRequests }: { initialRequests: M
               <TableRow key={request.id}>
                 <TableCell className="font-mono text-xs">{request.orderNumber ?? "—"}</TableCell>
                 <TableCell>{MATERIAL_TYPE_LABELS[request.materialType]}</TableCell>
-                <TableCell className="max-w-[240px] truncate">{request.description}</TableCell>
-                <TableCell>{request.quantity}</TableCell>
+                {/* Wraps to two lines rather than cutting off mid-word. */}
+                <TableCell className="max-w-[260px] min-w-48 whitespace-normal">
+                  <span className="line-clamp-2">{request.description}</span>
+                </TableCell>
+                <TableCell className="whitespace-nowrap">{request.quantity}</TableCell>
                 <TableCell>
                   <Badge variant={request.priority === "urgent" ? "destructive" : "muted"}>
                     {MATERIAL_PRIORITY_LABELS[request.priority]}
                   </Badge>
                 </TableCell>
-                <TableCell>{request.employeeName}</TableCell>
+                <TableCell className="whitespace-nowrap">{request.employeeName}</TableCell>
                 <TableCell>
                   <Badge variant={request.status === "pending" ? "warning" : request.status === "approved" || request.status === "fulfilled" ? "success" : "muted"}>
                     {MATERIAL_REQUEST_STATUS_LABELS[request.status]}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
                   {format(new Date(request.createdAt), "MMM d, h:mm a")}
                 </TableCell>
                 <TableCell>

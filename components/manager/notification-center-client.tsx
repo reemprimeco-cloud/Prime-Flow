@@ -119,8 +119,10 @@ export function NotificationCenterClient({ initialLogs }: { initialLogs: Notific
         </p>
       </div>
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
-        <TabsList>
+      {/* Five tabs are wider than a phone: they scroll sideways on their own
+          instead of widening the whole page. */}
+      <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)} className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <TabsList className="w-max">
           <TabsTrigger value="all">All ({tabCounts.all})</TabsTrigger>
           <TabsTrigger value="sent">Sent ({tabCounts.sent})</TabsTrigger>
           <TabsTrigger value="pending">Pending ({tabCounts.pending})</TabsTrigger>
@@ -190,9 +192,11 @@ export function NotificationCenterClient({ initialLogs }: { initialLogs: Notific
           <TableBody>
             {filtered.map((log) => (
               <TableRow key={log.id}>
-                <TableCell className="text-muted-foreground">{format(new Date(log.createdAt), "MMM d, h:mm a")}</TableCell>
+                <TableCell className="whitespace-nowrap text-muted-foreground tabular-nums">
+                  {format(new Date(log.createdAt), "MMM d, h:mm a")}
+                </TableCell>
                 <TableCell>
-                  <div className="flex flex-col">
+                  <div className="flex min-w-40 flex-col">
                     <span className="font-medium text-foreground">{log.recipientName ?? "Unknown"}</span>
                     <span className="text-xs text-muted-foreground">
                       {log.phone} · {log.receiverType === "customer" ? "Customer" : "Employee"}

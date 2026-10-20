@@ -56,11 +56,11 @@ export function EmployeeTopBar({
       <div className="grid grid-cols-3 gap-2.5">
         <StatBlock label="Assigned" value={assignedCount} />
         <StatBlock label="Done Today" value={completedToday} />
-        <div className="rounded-xl bg-muted/40 px-3 py-2.5 text-center">
-          <div className="font-mono text-lg font-extrabold tabular-nums leading-none sm:text-xl">
+        <div className="rounded-xl bg-muted/40 px-2 py-2.5 text-center">
+          <div className="text-lg font-extrabold whitespace-nowrap tabular-nums leading-none sm:text-xl">
             {now ? now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : "--:--"}
           </div>
-          <div className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">Time</div>
+          <div className="mt-1 text-xs uppercase text-muted-foreground">Time</div>
         </div>
       </div>
     </Card>
@@ -69,9 +69,9 @@ export function EmployeeTopBar({
 
 function StatBlock({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl bg-muted/40 px-3 py-2.5 text-center">
+    <div className="rounded-xl bg-muted/40 px-2 py-2.5 text-center">
       <div className="text-lg font-extrabold tabular-nums leading-none sm:text-xl">{value}</div>
-      <div className="mt-1 truncate text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="mt-1 text-xs leading-tight text-balance uppercase text-muted-foreground">{label}</div>
     </div>
   );
 }
