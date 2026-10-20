@@ -51,6 +51,9 @@ const OrderDetailDrawer = dynamic(
   { ssr: false }
 );
 
+/** How long a card's Approve can be undone before the customer's confirmation goes out. */
+const APPROVE_UNDO_MS = 5000;
+
 interface DashboardClientProps {
   /** e.g. "Good afternoon, Reem" — rendered as the page title. */
   greeting: string;
@@ -263,24 +266,67 @@ export function DashboardClient({
   };
 
   // "Approve" on a card — same as the edit form's Production Approval switch.
+  // Approving sends the customer a WhatsApp, which can't be unsent, so the
+  // card flips at once but the server call waits APPROVE_UNDO_MS behind an
+  // Undo. Each pending approval's commit lives here so it can be flushed early.
+  const pendingApprovals = useRef(new Map<string, () => void>());
+
   const handleApprove = (order: OrderListItem) => {
-    setQuickActionPendingId(order.id);
-    const undo = patchBoardOrder(order.id, { approved: true });
-    approveOrder(order.id)
-      .then(() => {
-        toast.success(
-          order.whatsappEnabled
-            ? `${order.orderNumber} approved — confirmation sent to ${order.customerName}`
-            : `${order.orderNumber} approved`
-        );
-        refreshLists();
-      })
-      .catch((error) => {
-        undo();
-        toast.error(error instanceof Error ? error.message : "Failed to approve the order");
-      })
-      .finally(() => setQuickActionPendingId(null));
+    patchBoardOrder(order.id, { approved: true });
+    let settled = false;
+    const settle = () => {
+      if (settled) return false;
+      settled = true;
+      clearTimeout(timer);
+      pendingApprovals.current.delete(order.id);
+      return true;
+    };
+    const commit = () => {
+      if (!settle()) return;
+      approveOrder(order.id)
+        .then(() => refreshLists())
+        .catch((error) => {
+          patchBoardOrder(order.id, { approved: false });
+          toast.error(
+            `${order.orderNumber} wasn't approved: ${error instanceof Error ? error.message : "something went wrong"}`
+          );
+        });
+    };
+    const timer = setTimeout(commit, APPROVE_UNDO_MS);
+    pendingApprovals.current.set(order.id, commit);
+
+    toast.success(`${order.orderNumber} approved`, {
+      description: order.whatsappEnabled
+        ? `The confirmation goes to ${order.customerName} in ${APPROVE_UNDO_MS / 1000} seconds.`
+        : `The assigned staff are notified in ${APPROVE_UNDO_MS / 1000} seconds.`,
+      duration: APPROVE_UNDO_MS,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          if (settle()) patchBoardOrder(order.id, { approved: false });
+        },
+      },
+    });
   };
+
+  // Never lose a tap: if the tab is hidden or closed, or the dashboard
+  // unmounts, approvals still waiting out their Undo window go now.
+  useEffect(() => {
+    const pending = pendingApprovals.current;
+    const flush = () => {
+      for (const commit of [...pending.values()]) commit();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, []);
 
   // "Customer approved" on a card — the drawer's manual design approval.
   const confirmDesignApproved = () => {

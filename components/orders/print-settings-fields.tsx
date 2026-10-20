@@ -85,7 +85,7 @@ export function PrintSettingsFields<TForm extends FieldValues>({
         className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3 py-2.5 text-left hover:bg-muted/60"
       >
         <span className="flex items-center gap-2 text-sm font-bold text-foreground">
-          <span className="rounded-md bg-destructive/10 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-destructive">
+          <span className="rounded-md bg-destructive/10 px-1.5 py-0.5 text-xs font-extrabold uppercase tracking-wide text-destructive">
             <Printer className="mr-1 inline size-3 align-[-2px]" />
             Fiery
           </span>

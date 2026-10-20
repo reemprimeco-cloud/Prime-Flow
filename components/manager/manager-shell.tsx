@@ -78,7 +78,7 @@ export function ManagerShell({ fullName, role, showDemoBanner, children }: Manag
           <div className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-lg border border-border">
             <Image src="/logo.jpg" alt="Prime Printing Co." width={28} height={28} className="size-full object-cover" priority />
           </div>
-          <span className="text-[17px] font-semibold tracking-tight">Prime Printing</span>
+          <span className="text-lg font-semibold tracking-tight">Prime Printing</span>
         </div>
       </header>
 

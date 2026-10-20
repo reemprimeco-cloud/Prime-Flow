@@ -103,7 +103,7 @@ export const OrderListView = memo(function OrderListView({
                 <div className="flex flex-wrap items-center gap-1.5">
                   <OrderStatusBadge status={order.status} />
                   {order.status === "new" && !order.approved && (
-                    <Badge variant="warning" className="gap-1">
+                    <Badge variant="warningSoft" className="gap-1">
                       <ShieldAlert className="size-3" />
                       Pending
                     </Badge>

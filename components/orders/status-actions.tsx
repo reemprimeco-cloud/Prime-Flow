@@ -24,19 +24,20 @@ const CONFIRM_REQUIRED: OrderStatus[] = ["delivered"];
  * depending on the order's *current* status (Start Production vs. Resume
  * Production vs. Back to Production), and only one of those needs a
  * confirm step. */
+/** `order` is the order number when the caller passes one ("#1051"), else "this order". */
 const CONFIRM_COPY: Record<
   string,
-  { title: string; description: (label: string) => string }
+  { title: (order: string | undefined) => string; description: (label: string, order: string) => string }
 > = {
   delivered: {
-    title: "Confirm delivery",
-    description: (label) =>
-      `Mark this order as ${label.toLowerCase()}? Only confirm once it’s actually in the customer’s hands.`,
+    title: (order) => (order ? `Confirm ${order} delivered?` : "Confirm delivery"),
+    description: (label, order) =>
+      `Mark ${order} as ${label.toLowerCase()}? Only confirm once it’s actually in the customer’s hands.`,
   },
   start_production: {
-    title: "Start production?",
-    description: () =>
-      "This moves the order out of the queue and marks it as being worked on. The customer will be notified — are you sure?",
+    title: (order) => (order ? `Start production on ${order}?` : "Start production?"),
+    description: (_label, order) =>
+      `Moves ${order} out of the queue and marks it as being worked on, and the customer is told it’s in production.`,
   },
 };
 
@@ -64,6 +65,8 @@ interface StatusActionsProps {
   only?: OrderStatus[];
   /** Target statuses to leave out — e.g. Start Production while the customer's design approval is outstanding. */
   exclude?: OrderStatus[];
+  /** Named in the confirm dialog ("Start production on #1051?") so it's clear which order a tap applies to. */
+  orderNumber?: string;
 }
 
 export function StatusActions({
@@ -76,6 +79,7 @@ export function StatusActions({
   size = "lg",
   only,
   exclude,
+  orderNumber,
 }: StatusActionsProps) {
   const [confirmTarget, setConfirmTarget] = useState<{ status: OrderStatus; label: string } | null>(null);
   const [providerPromptOpen, setProviderPromptOpen] = useState(false);
@@ -125,8 +129,10 @@ export function StatusActions({
       <Dialog open={!!confirmTarget} onOpenChange={(open) => !open && setConfirmTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{confirmCopy?.title ?? confirmTarget?.label}</DialogTitle>
-            <DialogDescription>{confirmTarget && confirmCopy?.description(confirmTarget.label)}</DialogDescription>
+            <DialogTitle>{confirmCopy?.title(orderNumber) ?? confirmTarget?.label}</DialogTitle>
+            <DialogDescription>
+              {confirmTarget && confirmCopy?.description(confirmTarget.label, orderNumber ?? "this order")}
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setConfirmTarget(null)}>
@@ -134,7 +140,7 @@ export function StatusActions({
             </Button>
             <Button
               type="button"
-              variant="success"
+              variant={confirmTarget && SUCCESS_TARGETS.includes(confirmTarget.status) ? "success" : "primary"}
               disabled={pending}
               onClick={() => {
                 if (confirmTarget) onChange(confirmTarget.status);

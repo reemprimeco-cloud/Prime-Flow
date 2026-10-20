@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getTodayBoundsInKuwait } from "@/lib/utils/date";
+import { formatKuwaitDateLong, getKuwaitHour, getTodayBoundsInKuwait } from "@/lib/utils/date";
 
 describe("getTodayBoundsInKuwait", () => {
   it("returns a 24-hour window", () => {
@@ -26,5 +26,16 @@ describe("getTodayBoundsInKuwait", () => {
     const justAfter = new Date(start.getTime() + 1);
     expect(justBefore.getTime() < start.getTime()).toBe(true);
     expect(justAfter.getTime() >= start.getTime() && justAfter.getTime() < end.getTime()).toBe(true);
+  });
+});
+
+describe("Kuwait clock for the dashboard greeting", () => {
+  it("reads the hour in Kuwait, not UTC", () => {
+    expect(getKuwaitHour(new Date("2026-10-20T10:00:00Z"))).toBe(13); // afternoon in Kuwait
+    expect(getKuwaitHour(new Date("2026-10-20T22:30:00Z"))).toBe(1);
+  });
+
+  it("names the Kuwait calendar day, which starts 3 hours before the UTC one", () => {
+    expect(formatKuwaitDateLong(new Date("2026-10-20T22:30:00Z"))).toBe("Wednesday, October 21, 2026");
   });
 });

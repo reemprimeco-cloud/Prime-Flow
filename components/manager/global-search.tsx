@@ -65,7 +65,7 @@ export function GlobalSearch() {
       >
         <Search className="size-4" />
         <span className="flex-1 text-left">Search everything…</span>
-        <kbd className="rounded border border-border bg-card px-1.5 py-0.5 text-[10px] font-semibold">⌘K</kbd>
+        <kbd className="rounded border border-border bg-card px-1.5 py-0.5 text-xs font-semibold">⌘K</kbd>
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
