@@ -124,6 +124,55 @@ export async function bulkMoveDeliveryDate(orderIds: string[], newDate: string):
   return { requested: orderIds.length, succeeded: orderIds.length, skipped: 0 };
 }
 
+/**
+ * "Mark completed" from the selection bar: takes the selected orders off
+ * the board in one go, from whatever stage they're at — the clean-up for
+ * jobs that were finished before they reached the board (e.g. a QuickBooks
+ * invoice raised after the customer already collected) or never moved
+ * through it. A manager override like overrideOrderStatus (it skips the
+ * transition graph), so it's history-logged per order and audit-logged as
+ * one; it sends nobody a message, since the work is already done.
+ * completed_at is stamped the way the month-end job does.
+ */
+export async function bulkMarkCompleted(orderIds: string[]): Promise<BulkResult> {
+  const session = await requireAdmin();
+  if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);
+  if (orderIds.length === 0) return { requested: 0, succeeded: 0, skipped: 0 };
+  const supabase = createServiceClient();
+
+  const { data: orders, error: fetchError } = await supabase.from("orders").select("id, status").in("id", orderIds);
+  if (fetchError) throw new Error(fetchError.message);
+  const eligible = (orders ?? []).filter((o) => o.status !== "completed");
+
+  if (eligible.length > 0) {
+    const ids = eligible.map((o) => o.id);
+    const { error } = await supabase
+      .from("orders")
+      .update({ status: "completed", completed_at: new Date().toISOString() })
+      .in("id", ids);
+    if (error) throw new Error(error.message);
+
+    await supabase.from("order_status_history").insert(
+      eligible.map((o) => ({ order_id: o.id, from_status: o.status, to_status: "completed" as const, changed_by: session.employeeId }))
+    );
+
+    await recordAuditLog({
+      actorId: session.employeeId,
+      actorName: session.fullName,
+      action: "status_changed",
+      entityType: "order",
+      entityId: null,
+      orderId: null,
+      oldValue: { statuses: Object.fromEntries(eligible.map((o) => [o.id, o.status])) },
+      newValue: { status: "completed", managerOverride: true, bulk: true, orderIds: ids },
+    });
+
+    await broadcast(CHANNELS.production, "order.updated", { bulk: true });
+  }
+
+  return { requested: orderIds.length, succeeded: eligible.length, skipped: orderIds.length - eligible.length };
+}
+
 export async function bulkArchiveCompleted(orderIds: string[]): Promise<BulkResult> {
   const session = await requireAdmin();
   if (isDemoMode()) throw new Error(DEMO_WRITE_ERROR);

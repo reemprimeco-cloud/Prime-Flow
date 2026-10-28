@@ -52,7 +52,22 @@ export async function GET(request: Request) {
     (o) => !o.archived && TERMINAL_READY_FOR_ARCHIVE.includes(o.status)
   );
 
-  let archived = 0;
+  // Orders a manager already marked completed from the dashboard
+  // (bulkMarkCompleted, lib/actions/bulk.ts) are finished but still
+  // unarchived — they only need archiving; their status and completed_at
+  // already say when they were done.
+  const alreadyCompleted = (monthOrders ?? []).filter((o) => !o.archived && o.status === "completed");
+  let archivedCompleted = 0;
+  if (alreadyCompleted.length > 0) {
+    const { error: archiveError } = await supabase
+      .from("orders")
+      .update({ archived: true })
+      .in("id", alreadyCompleted.map((o) => o.id));
+    if (archiveError) console.error("[month-end] failed to archive already-completed orders", archiveError);
+    else archivedCompleted = alreadyCompleted.length;
+  }
+
+  let archived = archivedCompleted;
   for (const order of toArchive) {
     try {
       assertValidTransition(order.status, "completed");

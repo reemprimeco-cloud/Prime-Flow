@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Archive, Bell, Calendar, Flag, Loader2, Trash2, Users, X } from "lucide-react";
+import { Archive, Bell, Calendar, CheckCheck, Flag, Loader2, Trash2, Users, X } from "lucide-react";
 
 import {
   bulkArchiveCompleted,
   bulkAssignEmployees,
   bulkChangePriority,
   bulkDeleteOrders,
+  bulkMarkCompleted,
   bulkMoveDeliveryDate,
   bulkSendNotifications,
   type BulkResult,
@@ -31,7 +32,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { ORDER_PRIORITY_LABELS } from "@/types/domain";
 import type { OrderPriority } from "@/types/database.types";
 
-type BulkMode = "assign" | "priority" | "date" | "delete" | null;
+type BulkMode = "assign" | "priority" | "date" | "complete" | "delete" | null;
 
 interface BulkActionsBarProps {
   selectedIds: string[];
@@ -73,6 +74,7 @@ export function BulkActionsBar({ selectedIds, employees, onClear, onDone }: Bulk
   const handlePriority = () => run("Priority change", () => bulkChangePriority(selectedIds, priority));
   const handleDate = () => run("Delivery date change", () => bulkMoveDeliveryDate(selectedIds, newDate));
   const handleDelete = () => run("Delete", () => bulkDeleteOrders(selectedIds), "deleted");
+  const handleComplete = () => run("Mark completed", () => bulkMarkCompleted(selectedIds), "completed");
 
   if (selectedIds.length === 0) return null;
 
@@ -89,6 +91,9 @@ export function BulkActionsBar({ selectedIds, employees, onClear, onDone }: Bulk
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={() => setMode("date")}>
             <Calendar className="size-3.5" /> Move Date
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => setMode("complete")} disabled={isPending}>
+            <CheckCheck className="size-3.5" /> Mark Completed
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={handleArchive} disabled={isPending}>
             <Archive className="size-3.5" /> Archive
@@ -192,6 +197,16 @@ export function BulkActionsBar({ selectedIds, employees, onClear, onDone }: Bulk
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={mode === "complete"}
+        onOpenChange={(open) => !open && setMode(null)}
+        title={`Mark ${selectedIds.length} order${selectedIds.length === 1 ? "" : "s"} completed?`}
+        description={`They leave the board from whatever stage they're at and move to Completed Orders. No one is messaged, so use this for work that's already done and handed over.`}
+        confirmLabel={`Mark ${selectedIds.length} completed`}
+        pending={isPending}
+        onConfirm={handleComplete}
+      />
 
       <ConfirmDialog
         open={mode === "delete"}
