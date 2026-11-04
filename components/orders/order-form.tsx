@@ -735,6 +735,9 @@ export function OrderForm({ open, onOpenChange, order, employees, onSaved }: Ord
                 existingFiles={existingImages}
                 onRemoveExisting={(id) => removeExistingFile(id, "image")}
                 removingId={removingId}
+                // Reference photos straight from a phone are 3-6MB; shrink
+                // them rather than reject. Design files are left untouched.
+                shrinkImages
               />
               <FileUpload
                 label="Design Files (PDF, AI, PSD, CDR, ZIP, images)"
