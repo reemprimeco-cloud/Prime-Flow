@@ -3,7 +3,6 @@
 import type { ComponentType } from "react";
 import { CheckCircle2, Clock, PackageCheck, PackageSearch, Sparkles, Truck } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { OrderCard } from "@/components/orders/order-card";
 import type { DashboardBoardResult, OrderListItem } from "@/lib/actions/orders";
 import type { OrderDeliveryProvider, OrderStatus } from "@/types/database.types";
@@ -27,16 +26,20 @@ interface SectionDef {
   key: keyof DashboardBoardResult;
   label: string;
   icon: ComponentType<{ className?: string }>;
-  accent: string;
+  /** Header band tint and the solid icon chip — each stage reads as its own colour at a glance. */
+  band: string;
+  chip: string;
 }
 
+// Same hues as each stage's status chip; delivery takes violet (as on the
+// TV board) so the two "Ready" stages don't look alike.
 const SECTIONS: SectionDef[] = [
-  { key: "new", label: "New Orders", icon: Sparkles, accent: "text-secondary" },
-  { key: "inProgress", label: "In Progress", icon: Clock, accent: "text-warning" },
-  { key: "waitingMaterials", label: "Waiting for Materials", icon: PackageSearch, accent: "text-destructive" },
-  { key: "readyPickup", label: "Ready for Pickup", icon: PackageCheck, accent: "text-success" },
-  { key: "readyDelivery", label: "Ready for Delivery", icon: Truck, accent: "text-success" },
-  { key: "deliveredToday", label: "Delivered Today", icon: CheckCircle2, accent: "text-muted-foreground" },
+  { key: "new", label: "New Orders", icon: Sparkles, band: "bg-secondary/10", chip: "bg-secondary text-white" },
+  { key: "inProgress", label: "In Progress", icon: Clock, band: "bg-warning/15", chip: "bg-warning text-warning-foreground" },
+  { key: "waitingMaterials", label: "Waiting for Materials", icon: PackageSearch, band: "bg-destructive/10", chip: "bg-destructive text-white" },
+  { key: "readyPickup", label: "Ready for Pickup", icon: PackageCheck, band: "bg-success/15", chip: "bg-success text-white" },
+  { key: "readyDelivery", label: "Ready for Delivery", icon: Truck, band: "bg-violet-500/10", chip: "bg-violet-600 text-white" },
+  { key: "deliveredToday", label: "Delivered Today", icon: CheckCircle2, band: "bg-muted", chip: "bg-muted-foreground text-white" },
 ];
 
 export function DashboardBoard({
@@ -54,21 +57,25 @@ export function DashboardBoard({
   onToggleSelect,
 }: DashboardBoardProps) {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-8">
       {SECTIONS.map((section) => {
         const orders = board[section.key];
         const Icon = section.icon;
         return (
           <section key={section.key} id={`board-${section.key}`} className="flex scroll-mt-20 flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <Icon className={`size-4 ${section.accent}`} />
-              <h2 className="text-sm font-bold text-foreground">{section.label}</h2>
-              <Badge variant="muted">{orders.length}</Badge>
+            <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl px-3 py-2.5 ${section.band}`}>
+              <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${section.chip}`}>
+                <Icon className="size-5" />
+              </span>
+              <h2 className="text-lg font-extrabold tracking-tight text-foreground">{section.label}</h2>
+              <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-card px-2 text-sm font-bold text-foreground tabular-nums shadow-sm">
+                {orders.length}
+              </span>
               {section.key === "deliveredToday" && orders.length > 0 && (
-                <span className="text-xs text-muted-foreground">— clears at midnight</span>
+                <span className="text-sm text-muted-foreground">clears at midnight</span>
               )}
               {/* An empty stage is a one-line fact, not a card-sized hole in the board. */}
-              {orders.length === 0 && <span className="text-xs text-muted-foreground">None right now</span>}
+              {orders.length === 0 && <span className="text-sm text-muted-foreground">None right now</span>}
             </div>
 
             {orders.length > 0 && (
