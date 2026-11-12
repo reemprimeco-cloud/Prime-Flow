@@ -183,7 +183,7 @@ export function OrderDetailDrawer({ orderId, open, onOpenChange, onEdit }: Order
             <SheetTitle>{order ? order.orderNumber : "Order"}</SheetTitle>
             {order && <OrderStatusBadge status={order.status} />}
           </div>
-          <SheetDescription dir="auto" className="text-start">
+          <SheetDescription dir="auto" className="text-left">
             {order?.customerName ?? "Loading order details…"}
           </SheetDescription>
         </SheetHeader>

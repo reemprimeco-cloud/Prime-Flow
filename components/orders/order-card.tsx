@@ -161,7 +161,7 @@ export const OrderCard = memo(function OrderCard({
               </div>
             </div>
           </div>
-          <div dir="auto" className="truncate text-start text-sm font-semibold text-foreground">
+          <div dir="auto" className="truncate text-left text-sm font-semibold text-foreground">
             {order.customerName}
           </div>
           <div className="truncate text-xs text-muted-foreground">
