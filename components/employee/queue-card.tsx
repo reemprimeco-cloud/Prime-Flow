@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Loader2, ShieldAlert, Sparkles } from "lucide-react";
+import { Download, FileClock, Loader2, ShieldAlert, Sparkles } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { CountdownTimer } from "@/components/orders/countdown-timer";
 import { DesignApprovalControl } from "@/components/employee/design-approval-control";
 import { cn } from "@/lib/utils";
 import { summarizePrintSettings } from "@/lib/print-settings";
+import { isBlockedByDesignApproval } from "@/types/domain";
 
 import type { EmployeeJobItem } from "@/lib/actions/employee-jobs";
 
@@ -50,6 +51,10 @@ export function QueueCard({
   const [fileOpened, setFileOpened] = useState(false);
   const hasFiles = job.productImages.length > 0 || job.designFiles.length > 0;
   const canStart = !hasFiles || fileOpened;
+  // The server refuses Start while the customer's design approval is out
+  // (and in production that refusal reaches the phone only as a generic
+  // error), so the card says what it's waiting on instead of offering it.
+  const waitingOnCustomer = isBlockedByDesignApproval(job.status, job.designApprovalStatus);
 
   return (
     <Card className={cn("flex flex-col gap-3 p-3", isNext && "border-secondary/50 bg-secondary/5")}>
@@ -78,7 +83,12 @@ export function QueueCard({
 
         <div className="flex shrink-0 flex-col items-end gap-1.5">
           <CountdownTimer deliveryDate={job.deliveryDate} deliveryTime={job.deliveryTime} size="sm" />
-          {job.approved ? (
+          {job.approved && waitingOnCustomer ? (
+            <span className="flex items-center gap-1 text-xs font-semibold text-amber-800">
+              <FileClock className="size-3 shrink-0" />
+              Waiting for customer
+            </span>
+          ) : job.approved ? (
             <Button type="button" size="sm" variant="primary" disabled={pending || !canStart} onClick={onStart}>
               {pending && <Loader2 className="animate-spin" />}
               Start
