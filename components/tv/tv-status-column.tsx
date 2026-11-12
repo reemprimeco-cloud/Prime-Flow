@@ -86,7 +86,7 @@ export function TvStatusColumn({ status, orders, now }: TvStatusColumnProps) {
           <span className={`flex size-[2.4rem] shrink-0 items-center justify-center rounded-[0.7rem] ${iconClassName}`}>
             <Icon className="size-[1.35rem]" />
           </span>
-          <h2 className="truncate text-[1.6rem] leading-tight font-extrabold">
+          <h2 className="truncate text-[1.4rem] leading-tight font-extrabold">
             {TV_COLUMN_LABELS[status] ?? ORDER_STATUS_LABELS[status]}
           </h2>
         </div>
